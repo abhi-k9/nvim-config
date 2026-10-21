@@ -168,7 +168,18 @@ return {
       -- in the session file (sessionoptions includes "globals"). Runs LAST,
       -- after the dap-buffer wipe above, so the saved map can't reference
       -- buffers we're about to delete.
-      "ScopeSaveState",
+      function()
+        vim.cmd("ScopeSaveState")
+        -- scope.nvim serializes its handle-keyed cache with pairs(), whose
+        -- order need not match the tab order recorded by :mksession (for
+        -- example after :tabmove). Restore expects a dense tab-order list.
+        local core, utils = require("scope.core"), require("scope.utils")
+        local cache = {}
+        for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
+          cache[#cache + 1] = utils.get_buffer_names(core.cache[tab] or {})
+        end
+        vim.g.ScopeState = vim.json.encode({ cache = cache, last_tab = core.last_tab })
+      end,
     },
 
     -- After auto-session restores, re-apply scope.nvim's per-tab buffer map
