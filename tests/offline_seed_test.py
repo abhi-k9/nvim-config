@@ -203,6 +203,43 @@ class HostileSeeds(Base):
                 seed = make_tar(self.tmp / "seed.tar.gz", [("mason/bin/x", "symlink", b"", link)])
                 self.assertRefused(self.install(seed), "points outside the seed")
 
+    def test_tar_venv_exemption_applies_only_to_python_executables(self):
+        victim = self.tmp / "outside.cfg"
+        original = f"home = /missing/python\nversion = {sys.version_info[0]}.{sys.version_info[1]}.0\n"
+        victim.write_text(original)
+        for name in ("pyvenv.cfg", "bin/not-python", "lib/anything"):
+            with self.subTest(name=name):
+                seed = make_tar(self.tmp / "seed.tar.gz", [
+                    (f"mason/packages/tool/venv/{name}", "symlink", b"", str(victim)),
+                ])
+                self.assertRefused(self.install(seed), "points outside the seed")
+                self.assertEqual(victim.read_text(), original)
+
+    def test_repair_does_not_follow_existing_external_venv_cfg(self):
+        if not can_symlink(str(self.tmp)):
+            self.skipTest("no symlink privilege")
+        victim = self.tmp / "outside.cfg"
+        original = f"home = /missing/python\nversion = {sys.version_info[0]}.{sys.version_info[1]}.0\n"
+        victim.write_text(original)
+        cfg = self.data / "mason" / "packages" / "tool" / "venv" / "pyvenv.cfg"
+        cfg.parent.mkdir(parents=True)
+        cfg.symlink_to(victim)
+        with mock.patch.object(S.subprocess, "run") as run, redirect_stderr(io.StringIO()):
+            S.repair_venvs(self.data)
+        run.assert_not_called()
+        self.assertEqual(victim.read_text(), original)
+
+    def test_repair_skips_a_cyclic_venv_cfg(self):
+        if not can_symlink(str(self.tmp)):
+            self.skipTest("no symlink privilege")
+        cfg = self.data / "mason" / "packages" / "tool" / "venv" / "pyvenv.cfg"
+        cfg.parent.mkdir(parents=True)
+        cfg.symlink_to(cfg.name)
+        with mock.patch.object(S.subprocess, "run") as run, redirect_stderr(io.StringIO()):
+            S.repair_venvs(self.data)
+        run.assert_not_called()
+        self.assertTrue(cfg.is_symlink())
+
     def test_tar_hard_link_out_of_seed_is_refused(self):
         for link in ("/etc/passwd", "../etc/passwd", "mason/absent"):
             with self.subTest(link=link):

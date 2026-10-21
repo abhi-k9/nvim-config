@@ -450,7 +450,16 @@ def validate(entries, max_entries, max_total, max_file):
             links.add(key)
             # A venv's bin/python points at the build machine's Python (repair_venvs
             # re-points it); every other link must stay inside the seed.
-            in_venv = len(e.parts) > 4 and e.parts[:2] == ("mason", "packages") and e.parts[3] == "venv"
+            # Exempt only the interpreter links, not arbitrary venv paths:
+            # repair_venvs writes pyvenv.cfg, so allowing it to be an external
+            # link would turn a later repair into an out-of-tree write.
+            in_venv = (
+                len(e.parts) == 6
+                and e.parts[:2] == ("mason", "packages")
+                and e.parts[3] == "venv"
+                and e.parts[4] == ("Scripts" if WINDOWS else "bin")
+                and re.fullmatch(r"python(?:\d+(?:\.\d+)*)?(?:\.exe)?", e.parts[5]) is not None
+            )
             target = entry_parts(posixpath.normpath("/".join(e.parts[:-1] + (e.link,))))
             if not in_venv and (e.link.startswith("/") or target is None or target[0] not in PARTS):
                 fail(f"seed symlink {e.name!r} points outside the seed ({e.link})")
@@ -550,6 +559,16 @@ def repair_venvs(data_dir):
     """
     here = "%d.%d" % sys.version_info[:2]
     for cfg in sorted((data_dir / "mason" / "packages").glob("*/venv/pyvenv.cfg")):
+        # This also protects existing data when repair_venvs is called directly:
+        # never read or rewrite a cfg linked outside the selected data folder.
+        if cfg.is_symlink():
+            warn(f"refusing to repair linked venv configuration: {cfg}")
+            continue
+        try:
+            cfg.resolve().relative_to(data_dir.resolve())
+        except (OSError, RuntimeError, ValueError):
+            warn(f"refusing to repair venv outside the data folder or through invalid links: {cfg}")
+            continue
         vals = {}
         for line in cfg.read_text(encoding="utf-8", errors="replace").splitlines():
             key, sep, val = line.partition("=")
@@ -636,7 +655,8 @@ def cmd_install(args):
             remove_tree(staging)
     if backup is not None:
         print(f"  the previous {', '.join(present)} moved to {backup}; delete it once nvim works")
-    repair_venvs(data_dir)
+    if "mason" in tops:
+        repair_venvs(data_dir)
     print("Done. Start nvim; :checkhealth should report no downloads pending.")
     return 0
 
