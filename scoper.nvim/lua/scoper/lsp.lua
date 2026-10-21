@@ -348,8 +348,8 @@ local function run_in_background(job, cb)
   end
 
   vim.fn.mkdir(job.out_dir, "p")
-  local wrote, res = pcall(vim.fn.writefile, { vim.json.encode(job) }, job_path)
-  if not wrote or res ~= 0 then return run_here("can't write " .. job_path) end
+  local wrote, write_result = pcall(vim.fn.writefile, { vim.json.encode(job) }, job_path)
+  if not wrote or write_result ~= 0 then return run_here("can't write " .. job_path) end
   local ok, err = pcall(
     vim.system,
     M._worker_cmd(job_path, result_path),

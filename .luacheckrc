@@ -32,6 +32,15 @@ files["tests/*.lua"] = {
   ignore = { "122" },
 }
 
+-- These documented adapters intentionally replace exactly one public API.
+-- Keep the rest of vim read-only so unrelated accidental writes still fail.
+files["lua/plugins/editor.lua"] = {
+  globals = { "vim.filetype.get_option" },
+}
+files["lua/plugins/finder.lua"] = {
+  globals = { "vim.ui.select" },
+}
+
 -- The `scoper.nvim/` subtree has its own .luacheckrc; don't double-check.
 exclude_files = {
   "scoper.nvim/",

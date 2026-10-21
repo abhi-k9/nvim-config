@@ -51,8 +51,9 @@ function M.invalid(entries)
       and not (
         vim.islist(args)
         and #vim.tbl_filter(function(a)
-          return type(a) ~= "string"
-        end, args) == 0
+            return type(a) ~= "string"
+          end, args)
+          == 0
       )
     then
       return ("entry %d has neither a command nor a list of arguments"):format(i)
