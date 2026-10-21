@@ -282,6 +282,22 @@ end)
 describe("scoper.pickers with fzf-lua", function()
   local p, saved, got
 
+  -- Let Neovim handle its platform-specific shell flags and quoting (on
+  -- Windows 'shellcmdflag' can contain multiple flags such as /s /c).
+  local function run_files(opts)
+    assert.equals(Path.normalize(p.root), opts.cwd)
+    local cwd, local_dir = vim.fn.getcwd(), vim.fn.haslocaldir()
+    vim.cmd.lcd(vim.fn.fnameescape(opts.cwd))
+    local ok, files = pcall(vim.fn.systemlist, opts.cmd)
+    local code = vim.v.shell_error
+    vim.cmd[local_dir == 0 and "cd" or "lcd"](vim.fn.fnameescape(cwd))
+    assert.is_true(ok, files)
+    assert.equals(0, code, table.concat(files, "\n"))
+    return vim.tbl_map(function(file)
+      return Path.normalize(file)
+    end, files)
+  end
+
   local function escape(s)
     return "<" .. s .. ">"
   end
@@ -330,7 +346,7 @@ describe("scoper.pickers with fzf-lua", function()
     assert.are.equal(
       "rg --files --color=never --hidden --follow"
         .. case
-        .. " <--glob=!.git> <--glob=!**/gen/**> <src>",
+        .. " <--glob=!.git> <--glob=!**/gen/**> -- <src>",
       got.files.cmd
     )
   end)
@@ -404,16 +420,24 @@ describe("scoper.pickers with fzf-lua", function()
     State.set_enabled(true)
     vim.cmd.lcd(vim.fn.fnameescape(p.root .. "/src"))
     local opts = pickers._fzf_files_opts(pickers._context(), vim.fn.shellescape)
-    local result = vim
-      .system({ vim.o.shell, vim.o.shellcmdflag, opts.cmd }, {
-        cwd = opts.cwd,
-        text = true,
-      })
-      :wait()
-    assert.equals(0, result.code, result.stderr)
-    assert.are.same({ "src/keep.c" }, vim.split(vim.trim(result.stdout), "\n"))
+    assert.are.same({ "src/keep.c" }, run_files(opts))
     assert.is_false(State.is_in_scope(p.root .. "/src/gen/a.c"))
     vim.cmd.cd(vim.fn.fnameescape(p.root))
+  end)
+
+  it("treats a leading-dash include as a directory, never a ripgrep option", function()
+    if saved.executable("rg") ~= 1 then
+      pending("ripgrep is required for the integration check")
+      return
+    end
+    vim.fn.mkdir(p.root .. "/-U", "p")
+    vim.fn.writefile({ "in scope" }, p.root .. "/-U/scoped.c")
+    vim.fn.writefile({ "outside scope" }, p.root .. "/src/outside.c")
+    State.clear_active()
+    State.add_paths("-U")
+    State.set_enabled(true)
+    local opts = pickers._fzf_files_opts(pickers._context(), vim.fn.shellescape)
+    assert.are.same({ "-U/scoped.c" }, run_files(opts))
   end)
 end)
 

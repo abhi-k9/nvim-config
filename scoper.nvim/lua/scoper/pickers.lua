@@ -255,7 +255,7 @@ end
 -- ---------------------------------------------------------------------------
 local has = Util.has
 
--- The search dirs relative to Neovim's cwd when inside it, the way fzf-lua
+-- The search dirs relative to the project root when inside it, the way fzf-lua
 -- passes `search_paths`: the tools match excludes against the paths they
 -- list, which then don't contain the folders above the cwd.
 local function cwd_relative(dirs, cwd)
@@ -393,7 +393,7 @@ end
 -- fzf-lua files() options for `ctx`. ripgrep lists the files when it is
 -- installed (fzf-lua would pick fd first; fd can't match excludes
 -- case-insensitively), with the search dirs appended to the command the
--- way fzf-lua appends `search_paths`: relative to Neovim's cwd and quoted.
+-- way fzf-lua appends `search_paths`: relative to the project root and quoted.
 -- `.git` is excluded explicitly because hidden files are listed.
 function M._fzf_files_opts(ctx, escape)
   local cwd = ctx.cwd or State.root()
@@ -405,6 +405,9 @@ function M._fzf_files_opts(ctx, escape)
     for _, ex in ipairs(M._rg_globs(excludes, ctx.dirs, cwd)) do
       table.insert(parts, M._rg_exclude(ex, escape))
     end
+    -- Quoting protects shell syntax; -- protects directory names that rg
+    -- would otherwise parse as options (for example an include named -U).
+    if ctx.dirs and #ctx.dirs > 0 then table.insert(parts, "--") end
     for _, d in ipairs(ctx.dirs or {}) do
       table.insert(parts, escape(Path.relative(d, cwd)))
     end
@@ -496,8 +499,8 @@ end
 
 -- fzf-lua live_grep() options for `ctx`. fzf-lua appends the query after
 -- rg_opts, so they must end in `-e` like its defaults do: a query starting
--- with "-" (`-Wall`) is then still a pattern, not a flag. search_paths
--- only, NO cwd — see M.find.
+-- with "-" (`-Wall`) is then still a pattern, not a flag. Use the loaded
+-- project root for cwd, just as M.find does.
 function M._fzf_grep_opts(ctx, query, escape)
   local cwd = ctx.cwd or State.root()
   local parts = {
