@@ -288,12 +288,10 @@ A few things worth knowing:
   There is no file watcher: instance B picks up instance A's changes
   only when B next changes the scope itself (it re-reads the file
   first) or on a `:cd`. Until then B's statusline, pickers and clangd
-  filter keep using what B loaded. They also share the filtered
-  compile_commands cache for a given scope name, so divergent
-  *contents* under the same name can make the cache flip-flop between
-  the two versions as each instance rebuilds it. If you genuinely need
-  two scopes "live" at once, use two nvim instances in two different
-  cwds.
+  filter keep using what B loaded. Filtered compilation databases are
+  isolated by project, scope name, and a hash of the loaded include/exclude
+  lists, so instances retaining divergent scope contents do not overwrite
+  each other's clangd input. The state file itself is still shared.
 - **Only simultaneous saves race.** Saves are atomic (a crash can never
   corrupt the store), and every change re-reads the file first, so an
   edit saved earlier by another instance is kept. Two saves in the
@@ -342,7 +340,7 @@ When `lsp.clangd = true` in setup, every scope change triggers:
 1. Locate `compile_commands.json` (cwd, `./build`, `./out`, `./cmake-build-*`)
 2. Filter entries where `entry.file` is in the active scope
 3. Write filtered JSON to
-   `stdpath("cache")/scoper/<project-hash>/<scope>/compile_commands.json`
+   `stdpath("cache")/scoper/<project-hash>/<scope>/<scope-hash>/compile_commands.json`
 4. Update `vim.lsp.config("clangd", { cmd = ... --compile-commands-dir=... })`
 5. Restart this project's running clangd clients
 
@@ -370,7 +368,10 @@ clangd is there (for example after mason.nvim has loaded) switches to
 the function.
 
 Steps 1–3 are cached: an unchanged `compile_commands.json` and scope
-skip them. When they do run, scope edits and `:ScoperLspReload` do steps
+skip them. A changed include/exclude list gets its own cache namespace,
+even if it happens to select the same files: its first use filters and
+restarts once, while returning to a previous list reuses that cache.
+When they do run, scope edits and `:ScoperLspReload` do steps
 2–3 in a background `nvim --clean --headless` process, so a big database
 (10k entries: ~300 ms) doesn't freeze the editor. Only
 `require("scoper").clangd_cmd()`, which must return a ready cmd, filters
@@ -507,11 +508,14 @@ or `<reason>; clangd will use built-in discovery` (no CC.json found).
 | Thing | Path |
 |---|---|
 | Per-project state | `stdpath("data")/scoper/<hash>.json` |
-| Filtered compile_commands | `stdpath("cache")/scoper/<hash>/<scope>/` |
+| Filtered compile_commands | `stdpath("cache")/scoper/<hash>/<scope>/<scope-hash>/` |
 
 `<hash>` is the first 16 hex digits of the sha256 of the project path
 (lower-cased on Windows). A state file that can't be parsed is kept
 next to it as `<hash>.json.corrupt-<time>` before Scoper starts over.
+`<scope-hash>` is the first 32 hex digits of the SHA256 of the normalized
+project path and the scope's include/exclude lists. Older cache layouts
+are no longer used and may be deleted.
 
 Both directories are safe to delete; Scoper rebuilds on next launch.
 

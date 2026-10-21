@@ -89,10 +89,10 @@ function M.run(job)
   local kept = M.filter(entries, State.build_matcher(job.scope, job.root))
   local encoded = vim.json.encode(kept)
   local out_path = job.out_dir .. "/compile_commands.json"
-  -- Did the database clangd will read actually change? A scope edit that
-  -- filters to the same entries (an exclude matching nothing, a path
-  -- already covered) rewrites nothing, so the automatic reload can skip
-  -- restarting clangd. The meta file holds the hash of the current output.
+  -- Did the database clangd will read actually change? Source-database
+  -- edits affecting only entries outside this scope rewrite nothing, so
+  -- automatic reload can skip restarting clangd. Different scope contents
+  -- use separate directories. The meta file hashes the current output.
   local digest = vim.fn.sha256(encoded)
   local changed = digest ~= job.old_digest
 

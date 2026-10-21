@@ -15,7 +15,7 @@
 --           scope (scoper.cdb; reloads run it in a background Neovim
 --           process so big databases don't freeze the editor)
 --        c. Write the filtered JSON to:
---             stdpath("cache")/scoper/<cwd-hash>/<scope>/compile_commands.json
+--             stdpath("cache")/scoper/<cwd-hash>/<scope>/<scope-hash>/compile_commands.json
 --        d. Configure clangd via vim.lsp.config with --compile-commands-dir
 --           pointing at that cache dir, alongside the default flags
 --        e. Restart this project's running clangd clients so they pick
@@ -107,10 +107,11 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Compute the cache directory for the filtered output. Per-project (cwd
--- hash) and per-scope, so each scope keeps its own cache file and
--- switching between scopes doesn't trip over stale data.
+-- hash), scope name, and scope contents. Two Neovim instances may retain
+-- different includes/excludes under the same name; their clangd clients
+-- must never watch a shared file that either instance can overwrite.
 -- ---------------------------------------------------------------------------
-local function cache_dir()
+local function cache_dir(fingerprint)
   -- Same identity as state.store_path: util.cwd_hash of Path.key(root)
   -- (case-insensitive on Windows), so the state file and this cache
   -- always agree on which project they belong to.
@@ -121,7 +122,9 @@ local function cache_dir()
   -- component; '/' would nest, '..' would traverse, ':' fails mkdir on
   -- Windows.
   local scope = State.active_name():gsub("[^%w_%-%.]", "_")
-  return Path.normalize(vim.fn.stdpath("cache") .. "/scoper/" .. hash .. "/" .. scope)
+  return Path.normalize(
+    vim.fn.stdpath("cache") .. "/scoper/" .. hash .. "/" .. scope .. "/" .. fingerprint:sub(1, 32)
+  )
 end
 
 -- Extra flags from the last clangd_cmd(extra_args) call. Reloads rebuild
@@ -232,11 +235,15 @@ function prepare(opts)
   -- (missing output) invalidates naturally. Kept/total counts are stored
   -- too so the skip path can report the same message as a real run.
   -- -------------------------------------------------------------------
-  local out_dir = cache_dir()
+  local fingerprint = vim.fn.sha256(vim.json.encode({
+    Path.key(State.root()),
+    scope.include,
+    scope.exclude,
+  }))
+  local out_dir = cache_dir(fingerprint)
   local out_path = out_dir .. "/compile_commands.json"
   local meta_path = out_dir .. "/.scoper-meta.json"
   local st = vim.uv.fs_stat(cc)
-  local fingerprint = vim.fn.sha256(vim.json.encode({ scope.include, scope.exclude }))
   local meta = read_json(meta_path)
   local out_st = vim.uv.fs_stat(out_path)
   local have_out = out_st ~= nil and out_st.type == "file"
@@ -589,8 +596,8 @@ end
 -- opts.auto (set by the ScoperChanged listener): skip the restart when it
 -- would change nothing — same cmd as the one last applied, the filtered
 -- database unchanged, and clangd already running — so edits that don't
--- affect clangd (any edit while scoping is off, an exclude matching
--- nothing) keep its warm in-memory index. Automatic reloads are also
+-- affect clangd (any edit while scoping is off, or a database edit to
+-- out-of-scope files) keep its warm in-memory index. Automatic reloads are also
 -- silent when no clangd of this project runs. :ScoperLspReload always
 -- restarts and reports.
 -- ---------------------------------------------------------------------------

@@ -257,12 +257,51 @@ describe("scoper.lsp filtered compile_commands", function()
     assert.is_true(stale)
   end)
 
-  it("reports no change when a scope edit filters to the same entries", function()
-    lsp.write_filtered_compile_commands()
+  it("isolates changed scope contents even when they filter to the same entries", function()
+    local old_dir = lsp.write_filtered_compile_commands()
     State.add_excludes("**/nothing/**")
-    local _, info, changed = lsp.write_filtered_compile_commands()
+    local dir, info, changed = lsp.write_filtered_compile_commands()
     assert.is_nil(info:find("(cached)", 1, true))
-    assert.is_false(changed)
+    assert.is_true(changed)
+    assert.is_not.equal(old_dir, dir)
+    assert.are.same(
+      read_json(old_dir .. "/compile_commands.json"),
+      read_json(dir .. "/compile_commands.json")
+    )
+
+    State.remove_excludes("**/nothing/**")
+    local restored, cached = lsp.write_filtered_compile_commands()
+    assert.equals(old_dir, restored)
+    assert.is_truthy(cached:find("(cached)", 1, true))
+  end)
+
+  it("keeps divergent same-named scopes isolated when their writes interleave", function()
+    local Util = require("scoper.util")
+    local original_write, interleaved, other_dir = Util.atomic_write, false, nil
+    Util.atomic_write = function(path, lines)
+      local ok, err = original_write(path, lines)
+      if not interleaved and path:match("/compile_commands%.json$") then
+        interleaved = true
+        -- Another instance loaded a different include list for "default"
+        -- and completes both its writes before this writer saves metadata.
+        State.clear_active()
+        State.add_paths("lib")
+        other_dir = lsp.write_filtered_compile_commands()
+        State.clear_active()
+        State.add_paths("src")
+      end
+      return ok, err
+    end
+    local ok, dir = pcall(lsp.write_filtered_compile_commands)
+    Util.atomic_write = original_write
+
+    assert.is_true(ok, dir)
+    assert.is_true(interleaved)
+    assert.is_not.equal(other_dir, dir)
+    assert.equals(p.root .. "/src/a.c", read_json(dir .. "/compile_commands.json")[1].file)
+    assert.equals(p.root .. "/lib/b.c", read_json(other_dir .. "/compile_commands.json")[1].file)
+    local _, cached = lsp.write_filtered_compile_commands()
+    assert.is_truthy(cached:find("(cached)", 1, true))
   end)
 
   it("reports a change when the database changes what's in scope", function()
