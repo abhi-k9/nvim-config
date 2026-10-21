@@ -76,34 +76,6 @@ describe("scoper.pickers path escaping", function()
     assert.is_truthy(f2:find("t2.txt", 1, true))
   end)
 
-  it("_grug_path escapes spaces the way grug-far's splitter expects", function()
-    assert.are.equal("/p/my\\ dir", pickers._grug_path("/p/my dir"))
-    assert.are.equal([[C:\src\app]], pickers._grug_path([[C:\src\app]])) -- separators untouched
-  end)
-
-  it("_grug_prefills passes the dirs and the excludes, case-insensitive on Windows", function()
-    local pre =
-      pickers._grug_prefills({ dirs = { "/p/my dir", "/p/b" }, excludes = { "**/gen/**" } }, "/p")
-    assert.are.equal("/p/my\\ dir /p/b", pre.paths)
-    local case = Path.is_windows and "--glob-case-insensitive " or ""
-    assert.are.equal(case .. "--glob=!**/gen/**", pre.flags)
-  end)
-
-  it("_grug_prefills writes ? for whitespace in a dir: grug-far splits its flags there", function()
-    local saved = Path.is_windows
-    Path.is_windows = false
-    local pre = pickers._grug_prefills({ dirs = { "/w/my lib" }, excludes = { "old" } }, "/p")
-    Path.is_windows = saved
-    assert.are.equal("--glob=!/old --glob=!?*/**/old --glob=!//w/my?lib/**/old", pre.flags)
-  end)
-
-  it("_grug_prefills refuses an exclude with whitespace instead of changing its meaning", function()
-    local pre, err =
-      pickers._grug_prefills({ dirs = { "/p/src" }, excludes = { "old stuff" } }, "/p")
-    assert.is_nil(pre)
-    assert.is_truthy(err:find('"old stuff"', 1, true), err)
-  end)
-
   it("_vimgrep_pattern escapes only the unescaped delimiters", function()
     assert.are.equal([[abc\/def]], pickers._vimgrep_pattern("abc/def"))
     assert.are.equal([[abc\/def]], pickers._vimgrep_pattern([[abc\/def]]))
@@ -404,6 +376,45 @@ describe("scoper.pickers with fzf-lua", function()
     pickers.grep()
     assert.is_true(vim.endswith(got.grep.rg_opts, " <--glob=!**/gen/**> <--glob=!/src/gen> -e"))
   end)
+
+  it("keeps project-relative excludes after :lcd or :tcd", function()
+    State.add_excludes("src/gen")
+    State.set_enabled(true)
+    for _, command in ipairs({ "lcd", "tcd" }) do
+      vim.cmd[command](vim.fn.fnameescape(p.root .. "/src"))
+      pickers.find()
+      pickers.grep()
+      assert.are.equal(Path.normalize(p.root), got.files.cwd)
+      assert.are.equal(Path.normalize(p.root), got.grep.cwd)
+      assert.is_truthy(got.files.cmd:find("<src>", 1, true))
+      assert.is_truthy(got.files.cmd:find("<--glob=!src/gen>", 1, true))
+      vim.cmd.cd(vim.fn.fnameescape(p.root))
+    end
+  end)
+
+  it("runs ripgrep from the project even when the caller has :lcd", function()
+    if saved.executable("rg") ~= 1 then
+      pending("ripgrep is required for the integration check")
+      return
+    end
+    vim.fn.writefile({ "generated" }, p.root .. "/src/gen/a.c")
+    vim.fn.writefile({ "keep" }, p.root .. "/src/keep.c")
+    State.remove_excludes("**/gen/**")
+    State.add_excludes("src/gen")
+    State.set_enabled(true)
+    vim.cmd.lcd(vim.fn.fnameescape(p.root .. "/src"))
+    local opts = pickers._fzf_files_opts(pickers._context(), vim.fn.shellescape)
+    local result = vim
+      .system({ vim.o.shell, vim.o.shellcmdflag, opts.cmd }, {
+        cwd = opts.cwd,
+        text = true,
+      })
+      :wait()
+    assert.equals(0, result.code, result.stderr)
+    assert.are.same({ "src/keep.c" }, vim.split(vim.trim(result.stdout), "\n"))
+    assert.is_false(State.is_in_scope(p.root .. "/src/gen/a.c"))
+    vim.cmd.cd(vim.fn.fnameescape(p.root))
+  end)
 end)
 
 describe("scoper.pickers with telescope", function()
@@ -502,6 +513,20 @@ describe("scoper.pickers with telescope", function()
     assert.is_true(keep)
     assert.are.same({ { modes = { "i", "n" }, key = "<M-p>" } }, maps)
   end)
+
+  it("retains the project root and excludes after a window-local directory change", function()
+    State.add_excludes("src/gen")
+    State.set_enabled(true)
+    vim.cmd.lcd(vim.fn.fnameescape(p.root .. "/src"))
+    pickers.find()
+    pickers.grep()
+    assert.equals(Path.normalize(p.root), got.find.cwd)
+    assert.equals(Path.normalize(p.root), got.grep.cwd)
+    assert.are.same({ "src" }, got.find.search_dirs)
+    assert.is_true(ignored(got.find.file_ignore_patterns, "src/gen/a.c"))
+    assert.is_true(ignored(got.grep.file_ignore_patterns, "src/gen/a.c"))
+    vim.cmd.cd(vim.fn.fnameescape(p.root))
+  end)
 end)
 
 describe("scoper.pickers plain-vim grep", function()
@@ -539,6 +564,17 @@ describe("scoper.pickers plain-vim grep", function()
       pickers.grep(pat)
       assert.are.same({ "s.c" }, hits(), pat)
     end
+  end)
+
+  it("searches the whole project with scoping off after :lcd", function()
+    vim.fn.writefile({ "needle" }, p.root .. "/root.c")
+    vim.cmd.lcd(vim.fn.fnameescape(p.root .. "/src"))
+    pickers.grep("needle")
+    local found = hits()
+    table.sort(found)
+    assert.are.same({ "a.c", "b.c", "root.c" }, found)
+    vim.cmd.cclose()
+    vim.cmd.cd(vim.fn.fnameescape(p.root))
   end)
 end)
 
@@ -582,9 +618,8 @@ describe("scoper.pickers plain-vim find", function()
 end)
 
 describe("scoper.pickers replace", function()
-  it("refuses an exclude with whitespace rather than open a wider replace", function()
+  it("refuses restricted replacement before starting any backend operation", function()
     local p = setup_project()
-    State.add_excludes("old stuff")
     State.set_enabled(true)
     local saved, opened, msg = package.loaded["grug-far"], false, nil
     package.loaded["grug-far"] = {
@@ -596,10 +631,31 @@ describe("scoper.pickers replace", function()
     vim.notify = function(m)
       msg = m
     end
-    pickers.replace()
+    for _, excludes in ipairs({ {}, { "src/gen" }, { "old stuff" } }) do
+      State.remove_excludes(vim.deepcopy(State.active_scope().exclude))
+      State.add_excludes(excludes)
+      pickers.replace({ search = "needle", replacement = "changed" })
+      assert.is_false(opened)
+      assert.is_truthy(msg and msg:find("scoped replace is unavailable", 1, true), msg)
+    end
     vim.notify, package.loaded["grug-far"] = notify, saved
     teardown_project(p)
-    assert.is_false(opened)
-    assert.is_truthy(msg and msg:find("old stuff", 1, true), msg)
+  end)
+
+  it("preserves ordinary unscoped grug-far behavior and caller directory", function()
+    local p = setup_project()
+    local saved, got = package.loaded["grug-far"], nil
+    vim.cmd.lcd(vim.fn.fnameescape(p.root .. "/src"))
+    package.loaded["grug-far"] = {
+      open = function(opts)
+        got = opts
+      end,
+    }
+    pickers.replace({ search = "needle" })
+    assert.are.same({ prefills = { search = "needle" } }, got)
+    assert.equals(Path.normalize(p.root .. "/src"), Path.normalize(vim.fn.getcwd()))
+    vim.cmd.cd(vim.fn.fnameescape(p.root))
+    package.loaded["grug-far"] = saved
+    teardown_project(p)
   end)
 end)

@@ -41,7 +41,10 @@ local function get_context()
     vim.notify("Scoper: no active scope", vim.log.levels.WARN)
     return nil
   end
-  if not State.is_enabled() or #scope.include == 0 then return { name = "all", excludes = {} } end
+  local cwd = State.root()
+  if not State.is_enabled() or #scope.include == 0 then
+    return { name = "all", cwd = cwd, excludes = {} }
+  end
   local dirs = State.active_dirs()
   if #dirs == 0 then
     vim.notify(
@@ -54,6 +57,7 @@ local function get_context()
   end
   return {
     name = State.active_name(),
+    cwd = cwd,
     dirs = dirs,
     excludes = scope.exclude,
   }
@@ -236,9 +240,9 @@ function M._glob_to_lua_pats(glob, root)
 end
 
 -- Telescope file_ignore_patterns for `excludes` when searching `dirs`.
-local function telescope_ignores(excludes, dirs)
+local function telescope_ignores(excludes, dirs, cwd)
   local out = {}
-  for _, a in ipairs(M._anchor_excludes(excludes, dirs, vim.uv.cwd())) do
+  for _, a in ipairs(M._anchor_excludes(excludes, dirs, cwd)) do
     -- nil for untranslatable globs (warned); otherwise a list of patterns
     vim.list_extend(out, M._glob_to_lua_pats(a.glob, a.root) or {})
   end
@@ -254,9 +258,8 @@ local has = Util.has
 -- The search dirs relative to Neovim's cwd when inside it, the way fzf-lua
 -- passes `search_paths`: the tools match excludes against the paths they
 -- list, which then don't contain the folders above the cwd.
-local function cwd_relative(dirs)
+local function cwd_relative(dirs, cwd)
   if not dirs then return nil end
-  local cwd = vim.uv.cwd()
   return vim.tbl_map(function(d)
     return Path.relative(d, cwd)
   end, dirs)
@@ -393,16 +396,17 @@ end
 -- way fzf-lua appends `search_paths`: relative to Neovim's cwd and quoted.
 -- `.git` is excluded explicitly because hidden files are listed.
 function M._fzf_files_opts(ctx, escape)
-  local opts = { prompt = ("Find [%s]> "):format(ctx.name) }
+  local cwd = ctx.cwd or State.root()
+  local opts = { prompt = ("Find [%s]> "):format(ctx.name), cwd = cwd }
   local excludes = vim.list_extend({ ".git" }, ctx.excludes)
   local follow = follow_links() and " --follow" or ""
   if vim.fn.executable("rg") == 1 then
     local parts = { "rg --files --color=never --hidden" .. follow .. rg_case_flag() }
-    for _, ex in ipairs(M._rg_globs(excludes, ctx.dirs)) do
+    for _, ex in ipairs(M._rg_globs(excludes, ctx.dirs, cwd)) do
       table.insert(parts, M._rg_exclude(ex, escape))
     end
     for _, d in ipairs(ctx.dirs or {}) do
-      table.insert(parts, escape(Path.relative(d, vim.uv.cwd())))
+      table.insert(parts, escape(Path.relative(d, cwd)))
     end
     opts.cmd = table.concat(parts, " ")
     return opts
@@ -426,12 +430,8 @@ function M.find()
   -- fzf-lua first (snappier on big trees). We search ALL of the scope's
   -- directories, not just the first.
   --
-  -- The directories are search roots resolved against the real Neovim cwd;
-  -- deliberately NO `cwd` option: fzf-lua runs the command from
-  -- `opts.cwd`, so cwd = ctx.dirs[1] would make fd/rg look for
-  -- `src/src` and `src/lib` inside `<root>/src`. Without it, dirs both
-  -- inside and outside the project tree work (in-tree ones become
-  -- relative, the others stay absolute).
+  -- Resolve every picker from the loaded project root. A window-local or
+  -- tab-local cwd must not change the meaning of project-relative excludes.
   --
   -- To force the telescope backend instead, set
   -- `vim.g.scoper_picker = "telescope"`.
@@ -443,8 +443,13 @@ function M.find()
   if has("telescope.builtin") then
     require("telescope.builtin").find_files({
       prompt_title = ("Find [%s]"):format(ctx.name),
-      search_dirs = cwd_relative(ctx.dirs),
-      file_ignore_patterns = telescope_ignores(vim.list_extend({ ".git" }, ctx.excludes), ctx.dirs),
+      cwd = ctx.cwd,
+      search_dirs = cwd_relative(ctx.dirs, ctx.cwd),
+      file_ignore_patterns = telescope_ignores(
+        vim.list_extend({ ".git" }, ctx.excludes),
+        ctx.dirs,
+        ctx.cwd
+      ),
       hidden = true,
       follow = follow_links(),
       attach_mappings = attach_show_path_mapping,
@@ -476,7 +481,7 @@ end
 -- called `name` below the scope's dirs that the scope's excludes don't
 -- hide (or nil), and how many files of that name there were in all.
 function M._find_in_scope(ctx, name)
-  local found = vim.fn.findfile(name, M._find_path(ctx.dirs or { vim.uv.cwd() }), -1)
+  local found = vim.fn.findfile(name, M._find_path(ctx.dirs or { ctx.cwd or State.root() }), -1)
   local in_scope = #ctx.excludes > 0 and State.matcher() or nil
   for _, f in ipairs(found) do
     local full = vim.fn.fnamemodify(f, ":p")
@@ -494,16 +499,18 @@ end
 -- with "-" (`-Wall`) is then still a pattern, not a flag. search_paths
 -- only, NO cwd — see M.find.
 function M._fzf_grep_opts(ctx, query, escape)
+  local cwd = ctx.cwd or State.root()
   local parts = {
     "--column --line-number --no-heading --color=always --smart-case --max-columns=4096"
       .. rg_case_flag(),
   }
-  for _, ex in ipairs(M._rg_globs(ctx.excludes, ctx.dirs)) do
+  for _, ex in ipairs(M._rg_globs(ctx.excludes, ctx.dirs, cwd)) do
     table.insert(parts, M._rg_exclude(ex, escape))
   end
   table.insert(parts, "-e")
   return {
     prompt = ("Grep [%s]> "):format(ctx.name),
+    cwd = cwd,
     search_paths = ctx.dirs,
     query = query or "",
     rg_opts = table.concat(parts, " "),
@@ -536,8 +543,9 @@ function M.grep(initial_query)
   if has("telescope.builtin") then
     require("telescope.builtin").live_grep({
       prompt_title = ("Grep [%s]"):format(ctx.name),
-      search_dirs = cwd_relative(ctx.dirs),
-      file_ignore_patterns = telescope_ignores(ctx.excludes, ctx.dirs),
+      cwd = ctx.cwd,
+      search_dirs = cwd_relative(ctx.dirs, ctx.cwd),
+      file_ignore_patterns = telescope_ignores(ctx.excludes, ctx.dirs, ctx.cwd),
       default_text = initial_query or "",
       attach_mappings = attach_show_path_mapping,
     })
@@ -554,7 +562,7 @@ function M.grep(initial_query)
   for _, d in ipairs(ctx.dirs or {}) do
     table.insert(files, vim.fn.fnameescape(d) .. "/**/*")
   end
-  if not ctx.dirs then files = { "**/*" } end
+  if not ctx.dirs then files = { vim.fn.fnameescape(ctx.cwd) .. "/**/*" } end
   -- nvim_cmd with bar = false: a "|" or '"' in the pattern is part of it,
   -- not a command separator or comment. vimgrep THROWS E480 when nothing
   -- matches; report that as a message instead of an error trace.
@@ -588,73 +596,31 @@ function M.grep(initial_query)
 end
 
 -- ---------------------------------------------------------------------------
--- One entry for grug-far's `paths` field. grug-far splits that string on
--- spaces ITSELF (utils.splitPaths) and only recognises a backslash-escaped
--- space ("my\\ dir"); quotes — shell-style or double — are kept as literal
--- path bytes, so a quoted dir with a space matched nothing. Only spaces
--- are escaped, which leaves Windows "\\" separators untouched.
--- ---------------------------------------------------------------------------
-function M._grug_path(p)
-  return (p:gsub(" ", "\\ "))
-end
-
--- grug-far prefills (paths, flags) for `ctx`, or nil and the reason. An
--- empty `paths` searches grug-far's cwd, which `cwd` (default: Neovim's)
--- stands for.
-function M._grug_prefills(ctx, cwd)
-  -- grug-far splits its flags field at whitespace and has no quoting, so
-  -- an exclude with whitespace can't reach ripgrep as written. Rewriting
-  -- it would change which files a project-wide replace touches; refuse.
-  for _, ex in ipairs(ctx.excludes) do
-    if ex:find("%s") then
-      return nil,
-        ("exclude %q contains whitespace, which grug-far can't pass to ripgrep. Rewrite it without (e.g. ? for one character) to use :ScoperReplace."):format(
-          ex
-        )
-    end
-  end
-  local quoted = {}
-  for _, d in ipairs(ctx.dirs or {}) do
-    table.insert(quoted, M._grug_path(d))
-  end
-  -- ripgrep --glob exclude flags go into the "flags" prefill so the user
-  -- can see and edit them inside the grug-far buffer. A dir with
-  -- whitespace still shows up inside the globs anchored below it; there
-  -- it is written as "?", which only matters for a sibling dir that
-  -- differs from it in just that character.
-  local flag_parts = {}
-  if Path.is_windows then table.insert(flag_parts, "--glob-case-insensitive") end
-  for _, ex in ipairs(M._rg_globs(ctx.excludes, ctx.dirs, cwd)) do
-    table.insert(flag_parts, "--glob=!" .. (ex:gsub("%s", "?")))
-  end
-  return {
-    paths = table.concat(quoted, " "),
-    flags = table.concat(flag_parts, " "),
-  }
-end
-
--- ---------------------------------------------------------------------------
--- :ScoperReplace — grug-far rooted at scope. grug-far has the right model
--- for this already: pass `paths` and it uses ripgrep with those as search
--- roots, and `--glob=!...` for excludes.
+-- :ScoperReplace delegates only unrestricted searches to grug-far. Its
+-- pinned backend resolves paths and spawns deferred jobs against whichever
+-- window is current at that later time; it has no durable per-instance cwd
+-- API. A result-window :lcd therefore cannot enforce an active scope.
 -- ---------------------------------------------------------------------------
 function M.replace(prefills)
   local ctx = get_context()
   if not ctx then return end
+
+  if (ctx.dirs and #ctx.dirs > 0) or #ctx.excludes > 0 then
+    vim.notify(
+      "Scoper: scoped replace is unavailable: grug-far cannot preserve the project directory "
+        .. "for deferred searches and writes after window changes. Use :ScoperGrep to inspect "
+        .. "the scope, or use :GrugFar explicitly for unscoped replacement.",
+      vim.log.levels.WARN
+    )
+    return
+  end
 
   if not has("grug-far") then
     vim.notify("Scoper: grug-far.nvim is not installed", vim.log.levels.ERROR)
     return
   end
 
-  local scoped, err = M._grug_prefills(ctx)
-  if not scoped then
-    vim.notify("Scoper: " .. err, vim.log.levels.ERROR)
-    return
-  end
-  require("grug-far").open({
-    prefills = vim.tbl_extend("force", scoped, prefills or {}),
-  })
+  require("grug-far").open({ prefills = prefills or {} })
 end
 
 -- ---------------------------------------------------------------------------

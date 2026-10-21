@@ -127,19 +127,29 @@ three shapes:
 |---|---|
 | `:ScoperFind` | Fuzzy-find files across **all** the scope's directories (fzf-lua → telescope → :find fallback). |
 | `:ScoperGrep [query]` | Live grep across **all** the scope's directories (fzf-lua → telescope → :vimgrep fallback). |
-| `:ScoperReplace` | Project-wide search/replace via grug-far, scoped. |
+| `:ScoperReplace` | Open ordinary grug-far only when scoping is unrestricted; restricted replacement is refused. |
 | `:ScoperTogglePicker` | Switch the backend of `:ScoperFind` / `:ScoperGrep` between fzf-lua and telescope (sets `vim.g.scoper_picker`). |
 
 While scoping is off, or the active scope has no includes, these commands
-search the whole cwd without the scope's excludes. All three backends
-apply the excludes; the plain `:find` fallback opens the first match the
+search without the scope's excludes. Find and grep use the global project
+root; unrestricted replacement retains grug-far's ordinary current-directory
+behavior. All three find/grep backends apply the excludes; the plain `:find` fallback opens the first match the
 excludes don't hide.
+
+**Scoped replacement is unavailable with the pinned grug-far backend.** Its
+deferred searches and file writes resolve relative paths using the window
+that is current when each operation runs. Switching windows can therefore
+change exclusion matching or file destinations even if its result window
+has a project-local directory. The backend exposes no durable per-instance
+working-directory API, so `:ScoperReplace` refuses an active restricted
+scope before opening it. Use `:ScoperGrep` to inspect the scope. Direct
+`:GrugFar` remains available for explicitly unscoped replacement.
 
 `:ScoperFind` follows directory links below the scope's dirs, so a link to
 a folder outside them is searched too, on both fzf-lua and telescope. To
 keep to the dirs themselves, set `vim.g.scoper_follow_links = false`; the
-plain `:find` fallback always follows links. `:ScoperGrep` and
-`:ScoperReplace` never follow them (ripgrep's default).
+plain `:find` fallback always follows links. `:ScoperGrep` does not follow
+them by default (ripgrep's default).
 
 On the telescope
 backend, `<M-p>` (insert and normal mode) shows the highlighted entry's
@@ -216,15 +226,9 @@ Special cases:
   still read). The one exception is fd, which `:ScoperFind` on the
   fzf-lua backend uses only when ripgrep isn't installed: it matches
   excludes case-sensitively.
-- Scope dirs containing spaces work everywhere: `:ScoperFind`'s ripgrep
-  / fd excludes are shell-quoted, `:ScoperReplace` escapes spaces the way
-  grug-far expects (`my\ dir`), and the plain-vim `:find` fallback
-  escapes spaces and commas in its search path. grug-far's *flags* field
-  splits at whitespace and has no quoting. An exclude glob with whitespace
-  therefore can't reach it unchanged, so `:ScoperReplace` refuses to
-  open; write the glob with `?` for the space. A dir with a space that
-  ends up inside an exclude glob (below an include outside the cwd) shows
-  the space as `?`, which matches any one character.
+- Scope dirs containing spaces work with find and grep: `:ScoperFind`'s
+  ripgrep / fd excludes are shell-quoted, and the plain-vim `:find`
+  fallback escapes spaces and commas in its search path.
 
 ## Multiple scopes per project
 
@@ -264,7 +268,7 @@ a time, and switching is cheap. The typical monorepo setup:
 :ScoperUse backend      " clangd auto-reloads (debounced) against the new scope
 ```
 
-`:ScoperFind`, `:ScoperGrep`, `:ScoperReplace`, and the clangd
+`:ScoperFind`, `:ScoperGrep`, and the clangd
 `--compile-commands-dir` filtering all key off the active scope, so a
 single `:ScoperUse` switches your whole workspace context.
 
@@ -320,7 +324,7 @@ vim.keymap.set("n", s .. "u", "<cmd>ScoperUse<cr>",    { desc = "Scope use" })
 vim.keymap.set("n", s .. "n", "<cmd>ScoperNew<cr>",    { desc = "Scope new" })
 vim.keymap.set("n", s .. "f", "<cmd>ScoperFind<cr>",   { desc = "Scope find" })
 vim.keymap.set("n", s .. "g", "<cmd>ScoperGrep<cr>",   { desc = "Scope grep" })
-vim.keymap.set("n", s .. "r", "<cmd>ScoperReplace<cr>",{ desc = "Scope replace" })
+vim.keymap.set("n", s .. "r", "<cmd>ScoperReplace<cr>",{ desc = "Scope replace (availability checked)" })
 ```
 
 Lualine component:
@@ -527,8 +531,11 @@ vim.api.nvim_create_autocmd("User", {
 
 - Symlinks are matched logically (not resolved). If you want resolved
   matching, normalize through `vim.uv.fs_realpath` before adding.
-- `:ScoperReplace` requires grug-far.nvim; `:ScoperFind` / `:ScoperGrep`
-  use a plain-vim fallback if no picker plugin is installed.
+- `:ScoperReplace` refuses an active restricted scope because grug-far
+  cannot preserve its working directory through deferred operations and
+  window changes. Unrestricted replacement requires grug-far.nvim.
+  `:ScoperFind` / `:ScoperGrep` use a plain-vim fallback if no picker
+  plugin is installed.
 - On the fzf-lua backend, `:ScoperFind` runs ripgrep itself over every
   scope directory (fd through fzf-lua's `search_paths` when ripgrep
   isn't installed), and `:ScoperGrep` uses `search_paths`, which needs a
@@ -588,8 +595,9 @@ Static-analysis tools:
   restart (only this project's clients, the exit poll, the guard,
   queued reloads, automatic skips) against fake clients.
 - `pickers_spec`: the scope context (scoping off means the whole cwd),
-  the options passed to stub fzf-lua and telescope modules, shell and
-  grug-far quoting, the telescope pattern translation, the rewriting of
+  the options passed to stub fzf-lua and telescope modules, shell quoting,
+  refusal of restricted replacement, the telescope pattern translation,
+  the rewriting of
   absolute excludes and of those of includes outside the cwd, and the
   plain-vim grep filter.
 - `commands_spec` sources `plugin/scoper.lua` (the runner starts with

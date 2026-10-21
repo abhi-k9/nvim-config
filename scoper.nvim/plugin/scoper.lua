@@ -139,7 +139,7 @@ end, { nargs = "*", desc = "Live-grep within active scope" })
 
 cmd("ScoperReplace", function()
   require("scoper").replace()
-end, { desc = "Open grug-far scoped to active scope" })
+end, { desc = "Open unscoped grug-far (refuses restricted scopes)" })
 
 cmd("ScoperTogglePicker", function()
   require("scoper").toggle_picker()
