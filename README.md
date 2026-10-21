@@ -238,6 +238,7 @@ nvim/
 │   ├── search_scope_spec.lua  current-file replacement confinement
 │   ├── local_plugin_spec.lua  checkout-relative bundled plugin loading
 │   ├── treesitter_install_spec.lua  failed parser installation cooldown
+│   ├── swap_cleanup_spec.lua  swap revalidation across cleanup prompts
 │   └── offline_seed_test.py  Python tests for scripts/offline-seed.py (make test-seed)
 ├── docs/                     Human-facing docs (not loaded by nvim)
 │   ├── CHANGES-archive.md    older changelog entries

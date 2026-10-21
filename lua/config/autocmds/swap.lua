@@ -7,6 +7,26 @@ local augroup = require("config.util").augroup
 
 local M = {}
 
+-- A confirmation can stay open while another editor creates, replaces or
+-- updates a swap. Compare both identity and contents' metadata afterward;
+-- checking only the inode misses an in-place update of recovery data.
+local function same_swap_file(before, after)
+  return before
+    and after
+    and before.type == "file"
+    and after.type == "file"
+    and before.dev == after.dev
+    and before.ino == after.ino
+    and before.size == after.size
+    and before.mtime.sec == after.mtime.sec
+    and before.mtime.nsec == after.mtime.nsec
+end
+
+local function live_owner(info)
+  local pid = type(info.pid) == "number" and info.pid or 0
+  return pid > 0 and vim.uv.kill(pid, 0) == 0 and pid or nil
+end
+
 -- ---------------------------------------------------------------------------
 -- SwapExists: make swap collisions livable now that 'swapfile' is on.
 --
@@ -370,11 +390,17 @@ do
       -- while the path was replaced.
       local st, before = vim.uv.fs_lstat(swap), stats[swap]
       local ok, err = false, "changed since it was checked; not deleted"
-      if st and st.type == "file" and st.ino == before.ino and st.dev == before.dev then
+      if same_swap_file(before, st) then
+        local info = vim.fn.swapinfo(swap)
+        local owner = live_owner(info)
         -- vim.uv.fs_unlink reports failure by RETURNING nil, err (it does
         -- not throw), so the return value is checked — a pcall would see
         -- every failure as success.
-        ok, err = vim.uv.fs_unlink(swap)
+        if owner and owner ~= mypid then
+          err = "now in use by another running Neovim; not deleted"
+        else
+          ok, err = vim.uv.fs_unlink(swap)
+        end
       end
       if ok then
         removed = removed + 1
@@ -459,6 +485,7 @@ do
   vim.api.nvim_create_user_command("SwapClean", function()
     local list, dirs = M.inventory()
     local delete, keep = {}, {}
+    local stats = {}
     for _, s in ipairs(list) do
       if s.kind == "live" then
         keep[#keep + 1] = ("  %s\n    in use by a running Neovim (pid %d)"):format(
@@ -480,6 +507,9 @@ do
       elseif s.kind == "clean" then
         delete[#delete + 1] = { s.swap, ("  %s\n    no unsaved changes"):format(s.fname or s.swap) }
       end
+    end
+    for _, d in ipairs(delete) do
+      stats[d[1]] = vim.uv.fs_lstat(d[1])
     end
 
     local function block(title, lines)
@@ -512,7 +542,21 @@ do
     end
     local removed, failed = 0, {}
     for _, d in ipairs(delete) do
-      local ok, err = vim.uv.fs_unlink(d[1])
+      local path = d[1]
+      local st = vim.uv.fs_lstat(path)
+      local ok, err = false, "changed since it was checked; not deleted"
+      if same_swap_file(stats[path], st) then
+        local info = vim.fn.swapinfo(path)
+        -- A path may have become active or dirty without being replaced.
+        -- Unknown/corrupt headers are safe to remove only for the original
+        -- empty-and-old case, never after a formerly clean swap changed.
+        local empty = info.error and st.size == 0 and os.time() - st.mtime.sec > 60
+        if not live_owner(info) and (empty or (not info.error and info.dirty == 0)) then
+          ok, err = vim.uv.fs_unlink(path)
+        else
+          err = "now active, dirty or unreadable; not deleted"
+        end
+      end
       if ok then
         removed = removed + 1
       else
