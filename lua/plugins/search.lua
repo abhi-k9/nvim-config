@@ -42,11 +42,26 @@ return {
     {
       "<leader>sf",
       function()
+        local path = vim.api.nvim_buf_get_name(0)
+        if vim.bo.buftype ~= "" or path == "" or vim.fn.filereadable(path) == 0 then
+          vim.notify("Current-file search requires a saved file buffer", vim.log.levels.WARN)
+          return
+        end
+        -- A newline becomes a path separator in grug-far's input. Refuse
+        -- names that cannot be represented without widening the search.
+        if path:find("[\r\n]") then
+          vim.notify(
+            "Current-file search cannot represent newlines in a file name",
+            vim.log.levels.WARN
+          )
+          return
+        end
         -- grug-far splits `paths` on spaces itself and only understands a
         -- BACKSLASH-escaped space ("my\ dir/f.c"); double quotes are
         -- passed through literally, so `"my dir/f.c"` searched nothing.
-        -- Escaping only spaces keeps Windows separators intact.
-        local path = vim.fn.expand("%"):gsub(" ", "\\ ")
+        -- Use the absolute buffer name: the pinned parser drops a single
+        -- character prefill (e.g. "x"), which otherwise searches the cwd.
+        path = path:gsub(" ", "\\ ")
         require("grug-far").open({ prefills = { paths = path } })
       end,
       desc = "Search/Replace (current file)",
