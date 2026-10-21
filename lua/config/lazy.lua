@@ -8,6 +8,10 @@
 -- Bootstrap: clone lazy.nvim into stdpath("data") on first run.
 -- ---------------------------------------------------------------------------
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+-- Tests and `nvim -u /path/to/init.lua` can load this config outside
+-- stdpath("config"). Keep the lock beside the source in those cases too.
+local config_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h:h")
+local lockfile = config_root .. "/lazy-lock.json"
 
 -- Bootstrap failure (no git, offline first start, proxy) must not take the
 -- editor down with it. Options, keymaps and autocmds are already loaded by
@@ -26,6 +30,27 @@ if not vim.uv.fs_stat(lazypath) then
     bootstrap_failed("git is not on PATH; it is needed to download lazy.nvim.")
     return
   end
+  -- The manager itself runs before lazy.nvim can read its lockfile. Check
+  -- out its locked commit before requiring it, so first boot cannot run a
+  -- newer manager and then overwrite the pinned entry during installation.
+  local commit
+  if vim.fn.filereadable(lockfile) == 1 then
+    local ok, lock = pcall(function()
+      return vim.json.decode(table.concat(vim.fn.readfile(lockfile), "\n"))
+    end)
+    if not ok or type(lock) ~= "table" then
+      bootstrap_failed("Cannot read a valid plugin lockfile: " .. lockfile)
+      return
+    end
+    local manager = lock["lazy.nvim"]
+    if manager ~= nil then
+      commit = type(manager) == "table" and manager.commit or nil
+      if type(commit) ~= "string" or #commit ~= 40 or not commit:match("^%x+$") then
+        bootstrap_failed("Invalid lazy.nvim commit in " .. lockfile)
+        return
+      end
+    end
+  end
   local lazyrepo = "https://github.com/folke/lazy.nvim.git"
   local out = vim.fn.system({
     "git",
@@ -40,6 +65,14 @@ if not vim.uv.fs_stat(lazypath) then
     bootstrap_failed("git clone " .. lazyrepo .. " failed:\n" .. out)
     return
   end
+  if commit then
+    out = vim.fn.system({ "git", "-C", lazypath, "checkout", "--detach", commit })
+    if vim.v.shell_error ~= 0 then
+      vim.fn.delete(lazypath, "rf")
+      bootstrap_failed("Cannot check out locked lazy.nvim commit " .. commit .. ":\n" .. out)
+      return
+    end
+  end
 end
 vim.opt.rtp:prepend(lazypath)
 
@@ -47,6 +80,7 @@ vim.opt.rtp:prepend(lazypath)
 -- Lazy setup
 -- ---------------------------------------------------------------------------
 require("lazy").setup({
+  lockfile = lockfile,
   -- No plugin here is distributed as a luarocks rock, so lazy.nvim's rocks
   -- support (a hererocks/luarocks toolchain it would try to set up) is off;
   -- with it on, :checkhealth lazy reported an ERROR for the missing luarocks.

@@ -234,6 +234,7 @@ nvim/
 ├── tests/                    plenary specs: config smoke + leader maps, behaviour
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
+│   ├── bootstrap_spec.lua     locked first-boot plugin manager
 │   ├── behavior_spec.lua
 │   ├── search_scope_spec.lua  current-file replacement confinement
 │   ├── local_plugin_spec.lua  checkout-relative bundled plugin loading
