@@ -533,4 +533,21 @@ describe("scoper.state with two instances on one project", function()
     assert.are.same({ "mine", "theirs" }, saved.scopes[saved.active].include)
     assert.are.same({ "**/x/**" }, saved.scopes[saved.active].exclude)
   end)
+
+  it("toggles the latest saved value instead of this instance's stale value", function()
+    State.set_enabled(false)
+    package.loaded["scoper.state"] = nil
+    local other = require("scoper.state")
+    other.load()
+    other.set_enabled(true)
+    local file = vim.fn.glob(data_root .. "/**/scoper/*.json", false, true)[1]
+    vim.uv.fs_utime(file, os.time() + 5, os.time() + 5)
+    assert.is_false(State.is_enabled()) -- stale memory in the first instance
+
+    State.toggle()
+
+    other.load()
+    assert.is_false(other.is_enabled())
+    package.loaded["scoper.state"] = State
+  end)
 end)

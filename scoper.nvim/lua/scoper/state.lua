@@ -502,6 +502,8 @@ function M.set_enabled(on)
 end
 
 function M.toggle()
+  -- Read another instance's saved value before computing its inverse.
+  sync()
   M.set_enabled(not M.is_enabled())
 end
 
