@@ -157,14 +157,16 @@ return {
         end
         state[lang] = { status = "pending", at = os.time() }
         vim.notify(("Treesitter: installing the %s parser…"):format(lang))
-        ts.install({ lang }):await(function(err)
+        ts.install({ lang }):await(function(err, success)
           vim.schedule(function()
-            if err then
+            -- Failed downloads/builds return false without throwing, so
+            -- the task's error argument alone does not establish success.
+            if err or not success then
               state[lang] = { status = "failed", at = os.time() }
               vim.notify(
                 ("Treesitter: %s parser install failed: %s\nRetried on the next %s buffer after %d minutes, or run :TSInstall %s."):format(
                   lang,
-                  tostring(err),
+                  tostring(err or "parser download or build failed (see :messages)"),
                   ft,
                   RETRY_AFTER / 60,
                   lang
