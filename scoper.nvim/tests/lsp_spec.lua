@@ -233,6 +233,30 @@ describe("scoper.lsp filtered compile_commands", function()
     assert.is_false(changed)
   end)
 
+  it("repairs a truncated cached database instead of blessing its damaged size", function()
+    local dir = lsp.write_filtered_compile_commands()
+    local output = dir .. "/compile_commands.json"
+    vim.fn.writefile({ "[" }, output)
+
+    local _, _, changed = lsp.write_filtered_compile_commands()
+
+    assert.is_true(changed)
+    assert.equals(1, #read_json(output))
+    local _, info = lsp.write_filtered_compile_commands()
+    assert.is_truthy(info:find("(cached)", 1, true))
+  end)
+
+  it("does not serve a known-truncated database while its refresh is pending", function()
+    local dir = lsp.write_filtered_compile_commands()
+    vim.fn.writefile({ "[" }, dir .. "/compile_commands.json")
+
+    local stale_dir, info, _, stale = lsp.write_filtered_compile_commands({ stale_ok = true })
+
+    assert.is_nil(stale_dir)
+    assert.equals("filter pending", info)
+    assert.is_true(stale)
+  end)
+
   it("reports no change when a scope edit filters to the same entries", function()
     lsp.write_filtered_compile_commands()
     State.add_excludes("**/nothing/**")

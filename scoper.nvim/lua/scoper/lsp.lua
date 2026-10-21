@@ -240,13 +240,12 @@ function prepare(opts)
   local meta = read_json(meta_path)
   local out_st = vim.uv.fs_stat(out_path)
   local have_out = out_st ~= nil and out_st.type == "file"
+  local have_intact_out = have_out and meta and meta.out_size == out_st.size
   -- The output must still have the size the filter wrote (a cheap check:
   -- hashing it on every start would cost what the cache saves), so a
   -- truncated or hand-edited cache is filtered again.
   if
-    have_out
-    and meta
-    and meta.out_size == out_st.size
+    have_intact_out
     and st
     and meta
     and meta.src == cc
@@ -266,7 +265,7 @@ function prepare(opts)
     }
   end
   if opts and opts.stale_ok then
-    if not have_out then return { info = "filter pending", stale = true } end
+    if not have_intact_out then return { info = "filter pending", stale = true } end
     return {
       dir = out_dir,
       info = ("previous filter result → %s (refresh pending)"):format(out_path),
@@ -289,7 +288,7 @@ function prepare(opts)
         size = st and st.size or 0,
         fingerprint = fingerprint,
       },
-      old_digest = have_out and meta and meta.digest or nil,
+      old_digest = have_intact_out and meta.digest or nil,
     }
 end
 
