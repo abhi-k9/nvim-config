@@ -51,6 +51,11 @@
 
 name: CI
 
+# Tests execute dependency and pull-request code. They do not need a token
+# capable of modifying this repository, regardless of repository defaults.
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main, master]
@@ -73,6 +78,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Set up Lua
         uses: leafo/gh-actions-lua@v13
@@ -118,6 +125,8 @@ jobs:
         nvim: [stable]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # tree-sitter CLI + a C compiler so the treesitter parser build during
       # the real-config boot (make test) doesn't fail. nvim-treesitter `main`
@@ -168,6 +177,8 @@ jobs:
         nvim: [stable]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Set up Neovim
         uses: rhysd/action-setup-vim@v1
@@ -196,6 +207,8 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # Standard library only, against the runner's own Python: no Neovim
       # (the completeness check runs a fake nvim), no network.
