@@ -1,9 +1,9 @@
 -- lua/plugins/scoper.lua
 --
 -- Local-plugin spec for scoper.nvim, which is bundled in this config under
--- `scoper.nvim/` (relative to the nvim config root). We resolve the path via
--- stdpath("config") so it works on Linux, macOS, and Windows without
--- hardcoding any user-specific path.
+-- `scoper.nvim/` (relative to this checkout). Resolve the path from this
+-- spec's source so headless tests and `nvim -u /path/to/init.lua` also work
+-- when stdpath("config") points at a different configuration.
 --
 -- Want to point at a clone of your own instead? Set `dir = "~/projects/scoper.nvim"`.
 -- Want to use the published version once it's on GitHub? Replace the table
@@ -14,9 +14,11 @@
 --   lsp.clangd_args   – extra clangd flags (here: --query-driver for MinGW/MSYS2)
 --   default_excludes  – seed every new scope, including a fresh project's default scope
 
+local config_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h:h")
+
 return {
   {
-    dir = vim.fn.stdpath("config") .. "/scoper.nvim",
+    dir = vim.fs.joinpath(config_root, "scoper.nvim"),
     -- Loaded eagerly so :Scoper* commands are registered up front. The
     -- heavy modules inside scoper itself are still lazy-required on demand.
     lazy = false,

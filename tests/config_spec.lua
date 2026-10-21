@@ -30,6 +30,10 @@ describe("nvim config", function()
       -- If the require succeeded, `package.loaded["lazy"]` is non-nil.
       assert.is_not_nil(package.loaded["lazy"])
     end)
+
+    it("loaded the bundled local plugin from this checkout", function()
+      assert.equals(2, vim.fn.exists(":ScoperStatus"), "bundled scoper.nvim did not load")
+    end)
   end)
 
   -- The duplicate-registration guard. It reads the log that
