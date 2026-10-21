@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 # .githooks/pre-commit
 #
 # Three fast, local gates that mirror CI, run before a commit lands:
@@ -29,14 +29,17 @@
 #   * Any gate failing BLOCKS the commit (exit non-zero). Bypass a specific
 #     commit with `git commit --no-verify` if you really mean to.
 
-set -eu
+set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
 status=0
 
-# Added / Copied / Modified / Renamed -- not Deleted. One path per line.
-staged=$(git diff --cached --name-only --diff-filter=ACMR -- '*.lua')
+# Git quotes unusual names in line-oriented output. Read NUL-delimited paths
+# instead, including Unicode and embedded newlines, and retain diff failures.
+staged_file=$(mktemp)
+trap 'rm -f "$staged_file"' EXIT
+git diff --cached --name-only --diff-filter=ACMR -z -- '*.lua' >"$staged_file"
 
 # check_staged TOOL PATH: run TOOL on the staged content of PATH, from the
 # root of the tree PATH belongs to (the repo, or scoper.nvim/).
@@ -46,23 +49,21 @@ check_staged() {
     *)             dir=. rel=$2 ;;
   esac
   case "$1" in
-    luacheck) git show ":$2" | (cd "$dir" && luacheck --filename "$rel" -) ;;
-    stylua)   git show ":$2" | (cd "$dir" && stylua --check --stdin-filepath "$rel" -) ;;
+    luacheck) git show ":0:$2" | (cd "$dir" && luacheck --filename "$rel" -) ;;
+    stylua)   git show ":0:$2" | (cd "$dir" && stylua --check --stdin-filepath "$rel" -) ;;
   esac
 }
 
 # -- 1 + 2. luacheck, then stylua --check, on the staged Lua ------------------
-if [ -n "$staged" ]; then
+if [ -s "$staged_file" ]; then
   for tool in luacheck stylua; do
     if ! command -v "$tool" >/dev/null 2>&1; then
       printf 'pre-commit: %s not found -- skipping it. CI will still run it.\n' "$tool" >&2
       continue
     fi
-    while IFS= read -r f; do
+    while IFS= read -r -d '' f; do
       check_staged "$tool" "$f" || status=1
-    done <<EOF
-$staged
-EOF
+    done <"$staged_file"
   done
 fi
 
