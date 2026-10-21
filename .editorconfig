@@ -1,0 +1,54 @@
+# .editorconfig — portable, editor-agnostic baseline for whitespace + encoding.
+#
+# Why this exists alongside stylua.toml: stylua (enforced by `make check`)
+# only covers Lua. EditorConfig pins the universal invariants — indent,
+# charset, final newline, trailing whitespace — for every editor and every
+# file type in the repo (shell, YAML, Markdown, the C/C++ templates, …).
+# Line endings in git itself are pinned by .gitattributes.
+#
+# Neovim reads this natively (built-in EditorConfig support since 0.9), so it
+# governs THIS config's own editing too. Disable per-buffer with
+# `:let b:editorconfig = v:false` or globally with `vim.g.editorconfig = false`.
+
+root = true
+
+# ---------------------------------------------------------------------------
+# Defaults for everything.
+# ---------------------------------------------------------------------------
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# ---------------------------------------------------------------------------
+# Lua — matches stylua.toml (2-space, Unix, column_width = 100). The indent
+# default above already covers it; the line length is Lua-only.
+# ---------------------------------------------------------------------------
+[*.lua]
+indent_size = 2
+max_line_length = 100
+
+# ---------------------------------------------------------------------------
+# Data / markup config files — 2 spaces (their ecosystems' norm).
+# ---------------------------------------------------------------------------
+[*.{yml,yaml,json,jsonc,toml}]
+indent_size = 2
+
+# ---------------------------------------------------------------------------
+# Markdown — do NOT strip trailing whitespace: two trailing spaces are a hard
+# line break, and stripping them changes rendering. This mirrors the
+# markdown carve-out in the trim-on-save autocmd (lua/config/autocmds/editing.lua).
+# ---------------------------------------------------------------------------
+[*.md]
+trim_trailing_whitespace = false
+
+# ---------------------------------------------------------------------------
+# Makefiles require literal tabs for recipe lines — never expand to spaces.
+# A section name without a `/` matches in every directory, so this also
+# covers scoper.nvim/Makefile.
+# ---------------------------------------------------------------------------
+[Makefile]
+indent_style = tab

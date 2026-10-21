@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Neovim Config — Visual Studio → Neovim</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
+  :root {
+    --bg:#1e1e2e;--surface:#181825;--overlay:#313244;--muted:#6c7086;
+    --subtle:#7f849c;--text:#cdd6f4;--subtext:#a6adc8;
+    --lavender:#b4befe;--blue:#89b4fa;--sky:#89dceb;--teal:#94e2d5;
+    --green:#a6e3a1;--yellow:#f9e2af;--peach:#fab387;--red:#f38ba8;
+    --mauve:#cba6f7;--pink:#f5c2e7;--flamingo:#f2cdcd;--sapphire:#74c7ec;
+    --rosewater:#f5e0dc;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;
+    font-size:12px;line-height:1.5;padding:22px 26px 48px}
+  header{display:flex;align-items:baseline;justify-content:space-between;
+    border-bottom:1px solid var(--overlay);padding-bottom:11px;margin-bottom:18px}
+  header h1{font-size:18px;font-weight:700;color:var(--lavender);letter-spacing:-.3px}
+  header .meta{font-size:10.5px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+  .col-2{grid-column:span 2}.col-full{grid-column:span 3}
+  .card{background:var(--surface);border:1px solid var(--overlay);border-radius:7px;overflow:hidden}
+  .card-header{display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid var(--overlay)}
+  .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .card-header h2{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--subtext)}
+  .card-header .note{font-size:10px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-style:italic}
+  table{width:100%;border-collapse:collapse;table-layout:fixed}
+  tr:not(:last-child) td{border-bottom:1px solid rgba(49,50,68,.5)}
+  td{padding:3.5px 10px;vertical-align:middle;word-wrap:break-word;overflow-wrap:break-word}
+  /* Three-column layout: VS shortcut | what it does | Nvim equivalent */
+  th{padding:5px 10px;text-align:left;font-size:9.5px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--muted);background:rgba(49,50,68,.4);border-bottom:1px solid var(--overlay)}
+  th:nth-child(1),td.col-vs{width:30%}
+  th:nth-child(2),td.col-what{width:34%;color:var(--text)}
+  th:nth-child(3),td.col-nvim{width:36%}
+  .divider td{padding:3px 10px;font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--muted);background:rgba(49,50,68,.4);
+    border-bottom:1px solid var(--overlay)!important}
+  kbd{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:10.5px;
+    font-weight:600;padding:1px 5px;border-radius:4px;background:var(--overlay);
+    color:var(--text);white-space:nowrap}
+  kbd.blue    {background:rgba(137,180,250,.13);color:var(--blue);    border:1px solid rgba(137,180,250,.26)}
+  kbd.mauve   {background:rgba(203,166,247,.13);color:var(--mauve);   border:1px solid rgba(203,166,247,.26)}
+  kbd.green   {background:rgba(166,227,161,.13);color:var(--green);   border:1px solid rgba(166,227,161,.26)}
+  kbd.yellow  {background:rgba(249,226,175,.13);color:var(--yellow);  border:1px solid rgba(249,226,175,.26)}
+  kbd.peach   {background:rgba(250,179,135,.13);color:var(--peach);   border:1px solid rgba(250,179,135,.26)}
+  kbd.teal    {background:rgba(148,226,213,.13);color:var(--teal);    border:1px solid rgba(148,226,213,.26)}
+  kbd.red     {background:rgba(243,139,168,.13);color:var(--red);     border:1px solid rgba(243,139,168,.26)}
+  kbd.sky     {background:rgba(137,220,235,.13);color:var(--sky);     border:1px solid rgba(137,220,235,.26)}
+  kbd.pink    {background:rgba(245,194,231,.13);color:var(--pink);    border:1px solid rgba(245,194,231,.26)}
+  kbd.lavender{background:rgba(180,190,254,.13);color:var(--lavender);border:1px solid rgba(180,190,254,.26)}
+  kbd.vs      {background:rgba(127,132,156,.13);color:var(--subtext); border:1px solid rgba(127,132,156,.26)}
+  .note{color:var(--muted);font-size:10.5px;font-style:italic}
+  code{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--subtle)}
+  .step{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;
+    width:14px;height:14px;line-height:14px;text-align:center;border-radius:50%;
+    background:var(--overlay);color:var(--subtext);margin-right:6px;flex-shrink:0}
+  .arrow{color:var(--muted);font-weight:400;margin:0 4px}
+  .vs-name{font-family:'Inter',sans-serif;font-size:10.5px;color:var(--subtle);font-style:italic;display:block;margin-top:1px}
+  footer{margin-top:16px;padding-top:10px;border-top:1px solid var(--overlay);
+    font-size:10px;color:var(--muted);display:flex;justify-content:space-between}
+  @media print{
+    body{background:#fff;color:#000;padding:5mm;font-size:8px}
+    .card{border-color:#ccc;break-inside:avoid}
+    .card-header{background:#f5f5f5;border-color:#ccc}
+    .divider td,th{background:#ebebeb;color:#555;border-color:#ccc!important}
+    kbd,kbd.blue,kbd.mauve,kbd.green,kbd.yellow,kbd.peach,kbd.teal,kbd.red,
+    kbd.sky,kbd.pink,kbd.lavender,kbd.vs{background:#eee;color:#000;border:1px solid #bbb}
+    .note,.vs-name{color:#777} td:last-child,td.col-nvim{color:#333} header h1{color:#000}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Visual Studio &nbsp;→&nbsp; Neovim</h1>
+  <span class="meta">"I'd press X in VS — what's the equivalent here?" &nbsp;·&nbsp; assumes default VS keybindings (General profile)</span>
+</header>
+<div class="grid">
+
+<!-- ═══════════════════ ORIENTATION ═══════════════════ -->
+<div class="card col-full">
+  <div class="card-header"><div class="dot" style="background:var(--lavender)"></div><h2>How Vim is different from Visual Studio <span class="note">read this first</span></h2></div>
+  <table>
+    <tr><td colspan="3" class="col-what" style="padding:8px 10px">
+      <strong>Modal editing.</strong> VS is always typing. Vim has <em>modes</em>: NORMAL (default — keys are commands), INSERT (keys type text), VISUAL (selecting). You enter INSERT with
+      <kbd class="green">i</kbd>/<kbd class="green">a</kbd>/<kbd class="green">o</kbd> and leave it with <kbd class="green">&lt;Esc&gt;</kbd>. <strong>Most "shortcuts" below are pressed in NORMAL mode.</strong> If a binding doesn't work, hit <kbd class="green">&lt;Esc&gt;</kbd> first.
+    </td></tr>
+    <tr><td colspan="3" class="col-what" style="padding:8px 10px">
+      <strong>Leader key.</strong> <kbd class="lavender">&lt;leader&gt;</kbd> is <kbd class="lavender">Space</kbd> in this config. So "<kbd class="lavender">&lt;leader&gt;ff</kbd>" means: press Space, then f, then f — three separate keystrokes, not chorded. Press <kbd class="lavender">Space</kbd> alone and wait — <strong>which-key</strong> pops up a menu of what's available, which is the fastest way to discover bindings.
+    </td></tr>
+    <tr><td colspan="3" class="col-what" style="padding:8px 10px">
+      <strong>Verbs and motions.</strong> Many editing commands are <em>verb + motion</em>: <kbd class="green">d</kbd> (delete) + <kbd class="blue">w</kbd> (word) = <kbd>dw</kbd> deletes a word. <kbd class="green">c</kbd> (change) + <kbd class="blue">i)</kbd> (inside parens) = <kbd>ci)</kbd> changes the contents of the nearest parens. There's no VS equivalent — once it clicks, it's the single biggest productivity gain.
+    </td></tr>
+    <tr><td colspan="3" class="col-what" style="padding:8px 10px">
+      <strong>No menu bar.</strong> Everything is keys, plus <kbd class="lavender">:</kbd> commands (e.g. <code>:w</code> to save). Discovery: <kbd class="lavender">&lt;leader&gt;fc</kbd> (command picker), <kbd class="lavender">&lt;leader&gt;fk</kbd> (keymap picker), <kbd class="lavender">&lt;leader&gt;fh</kbd> (help docs).
+    </td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ FILES / PROJECT ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--blue)"></div><h2>Files &amp; project</h2></div>
+  <table>
+    <tr><th>Visual Studio</th><th>Action</th><th>This config</th></tr>
+    <tr>
+      <td class="col-vs"><kbd class="vs">Ctrl+T</kbd><span class="vs-name">Go to All / Go to File</span></td>
+      <td class="col-what">Fuzzy-find file by name</td>
+      <td class="col-nvim"><kbd class="blue">&lt;leader&gt;ff</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+,</kbd><span class="vs-name">Go to All (broader)</span></td>
+      <td>Files + symbols mixed</td>
+      <td><kbd class="blue">&lt;leader&gt;ff</kbd> + <kbd class="blue">&lt;leader&gt;fS</kbd> <span class="note">(two pickers)</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+Shift+F</kbd><span class="vs-name">Find in Files</span></td>
+      <td>Search text across project</td>
+      <td><kbd class="blue">&lt;leader&gt;fg</kbd> <span class="note">live grep</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+H</kbd><span class="vs-name">Quick Replace</span> &amp; <kbd class="vs">Ctrl+Shift+H</kbd><span class="vs-name">Find &amp; Replace in Files</span></td>
+      <td>Find &amp; replace in file / across files</td>
+      <td><kbd class="peach">&lt;leader&gt;sr</kbd> <span class="note">grug-far: preview + apply</span><br>
+        <kbd class="peach">&lt;leader&gt;sf</kbd> <span class="note">current file only</span><br>
+        <kbd class="peach">&lt;leader&gt;sw</kbd> <span class="note">word under cursor</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+Alt+L</kbd><span class="vs-name">Solution Explorer</span></td>
+      <td>Toggle file tree</td>
+      <td><kbd class="blue">&lt;leader&gt;e</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+[ S</kbd><span class="vs-name">Sync with Active Document</span></td>
+      <td>Reveal current file in tree</td>
+      <td><kbd class="blue">&lt;leader&gt;E</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+S</kbd></td>
+      <td>Save file</td>
+      <td><kbd class="sky">&lt;C-s&gt;</kbd> <span class="note">same chord, works in i/n/v</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+Shift+S</kbd></td>
+      <td>Save all</td>
+      <td><kbd class="sky">&lt;leader&gt;W</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+F4</kbd></td>
+      <td>Close current document</td>
+      <td><kbd class="sky">&lt;leader&gt;bd</kbd> <span class="note">keeps window</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+Tab</kbd></td>
+      <td>Switch between open documents</td>
+      <td><kbd class="sky">&lt;S-l&gt;</kbd> next / <kbd class="sky">&lt;S-h&gt;</kbd> prev<br>
+        <kbd class="sky">&lt;leader&gt;1</kbd>…<kbd class="sky">&lt;leader&gt;9</kbd> jump to tab N <span class="note">(matches superscript)</span><br>
+        or <kbd class="blue">&lt;leader&gt;fb</kbd> <span class="note">picker</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+R, Ctrl+O</kbd><span class="vs-name">Recent files</span></td>
+      <td>Reopen recently-used file</td>
+      <td><kbd class="blue">&lt;leader&gt;fr</kbd></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ CODE NAVIGATION ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--green)"></div><h2>Navigate code (LSP)</h2></div>
+  <table>
+    <tr><th>Visual Studio</th><th>Action</th><th>This config</th></tr>
+    <tr>
+      <td><kbd class="vs">F12</kbd></td>
+      <td>Go to Definition</td>
+      <td><kbd class="green">gd</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+F12</kbd></td>
+      <td>Go to Implementation</td>
+      <td><kbd class="green">gI</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+Alt+F12</kbd></td>
+      <td>Peek Definition</td>
+      <td><kbd class="green">K</kbd> <span class="note">hover preview at cursor</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Shift+F12</kbd></td>
+      <td>Find All References</td>
+      <td><kbd class="green">gr</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+T, T</kbd></td>
+      <td>Go to Type definition</td>
+      <td><kbd class="green">gy</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">F12</kbd> on declaration</td>
+      <td>Go to Declaration</td>
+      <td><kbd class="green">gD</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+T, M</kbd></td>
+      <td>Document symbols (methods)</td>
+      <td><kbd class="blue">&lt;leader&gt;fs</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+T</kbd> with #</td>
+      <td>Workspace symbols</td>
+      <td><kbd class="blue">&lt;leader&gt;fS</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+-</kbd></td>
+      <td>Navigate back</td>
+      <td><kbd class="green">&lt;C-o&gt;</kbd> <span class="note">jump list back</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+Shift+-</kbd></td>
+      <td>Navigate forward</td>
+      <td><kbd class="green">&lt;C-i&gt;</kbd> <span class="note">jump list forward</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+G</kbd></td>
+      <td>Go to line</td>
+      <td><kbd class="green">&lt;number&gt;G</kbd> <span class="note">e.g. <code>42G</code></span> or <code>:42</code></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+]</kbd> in xml/cs</td>
+      <td>Match brace / bracket</td>
+      <td><kbd class="green">%</kbd></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ EDITING ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>Editing</h2></div>
+  <table>
+    <tr><th>Visual Studio</th><th>Action</th><th>This config</th></tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+Z</kbd> / <kbd class="vs">Ctrl+Y</kbd></td>
+      <td>Undo / redo</td>
+      <td><kbd class="peach">u</kbd> / <kbd class="peach">&lt;C-r&gt;</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Edit → Undo History</kbd> <span class="note">(limited)</span></td>
+      <td>Browse the full edit history visually</td>
+      <td><kbd class="peach">&lt;leader&gt;u</kbd> <span class="note">atone.nvim — tree pane with live diff preview, persists across sessions via <code>undofile</code></span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+X</kbd> / <kbd class="vs">Ctrl+C</kbd> / <kbd class="vs">Ctrl+V</kbd></td>
+      <td>Cut / copy / paste</td>
+      <td><kbd class="peach">d</kbd> + motion / <kbd class="peach">y</kbd> + motion / <kbd class="peach">p</kbd><br>
+        <span class="note">In-buffer only — these use Vim's unnamed register, NOT the system clipboard. For the OS clipboard prefix the register: <kbd class="peach">"+y</kbd> · <kbd class="peach">"+p</kbd> · <kbd class="peach">"+d</kbd> (or <kbd class="peach">"+yy</kbd> for a whole line). Plain Ctrl+C/V still work in INSERT mode. See <code>lua/config/options.lua</code> for the rationale.</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+L</kbd></td>
+      <td>Cut (delete) current line</td>
+      <td><kbd class="peach">dd</kbd> <span class="note">in-buffer cut (delete into unnamed register). Use <kbd class="peach">"+dd</kbd> for a true cut to system clipboard — see <code>lua/config/options.lua</code>.</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+D</kbd></td>
+      <td>Duplicate line</td>
+      <td><kbd class="peach">yyp</kbd> <span class="note">yank line, paste below</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Alt+↑</kbd> / <kbd class="vs">Alt+↓</kbd></td>
+      <td>Move line up / down</td>
+      <td><kbd class="peach">&lt;A-k&gt;</kbd> / <kbd class="peach">&lt;A-j&gt;</kbd> <span class="note">same chord idea — NORMAL moves the line, VISUAL moves the selected block (re-indented)</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+K, Ctrl+C</kbd> / <kbd class="vs">Ctrl+K, Ctrl+U</kbd></td>
+      <td>Comment / uncomment</td>
+      <td><kbd class="peach">gc</kbd> + motion · <kbd class="peach">gcc</kbd> line<br>
+        VISUAL: <kbd class="peach">gc</kbd> <span class="note">Neovim built-in; one key toggles both ways</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+K, Ctrl+D</kbd></td>
+      <td>Format document</td>
+      <td><kbd class="green">&lt;leader&gt;lf</kbd> <span class="note">LSP</span><br>
+        or <kbd class="green">&lt;leader&gt;cf</kbd> <span class="note">conform.nvim</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">///</kbd> above method <span class="note">(C# auto-gen)</span><br>
+        or <kbd class="vs">GhostDoc</kbd> extension</td>
+      <td>Generate doc / XML comment</td>
+      <td><kbd class="green">&lt;leader&gt;cd</kbd> <span class="note">neogen — doxygen for C/C++, conventional style elsewhere</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Tab</kbd> / <kbd class="vs">Shift+Tab</kbd> on selection</td>
+      <td>Indent / dedent</td>
+      <td>VISUAL: <kbd class="peach">&gt;</kbd> / <kbd class="peach">&lt;</kbd> <span class="note">reselects automatically</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+Space</kbd></td>
+      <td>Trigger completion</td>
+      <td><kbd class="mauve">&lt;C-Space&gt;</kbd> <span class="note">in INSERT — but on the Windows console Ctrl+Space can arrive as <kbd>&lt;leader&gt;</kbd>; use <kbd class="mauve">&lt;C-n&gt;</kbd> to open the menu there</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+Shift+Space</kbd></td>
+      <td>Parameter info / signature help</td>
+      <td><kbd class="mauve">&lt;leader&gt;lk</kbd> <span class="note">normal mode; in insert, blink auto-shows the signature while typing args (insert <kbd>&lt;C-k&gt;</kbd> stays Vim's digraph key)</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+M, Ctrl+M</kbd></td>
+      <td>Toggle outlining / fold</td>
+      <td><kbd class="peach">za</kbd> · <kbd class="peach">zR</kbd> open all · <kbd class="peach">zM</kbd> close all</td>
+    </tr>
+    <tr>
+      <td>Surround selection with brackets</td>
+      <td>mini.surround verbs</td>
+      <td><kbd class="peach">gza</kbd>+motion+char (add) · <kbd class="peach">gzd</kbd>+char (delete) · <kbd class="peach">gzr</kbd>+old+new (replace)<br>
+        <span class="note">e.g. <code>gzaiw"</code> wraps word in quotes</span></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ REFACTOR ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>Refactor &amp; quick fix</h2></div>
+  <table>
+    <tr><th>Visual Studio</th><th>Action</th><th>This config</th></tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+R, Ctrl+R</kbd></td>
+      <td>Rename symbol</td>
+      <td><kbd class="green">&lt;leader&gt;lr</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+.</kbd></td>
+      <td>Quick Actions / lightbulb</td>
+      <td><kbd class="green">&lt;leader&gt;la</kbd> <span class="note">code action menu</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+R, Ctrl+M</kbd></td>
+      <td>Extract Method</td>
+      <td><kbd class="green">&lt;leader&gt;la</kbd> <span class="note">if language server offers it</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+R, Ctrl+E</kbd></td>
+      <td>Encapsulate field</td>
+      <td><kbd class="green">&lt;leader&gt;la</kbd> <span class="note">via code action</span></td>
+    </tr>
+    <tr>
+      <td>n/a</td>
+      <td>Swap argument with neighbor</td>
+      <td><kbd class="peach">&lt;leader&gt;cs</kbd> next · <kbd class="peach">&lt;leader&gt;cS</kbd> prev <span class="note">treesitter-powered</span></td>
+    </tr>
+    <tr>
+      <td>n/a</td>
+      <td>Show LSP server status / restart</td>
+      <td><code>:checkhealth vim.lsp</code> · <code>:lsp restart</code></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ DEBUGGING ═══════════════════ -->
+<div class="card col-2">
+  <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>Debugging (DAP)</h2></div>
+  <table>
+    <tr><th>Visual Studio</th><th>Action</th><th>This config</th></tr>
+    <tr><td colspan="3" class="note">The plain F-keys work as in Visual Studio: <kbd class="mauve">&lt;F5&gt;</kbd> continue,
+      <kbd class="mauve">&lt;F6&gt;</kbd> pause, <kbd class="mauve">&lt;F9&gt;</kbd> breakpoint, <kbd class="mauve">&lt;F10&gt;</kbd> step over,
+      <kbd class="mauve">&lt;F11&gt;</kbd> step into. Shift/Ctrl+F-key combos aren't bound (the Windows console doesn't pass them
+      on reliably) — use the leader keys in the right column.</td></tr>
+    <tr>
+      <td><kbd class="vs">F5</kbd></td>
+      <td>Start / continue</td>
+      <td><kbd class="mauve">&lt;F5&gt;</kbd> or <kbd class="mauve">&lt;leader&gt;dc</kbd> <span class="note">picks from <code>.vscode/launch.json</code></span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Shift+F5</kbd></td>
+      <td>Stop / terminate</td>
+      <td><kbd class="mauve">&lt;leader&gt;dt</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+Shift+F5</kbd></td>
+      <td>Restart</td>
+      <td><kbd class="mauve">&lt;leader&gt;dR</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">F9</kbd></td>
+      <td>Toggle breakpoint</td>
+      <td><kbd class="mauve">&lt;F9&gt;</kbd> or <kbd class="mauve">&lt;leader&gt;db</kbd> <span class="note">persists across nvim restarts</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Alt+F9</kbd></td>
+      <td>Conditional breakpoint / hit count</td>
+      <td><kbd class="mauve">&lt;leader&gt;dB</kbd> <span class="note">prompts for condition + hit count; both empty cancels</span></td>
+    </tr>
+    <tr>
+      <td>Right-click <span class="note">→ Add Tracepoint</span></td>
+      <td>Log point (print, don't break)</td>
+      <td><kbd class="mauve">&lt;leader&gt;dP</kbd> <span class="note">use <code>{expr}</code> for variables</span></td>
+    </tr>
+    <tr>
+      <td>Breakpoints window</td>
+      <td>List / navigate all breakpoints</td>
+      <td><kbd class="mauve">&lt;leader&gt;dx</kbd> <span class="note">opens Trouble</span></td>
+    </tr>
+    <tr>
+      <td>Delete All Breakpoints</td>
+      <td>Clear all breakpoints</td>
+      <td><kbd class="mauve">&lt;leader&gt;dX</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">F10</kbd></td>
+      <td>Step over</td>
+      <td><kbd class="mauve">&lt;F10&gt;</kbd> or <kbd class="mauve">&lt;leader&gt;do</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">F11</kbd></td>
+      <td>Step into</td>
+      <td><kbd class="mauve">&lt;F11&gt;</kbd> or <kbd class="mauve">&lt;leader&gt;di</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Shift+F11</kbd></td>
+      <td>Step out</td>
+      <td><kbd class="mauve">&lt;leader&gt;dO</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+F10</kbd></td>
+      <td>Run to cursor</td>
+      <td><kbd class="mauve">&lt;leader&gt;dC</kbd></td>
+    </tr>
+    <tr>
+      <td>Watch / Locals / Call Stack windows</td>
+      <td>Toggle DAP UI panels</td>
+      <td><kbd class="mauve">&lt;leader&gt;du</kbd></td>
+    </tr>
+    <tr>
+      <td>Immediate window</td>
+      <td>Open REPL / evaluate</td>
+      <td><kbd class="mauve">&lt;leader&gt;dr</kbd> REPL · <kbd class="mauve">&lt;leader&gt;de</kbd> eval at cursor</td>
+    </tr>
+    <tr>
+      <td>Call Stack frame switch</td>
+      <td>Up / down the stack</td>
+      <td><kbd class="mauve">&lt;leader&gt;dk</kbd> up · <kbd class="mauve">&lt;leader&gt;dj</kbd> down</td>
+    </tr>
+    <tr>
+      <td>Validate launch.json</td>
+      <td>Preview parsed launch configs</td>
+      <td><kbd class="mauve">&lt;leader&gt;dL</kbd></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ WINDOWS / LAYOUT ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--sky)"></div><h2>Windows &amp; layout</h2></div>
+  <table>
+    <tr><th>Visual Studio</th><th>Action</th><th>This config</th></tr>
+    <tr>
+      <td>Window <span class="note">→ New Vertical Tab Group</span></td>
+      <td>Split editor vertically</td>
+      <td><kbd class="sky">&lt;leader&gt;wv</kbd></td>
+    </tr>
+    <tr>
+      <td>Window <span class="note">→ New Horizontal Tab Group</span></td>
+      <td>Split editor horizontally</td>
+      <td><kbd class="sky">&lt;leader&gt;ws</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+F4</kbd><span class="vs-name">Close document window</span></td>
+      <td>Close current pane</td>
+      <td><kbd class="sky">&lt;leader&gt;wc</kbd></td>
+    </tr>
+    <tr>
+      <td>"Maximize" pane <span class="vs-name">close others (destructive)</span></td>
+      <td>Keep only this window</td>
+      <td><kbd class="sky">&lt;leader&gt;wo</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Shift+Alt+Enter</kbd><span class="vs-name">Toggle Full Screen Mode</span></td>
+      <td>Temporarily full-screen the current window, restore on second press</td>
+      <td><kbd class="sky">&lt;leader&gt;wm</kbd> <span class="note">window sizes saved &amp; replayed; works with neo-tree</span></td>
+    </tr>
+    <tr>
+      <td>Click pane to focus</td>
+      <td>Move focus between splits</td>
+      <td><kbd class="sky">&lt;C-h&gt;</kbd>/<kbd class="sky">&lt;C-j&gt;</kbd>/<kbd class="sky">&lt;C-k&gt;</kbd>/<kbd class="sky">&lt;C-l&gt;</kbd></td>
+    </tr>
+    <tr>
+      <td>Drag pane border</td>
+      <td>Resize splits</td>
+      <td><kbd class="sky">&lt;C-↑↓←→&gt;</kbd></td>
+    </tr>
+    <tr class="divider"><td colspan="3">Sessions <span class="note">like VS solutions, per-cwd</span></td></tr>
+    <tr>
+      <td>Auto-load last solution</td>
+      <td>Restore session for cwd</td>
+      <td>Automatic on launch <span class="note">if cwd matches</span></td>
+    </tr>
+    <tr>
+      <td>Open Recent</td>
+      <td>Pick a saved session</td>
+      <td><kbd class="sky">&lt;leader&gt;wf</kbd></td>
+    </tr>
+    <tr>
+      <td>Save solution</td>
+      <td>Manually save session</td>
+      <td><kbd class="sky">&lt;leader&gt;wS</kbd></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ ERRORS / DIAGNOSTICS ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--red)"></div><h2>Errors &amp; diagnostics</h2></div>
+  <table>
+    <tr><th>Visual Studio</th><th>Action</th><th>This config</th></tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+\, E</kbd> / Error List</td>
+      <td>Show all diagnostics</td>
+      <td><kbd class="red">&lt;leader&gt;xx</kbd> <span class="note">Trouble</span></td>
+    </tr>
+    <tr>
+      <td>F8 / Shift+F8</td>
+      <td>Next / prev error in list</td>
+      <td><kbd class="red">]d</kbd> next · <kbd class="red">[d</kbd> prev</td>
+    </tr>
+    <tr>
+      <td>Hover over squiggly</td>
+      <td>Show diagnostic message</td>
+      <td><kbd class="red">&lt;leader&gt;ld</kbd> <span class="note">float window</span></td>
+    </tr>
+    <tr>
+      <td>Output / Build window</td>
+      <td>Quickfix list</td>
+      <td><kbd class="red">&lt;leader&gt;xq</kbd></td>
+    </tr>
+    <tr>
+      <td>"Find Results" window</td>
+      <td>Location list</td>
+      <td><kbd class="red">&lt;leader&gt;xL</kbd></td>
+    </tr>
+    <tr>
+      <td>Tasks (Show Task List)</td>
+      <td>TODO / FIXME index</td>
+      <td><kbd class="red">&lt;leader&gt;xt</kbd> <span class="note">Trouble</span> · <kbd class="blue">&lt;leader&gt;fT</kbd> <span class="note">picker</span></td>
+    </tr>
+    <tr>
+      <td>n/a</td>
+      <td>List all references in Trouble</td>
+      <td><kbd class="red">&lt;leader&gt;xl</kbd></td>
+    </tr>
+    <tr>
+      <td>n/a</td>
+      <td>Diagnostic snapshot for triage</td>
+      <td><code>:DiagnosticDump</code></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ GIT ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--green)"></div><h2>Git <span class="note">vs the "Git Changes" window</span></h2></div>
+  <table>
+    <tr><th>Visual Studio</th><th>Action</th><th>This config</th></tr>
+    <tr>
+      <td>Open Team Explorer</td>
+      <td>Open lazygit (full UI)</td>
+      <td><kbd class="teal">&lt;leader&gt;tg</kbd> <span class="note">if lazygit installed</span></td>
+    </tr>
+    <tr>
+      <td>Compare With Previous</td>
+      <td>Diffview: working tree vs the index</td>
+      <td><kbd class="green">&lt;leader&gt;gd</kbd> toggle · <kbd class="green">&lt;leader&gt;gD</kbd> close · <kbd class="green">&lt;leader&gt;gl</kbd> a file's commits vs your copy</td>
+    </tr>
+    <tr>
+      <td>View History</td>
+      <td>Repo / file history</td>
+      <td><kbd class="green">&lt;leader&gt;gH</kbd> repo · <kbd class="green">&lt;leader&gt;gh</kbd> file</td>
+    </tr>
+    <tr>
+      <td>Annotate <span class="note">(blame)</span></td>
+      <td>Line blame popup</td>
+      <td><kbd class="green">&lt;leader&gt;gb</kbd> · <kbd class="green">&lt;leader&gt;gB</kbd> toggle inline</td>
+    </tr>
+    <tr>
+      <td>Stage / Unstage line</td>
+      <td>Stage/unstage hunk (toggle)</td>
+      <td><kbd class="green">&lt;leader&gt;gs</kbd> hunk · <kbd class="green">&lt;leader&gt;gS</kbd> buffer</td>
+    </tr>
+    <tr>
+      <td>Revert change</td>
+      <td>Reset hunk / buffer</td>
+      <td><kbd class="green">&lt;leader&gt;gr</kbd> hunk · <kbd class="green">&lt;leader&gt;gR</kbd> buffer</td>
+    </tr>
+    <tr>
+      <td>n/a</td>
+      <td>Jump to next / prev hunk</td>
+      <td><kbd class="green">]h</kbd> · <kbd class="green">[h</kbd></td>
+    </tr>
+    <tr>
+      <td>n/a</td>
+      <td>Preview hunk inline</td>
+      <td><kbd class="green">&lt;leader&gt;gp</kbd></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ SELECTION / MULTI-CURSOR ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--yellow)"></div><h2>Selection &amp; multi-edit</h2></div>
+  <table>
+    <tr><th>Visual Studio</th><th>Action</th><th>This config</th></tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+W</kbd></td>
+      <td>Select word</td>
+      <td><kbd class="yellow">viw</kbd> <span class="note">VISUAL inner word</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+A</kbd></td>
+      <td>Select all</td>
+      <td><kbd class="yellow">ggVG</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Shift+Alt+;</kbd><span class="vs-name">Insert carets at all matching</span></td>
+      <td>Select all occurrences</td>
+      <td><kbd class="yellow">*</kbd> + <kbd class="yellow">cgn</kbd> + change + <kbd class="yellow">.</kbd> to repeat <span class="note">Vim idiom</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Alt+Shift+↑/↓</kbd></td>
+      <td>Multi-cursor stacked</td>
+      <td><kbd class="yellow">&lt;C-v&gt;</kbd> VISUAL-BLOCK + <kbd class="yellow">I</kbd> insert · <kbd class="yellow">$A</kbd> append</td>
+    </tr>
+    <tr>
+      <td>Alt+drag</td>
+      <td>Block / column selection</td>
+      <td><kbd class="yellow">&lt;C-v&gt;</kbd> then motion · or <kbd class="yellow">Alt</kbd>+drag with the mouse <span class="note">works because <code>'mousemodel'</code> is <code>popup_setpos</code>; some terminals / window managers take Alt+drag for themselves</span></td>
+    </tr>
+    <tr>
+      <td>Drag, then type</td>
+      <td>Insert the same text on every selected line</td>
+      <td>A plain mouse drag makes a <em>characterwise</em> selection, where <kbd class="yellow">I</kbd> inserts only once
+        (standard Vim — only blockwise Visual inserts on every line). Instead:<br>
+        · drag, press <kbd class="yellow">&lt;C-v&gt;</kbd> (turns it into a block), then <kbd class="yellow">I</kbd> text <kbd class="yellow">&lt;Esc&gt;</kbd> <span class="note">start the drag in the column to insert at</span><br>
+        · <kbd class="yellow">Alt</kbd>+drag (block directly), then <kbd class="yellow">I</kbd> text <kbd class="yellow">&lt;Esc&gt;</kbd><br>
+        · keyboard: <kbd class="yellow">&lt;C-v&gt;</kbd> <kbd class="yellow">j</kbd>… <kbd class="yellow">I</kbd> text <kbd class="yellow">&lt;Esc&gt;</kbd> <span class="note">the text appears on all lines after <kbd>&lt;Esc&gt;</kbd></span><br>
+        · any selection, any column: <code>:norm I//</code> (first non-blank) or <code>:norm 0i//</code> (column 1)</td>
+    </tr>
+    <tr class="divider"><td colspan="3">Text objects <span class="note">VS has nothing like this</span></td></tr>
+    <tr>
+      <td>n/a</td>
+      <td>Select "inside" / "around" something</td>
+      <td><kbd class="yellow">i</kbd> / <kbd class="yellow">a</kbd> + object<br>
+        <kbd class="yellow">iw</kbd> word · <kbd class="yellow">ip</kbd> paragraph · <kbd class="yellow">i)</kbd> parens · <kbd class="yellow">i"</kbd> quotes</td>
+    </tr>
+    <tr>
+      <td>n/a</td>
+      <td>Treesitter-aware</td>
+      <td><kbd class="yellow">if</kbd>/<kbd class="yellow">af</kbd> function · <kbd class="yellow">ic</kbd>/<kbd class="yellow">ac</kbd> class · <kbd class="yellow">ia</kbd>/<kbd class="yellow">aa</kbd> arg · <kbd class="yellow">il</kbd>/<kbd class="yellow">al</kbd> loop · <kbd class="yellow">ii</kbd>/<kbd class="yellow">ai</kbd> if</td>
+    </tr>
+    <tr>
+      <td>n/a</td>
+      <td>Jump by syntactic structure</td>
+      <td><kbd class="yellow">]f</kbd>/<kbd class="yellow">[f</kbd> function · <kbd class="yellow">]k</kbd>/<kbd class="yellow">[k</kbd> class · <kbd class="yellow">]a</kbd>/<kbd class="yellow">[a</kbd> argument</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ TERMINAL / BUILD ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--teal)"></div><h2>Terminal &amp; build</h2></div>
+  <table>
+    <tr><th>Visual Studio</th><th>Action</th><th>This config</th></tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+`</kbd></td>
+      <td>Open integrated terminal</td>
+      <td><kbd class="teal">&lt;C-\&gt;</kbd> float<br>
+        <kbd class="teal">&lt;leader&gt;tt</kbd> float · <kbd class="teal">&lt;leader&gt;th</kbd> horiz · <kbd class="teal">&lt;leader&gt;tv</kbd> vertical</td>
+    </tr>
+    <tr>
+      <td>Inside terminal</td>
+      <td>Leave terminal-input mode</td>
+      <td><kbd class="teal">&lt;Esc&gt;&lt;Esc&gt;</kbd></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">F7</kbd> / <kbd class="vs">Ctrl+Shift+B</kbd></td>
+      <td>Build</td>
+      <td>Run from terminal: <code>cargo build</code>, <code>make</code>, etc.</td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+F5</kbd></td>
+      <td>Run without debugging</td>
+      <td>Run from terminal, or <code>:!</code><code>cmd</code></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ SEARCH IN BUFFER ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--yellow)"></div><h2>Search in current file</h2></div>
+  <table>
+    <tr><th>Visual Studio</th><th>Action</th><th>This config</th></tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+F</kbd></td>
+      <td>Find</td>
+      <td><kbd class="yellow">/</kbd> forward · <kbd class="yellow">?</kbd> backward<br><span class="note">type, then &lt;CR&gt; to confirm</span></td>
+    </tr>
+    <tr>
+      <td><kbd class="vs">F3</kbd> / <kbd class="vs">Shift+F3</kbd></td>
+      <td>Find next / prev</td>
+      <td><kbd class="yellow">n</kbd> / <kbd class="yellow">N</kbd> <span class="note">centers automatically</span></td>
+    </tr>
+    <tr>
+      <td>Click word, F3 cycles</td>
+      <td>Search word under cursor</td>
+      <td><kbd class="yellow">*</kbd> forward · <kbd class="yellow">#</kbd> backward</td>
+    </tr>
+    <tr>
+      <td>Clear find highlight</td>
+      <td>Stop highlighting last search</td>
+      <td><kbd class="yellow">&lt;Esc&gt;</kbd> <span class="note">cleared automatically</span></td>
+    </tr>
+    <tr>
+      <td>n/a</td>
+      <td>Jump to any visible label</td>
+      <td><kbd class="yellow">s</kbd> + a char (more to narrow) + label <span class="note">flash.nvim</span></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ MISC USEFUL ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--pink)"></div><h2>Other VS conveniences</h2></div>
+  <table>
+    <tr><th>Visual Studio</th><th>Action</th><th>This config</th></tr>
+    <tr>
+      <td><kbd class="vs">Ctrl+K, Ctrl+K</kbd></td>
+      <td>Bookmark line</td>
+      <td><kbd class="pink">m</kbd>+letter <span class="note">e.g. <code>ma</code></span> · <kbd class="pink">'</kbd>+letter to jump</td>
+    </tr>
+    <tr>
+      <td>Bookmark window</td>
+      <td>List marks</td>
+      <td><kbd class="blue">&lt;leader&gt;fm</kbd></td>
+    </tr>
+    <tr>
+      <td>Right-click tab <span class="note">VS context menu</span></td>
+      <td>Per-tab actions (copy path, close, pin, etc.)</td>
+      <td>Right-click any bufferline tab → floating context menu with: open in split/vsplit, copy abs/rel path, copy filename, toggle pin, close, close others. Press <kbd class="sky">1</kbd>..<kbd class="sky">8</kbd> for a quick pick.</td>
+    </tr>
+    <tr>
+      <td>Pin tab</td>
+      <td>Pin buffer in tabline</td>
+      <td><kbd class="sky">&lt;leader&gt;bp</kbd> <span class="note">or right-click → Toggle pin</span></td>
+    </tr>
+    <tr>
+      <td>Close all but pinned</td>
+      <td>Close unpinned buffers</td>
+      <td><kbd class="sky">&lt;leader&gt;bP</kbd> <span class="note">unsaved ones stay open</span></td>
+    </tr>
+    <tr>
+      <td>Tools → Options</td>
+      <td>Edit config</td>
+      <td>Edit files under <code>lua/</code>, then <code>:restart</code> <span class="note"><code>:source %</code> doesn't re-run lazy.nvim's setup, so plugin-spec changes need the restart</span></td>
+    </tr>
+    <tr>
+      <td>Extensions Manager</td>
+      <td>Plugin manager UI</td>
+      <td><kbd class="lavender">&lt;leader&gt;L</kbd> <span class="note">lazy.nvim</span></td>
+    </tr>
+    <tr>
+      <td>Tools → NuGet</td>
+      <td>LSP / formatter installer</td>
+      <td><kbd class="green">&lt;leader&gt;cm</kbd> <span class="note">Mason UI</span></td>
+    </tr>
+    <tr>
+      <td>?</td>
+      <td>Help docs</td>
+      <td><kbd class="blue">&lt;leader&gt;fh</kbd> <span class="note">help_tags picker</span></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ THINGS WORTH LEARNING ═══════════════════ -->
+<div class="card col-full">
+  <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>Vim idioms with no VS equivalent <span class="note">the productivity unlocks</span></h2></div>
+  <table>
+    <tr><th>Idiom</th><th>What it does</th><th>Why it matters</th></tr>
+    <tr>
+      <td class="col-vs"><kbd class="peach">.</kbd></td>
+      <td class="col-what">Repeat last edit</td>
+      <td class="col-nvim">Edit once, position cursor, hit <kbd class="peach">.</kbd> — repeats verbatim. Combine with <kbd>n</kbd>/<kbd>N</kbd> after <kbd>/</kbd> to do "find next, edit, find next, edit" without selecting anything.</td>
+    </tr>
+    <tr>
+      <td><kbd class="peach">ciw</kbd> · <kbd class="peach">ci"</kbd> · <kbd class="peach">ci)</kbd></td>
+      <td>Change inside word / quotes / parens</td>
+      <td>The single most useful editing pattern. Cursor anywhere inside the target — no need to select first. Add <kbd>c</kbd>+<kbd>a</kbd>+thing to also delete the surrounding chars.</td>
+    </tr>
+    <tr>
+      <td><kbd class="peach">vif</kbd> · <kbd class="peach">daf</kbd></td>
+      <td>Select / delete a whole function</td>
+      <td>Treesitter-driven, language-aware. Works in any language with an installed parser (the list in <code>treesitter.lua</code>) that nvim-treesitter-textobjects has queries for — most do; indentation doesn't matter.</td>
+    </tr>
+    <tr>
+      <td><kbd class="peach">qa</kbd> ... <kbd class="peach">q</kbd></td>
+      <td>Record macro to register "a"</td>
+      <td>Replay with <kbd>@a</kbd>. Vastly more flexible than VS's "record keystrokes" since macros are stored as text and editable.</td>
+    </tr>
+    <tr>
+      <td><kbd class="peach">&lt;C-o&gt;</kbd> · <kbd class="peach">&lt;C-i&gt;</kbd></td>
+      <td>Jump list back / forward</td>
+      <td>Like browser back/forward but for code locations. Every <kbd>gd</kbd>, search, or <kbd>{number}G</kbd> goes on the list.</td>
+    </tr>
+    <tr>
+      <td><kbd class="peach">"+y</kbd> · <kbd class="peach">"+p</kbd></td>
+      <td>Yank / paste to / from the system clipboard</td>
+      <td>This config keeps the unnamed register separate from <code>"+"</code> (so <kbd>dd</kbd> doesn't clobber the OS clipboard), which means clipboard access is always explicit. <kbd class="peach">"+yy</kbd> copies the current line, <kbd class="peach">"+p</kbd> pastes after the cursor. To restore the implicit-clipboard behaviour, uncomment the <code>opt.clipboard = "unnamedplus"</code> line in <code>lua/config/options.lua</code>.</td>
+    </tr>
+    <tr>
+      <td><kbd class="peach">gv</kbd></td>
+      <td>Re-select last visual selection</td>
+      <td>"Whoops, I needed that selection back". No equivalent in VS.</td>
+    </tr>
+    <tr>
+      <td><kbd class="peach">&gt;G</kbd> · <kbd class="peach">=ap</kbd></td>
+      <td>Indent to end-of-file · auto-indent paragraph</td>
+      <td>Indent operator + motion. <kbd>=G</kbd> reformats indentation to end of file.</td>
+    </tr>
+  </table>
+</div>
+
+</div>
+<footer>
+  <span>Visual Studio shortcuts assume the General profile · Nvim bindings reflect this config (see <code>lua/config/keymaps.lua</code> for the source)</span>
+  <span>Discover any binding: press <kbd class="lavender">&lt;leader&gt;</kbd> and wait</span>
+</footer>
+</body>
+</html>

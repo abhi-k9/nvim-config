@@ -1,0 +1,74 @@
+# .clang-tidy — minimal, ready to copy to your project ROOT (not your Neovim
+# config). clang-tidy / clangd discover it by walking up from the edited file.
+# Your clangd runs with --clang-tidy, so these surface as live diagnostics.
+# The fully-annotated companion (every line explained, when to drop each check)
+# is clang-tidy.example next to this file — settings here are identical to it,
+# and clangd.example's Diagnostics.ClangTidy block carries the same checks and
+# options (scripts/check-docs.sh enforces both).
+
+# Enable the high-signal modern-C++/bug families, then subtract the noisy or
+# self-contradictory checks. `-*` first so the set is explicit and stable
+# across LLVM versions. Remove a `-check` line to get that warning back.
+Checks: >
+  -*,
+  bugprone-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  misc-*,
+
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  -modernize-use-nodiscard,
+
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -readability-named-parameter,
+  -readability-braces-around-statements,
+  -readability-function-cognitive-complexity,
+
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+
+  -bugprone-easily-swappable-parameters,
+
+  -misc-non-private-member-variables-in-classes,
+  -misc-no-recursion,
+
+# Report diagnostics from every non-system header, third-party ones included;
+# narrow the regex to your own header roots to skip vendored code. System
+# headers stay quiet (SystemHeaders defaults off).
+HeaderFilterRegex: '.*'
+
+# Empty: nothing force-promoted to an error. clangd ignores this (CLI/CI only).
+WarningsAsErrors: ''
+
+# Per-check tuning. The readability-identifier-naming block is the naming
+# convention: PascalCase types, lower_case functions/members, camelBack
+# locals/params, ALL_CAPS macros, trailing `_` on private members. Delete the
+# naming keys to stop enforcing names.
+CheckOptions:
+  modernize-use-default-member-init.UseAssignment: 'false'
+  modernize-use-default-member-init.IgnoreMacros: 'true'
+  modernize-use-auto.MinTypeNameLength: '5'
+  modernize-use-auto.RemoveStars: 'false'
+  modernize-loop-convert.MinConfidence: 'reasonable'
+  readability-identifier-naming.NamespaceCase: 'lower_case'
+  readability-identifier-naming.ClassCase: 'CamelCase'
+  readability-identifier-naming.StructCase: 'CamelCase'
+  readability-identifier-naming.EnumCase: 'CamelCase'
+  readability-identifier-naming.FunctionCase: 'lower_case'
+  readability-identifier-naming.VariableCase: 'camelBack'
+  readability-identifier-naming.ParameterCase: 'camelBack'
+  readability-identifier-naming.MemberCase: 'lower_case'
+  readability-identifier-naming.PrivateMemberSuffix: '_'
+  readability-identifier-naming.ConstantCase: 'camelBack'
+  readability-identifier-naming.MacroDefinitionCase: 'UPPER_CASE'
+  readability-identifier-naming.EnumConstantCase: 'CamelCase'
+  readability-identifier-naming.GlobalConstantCase: 'CamelCase'

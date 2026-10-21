@@ -1,0 +1,434 @@
+// ════════════════════════════════════════════════════════════════════════
+//  .vscode/launch.json — per-project debug configurations for nvim-dap
+// ════════════════════════════════════════════════════════════════════════
+//
+// WHAT THIS FILE IS
+// -----------------
+// nvim-dap reads `.vscode/launch.json` from your project root and presents
+// each entry (by its `name`) in a picker when you start debugging. The
+// schema is the same one VS Code uses, so the bulk of Microsoft's C/C++
+// debugging docs apply verbatim:
+//   https://code.visualstudio.com/docs/cpp/launch-json-reference
+//
+// HOW TO USE IT
+// -------------
+//   1. Copy this file to `<your project>/.vscode/launch.json`.
+//   2. Edit `program`, `args`, `cwd`, and `environment` for your build.
+//   3. In nvim, press <leader>dc (continue/start). Pick a configuration.
+//   4. The file is re-read on EVERY <leader>dc, so edits take effect
+//      immediately — no reload command, no restart. (If you want to
+//      sanity-check the file without launching, <leader>dL validates it
+//      and lists the parsed configs.)
+//
+// WHICH ADAPTER SHOULD I USE?  (cppdbg and codelldb are both Mason-installed)
+// --------------------------------------------------------------
+//   cppdbg    GDB- or LLDB-backed, via Microsoft's cpptools. Most
+//             VS-Code-like; great pretty-printing via gdb. Good default
+//             on Linux. Uses `MIMode` to pick gdb vs lldb.
+//   codelldb  A standalone LLDB-based adapter (Vadimcn's). Often the best
+//             experience for Rust and modern C++, and the most reliable
+//             LLDB option on Windows. Slightly different field names —
+//             see the big section near the bottom before you use it.
+//   (lldb)    The lldb you get is via cppdbg with MIMode:"lldb" (macOS),
+//             OR via codelldb. There's no separate "lldb" type here.
+//
+// VARIABLE SUBSTITUTIONS  (expanded by nvim-dap at launch time)
+// ------------------------------------------------------------
+//   ${workspaceFolder}            vim.fn.getcwd() — your project root.
+//                                 Change the cwd nvim uses with :cd,
+//                                 :tcd (tab-local), or :lcd (window-local).
+//   ${workspaceFolderBasename}    just the folder name, no path.
+//   ${file}                       full path of the current buffer.
+//   ${fileBasename}               current file name, e.g. main.cpp.
+//   ${fileBasenameNoExtension}    e.g. main.
+//   ${fileDirname}                directory of the current file.
+//   ${relativeFile}               current file relative to workspaceFolder.
+//   ${env:NAME}                   value of environment variable NAME.
+//   ${command:pickProcess}        process picker (used for attach below).
+//
+// FORMAT NOTES
+// ------------
+//   * Comments are fine: nvim-dap decodes with comment skipping, so // and
+//     /* */ comments may sit anywhere, including at the end of a line.
+//   * Trailing commas are NOT: nvim-dap reads standard JSON, so a comma
+//     after the last item of a list or object is a parse error (unlike
+//     VS Code). `:DapLoadLaunchJSON` (<leader>dL) reports it.
+//   * `version` is conventionally "0.2.0"; nvim-dap doesn't enforce it.
+//   * Every config needs at least: name, type, request. The rest depend
+//     on the adapter and whether you're launching or attaching.
+//
+// SYSTEM-SPECIFIC PROPERTIES  (nvim-dap feature, also in VS Code)
+// ---------------------------------------------------------------
+// A config may carry `linux:`, `osx:`, and `windows:` sub-objects whose
+// keys are merged in (overriding the top level) only on that OS. This
+// lets ONE config work cross-platform — e.g. a different debugger path
+// or program extension per system:
+//   {
+//     "name": "Debug (cross-platform)",
+//     "type": "cppdbg", "request": "launch", "MIMode": "gdb",
+//     "program": "${workspaceFolder}/build/Debug/app",
+//     "windows": { "program": "${workspaceFolder}/build/Debug/app.exe",
+//                  "miDebuggerPath": "C:/msys64/mingw64/bin/gdb.exe" },
+//     "osx":     { "MIMode": "lldb" }
+//   }
+//
+// preLaunchTask / postDebugTask  — NOT supported by nvim-dap core
+// ---------------------------------------------------------------
+// VS Code runs a `preLaunchTask` (usually a build) before launching.
+// nvim-dap core IGNORES these fields — adding `"preLaunchTask": "build"`
+// does nothing on its own. Options:
+//   * Build yourself before <leader>dc (e.g. `:make`, or a build in a <leader>tt terminal).
+//   * Install overseer.nvim, which patches nvim-dap to honour
+//     preLaunchTask/postDebugTask from a tasks.json. (Not bundled here.)
+// Don't rely on the binary being rebuilt automatically when you start a
+// session — stale-binary debugging is a classic "my breakpoint moved"
+// trap.
+//
+// ════════════════════════════════════════════════════════════════════════
+{
+  "version": "0.2.0",
+  "configurations": [
+
+    // ════════════════════════════════════════════════════════════════════
+    //  cppdbg (GDB) — the bread-and-butter Linux config
+    // ════════════════════════════════════════════════════════════════════
+    // Launches a freshly-built binary with no arguments, project root as
+    // the working directory. This is the one to copy first.
+    {
+      "name": "Debug ‹app› (Debug build)",
+      "type": "cppdbg",
+      "request": "launch",
+
+      // Path to the COMPILED EXECUTABLE — not your source file. Build with
+      // debug symbols (-g for gcc/clang, or a CMake "Debug" config) or
+      // breakpoints won't bind and you'll see "no symbol table".
+      "program": "${workspaceFolder}/build/Debug/app",
+
+      // Command-line arguments, one array element per argument. Quoting is
+      // automatic — DON'T wrap things in extra quotes. See the next config
+      // for an example with real args.
+      "args": [],
+
+      // Working directory the program runs in. Matters for relative paths
+      // your program opens (config files, test fixtures, etc.).
+      "cwd": "${workspaceFolder}",
+
+      // Break automatically on entry (at main)? Usually false — set a
+      // breakpoint where you actually care instead. cppdbg spells this
+      // "stopAtEntry"; codelldb spells it "stopOnEntry" (see below).
+      "stopAtEntry": false,
+
+      // Environment variables for the debuggee, as name/value pairs.
+      "environment": [],
+
+      // "gdb" on Linux/Windows-MinGW, "lldb" on macOS. This is the field
+      // that picks the underlying debugger for cppdbg.
+      "MIMode": "gdb",
+
+      // gdb-specific startup commands. Pretty-printing makes std::vector,
+      // std::string, etc. show readable values instead of raw memory.
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    },
+
+    // ════════════════════════════════════════════════════════════════════
+    //  cppdbg (GDB) — with arguments, a custom cwd, and environment
+    // ════════════════════════════════════════════════════════════════════
+    // Shows the shape of a more realistic config: passing flags, running
+    // from a fixtures directory, and setting env vars (e.g. logging,
+    // library search paths, feature toggles).
+    {
+      "name": "Debug ‹app› — integration test",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/Debug/app",
+
+      // Each token is a separate array element. This is equivalent to:
+      //   ./app --config tests/integration.toml --verbose
+      "args": ["--config", "tests/integration.toml", "--verbose"],
+
+      // Run from the fixtures dir so the program's relative paths resolve.
+      "cwd": "${workspaceFolder}/tests/fixtures",
+
+      "environment": [
+        { "name": "RUST_LOG",        "value": "debug" },
+        // Help the loader find your freshly-built .so's at runtime.
+        { "name": "LD_LIBRARY_PATH", "value": "${workspaceFolder}/build/lib" },
+        { "name": "MY_FEATURE_FLAG", "value": "1" }
+      ],
+      "stopAtEntry": false,
+      "MIMode": "gdb"
+    },
+
+    // ════════════════════════════════════════════════════════════════════
+    //  cppdbg — attach to an already-running process
+    // ════════════════════════════════════════════════════════════════════
+    // `request: "attach"` instead of "launch". When you start this config,
+    // `${command:pickProcess}` pops a process picker. `program` must still
+    // point at the binary so the debugger can load matching symbols.
+    //
+    // Linux note: attaching to a process you didn't start may require
+    //   echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+    // (the default "1" blocks ptrace of non-child processes).
+    {
+      "name": "Attach to running ‹app›",
+      "type": "cppdbg",
+      "request": "attach",
+      "program": "${workspaceFolder}/build/Debug/app",
+      "MIMode": "gdb",
+
+      // The picker; or pin a PID with a literal number like  "processId": 12345
+      "processId": "${command:pickProcess}"
+    },
+
+    // ════════════════════════════════════════════════════════════════════
+    //  cppdbg — macOS (LLDB)
+    // ════════════════════════════════════════════════════════════════════
+    // Identical to the GDB launch config except MIMode is "lldb". On macOS
+    // gdb is a pain to codesign, so lldb (or codelldb below) is the path of
+    // least resistance. `miDebuggerPath` is only needed if lldb-mi isn't
+    // discoverable on your PATH.
+    {
+      "name": "Debug ‹app› (macOS / lldb)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/Debug/app",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "MIMode": "lldb"
+      // , "miDebuggerPath": "/usr/bin/lldb-mi"
+    },
+
+    // ════════════════════════════════════════════════════════════════════
+    //  codelldb (LLDB) — READ THIS BEFORE COPYING A cppdbg CONFIG
+    // ════════════════════════════════════════════════════════════════════
+    // codelldb is a different adapter with its own field names. The single
+    // most common mistake is copying a cppdbg block, changing only `type`
+    // to "codelldb", and then hitting a hang or silent no-op. Don't. Use
+    // the field map below.
+    //
+    //   cppdbg field           codelldb equivalent          notes
+    //   ────────────           ───────────────────          ─────
+    //   stopAtEntry            stopOnEntry                   different name!
+    //   MIMode: gdb | lldb     (omit entirely)              always LLDB
+    //   setupCommands: [...]   initCommands: [...]          LLDB cmds, not GDB
+    //   environment:           env:                         see below
+    //     [{name,value}]         { "NAME": "value" }        OBJECT, not array!
+    //   console: <mode>        terminal: <mode>             DIFFERENT name AND values (below)
+    //   (no equivalent)        sourceLanguages: ["rust"]    nicer Rust view
+    //
+    // ENVIRONMENT SHAPE DIFFERS
+    //   cppdbg wants an ARRAY of {name, value} objects.
+    //   codelldb wants a single OBJECT mapping names to values:
+    //       "env": { "RUST_LOG": "debug", "MY_FLAG": "1" }
+    //   Mixing these up is the second most common codelldb mistake.
+    //
+    // THE `terminal` FIELD — and the Windows hang
+    //   codelldb's `terminal` controls where the debuggee's stdio goes. The
+    //   VALUES are codelldb's own — NOT cppdbg's "internalConsole" etc.:
+    //     "console"    → the DEBUG CONSOLE (the dap-repl buffer in nvim)
+    //     "integrated" → an integrated terminal, opened via a runInTerminal
+    //                    handshake between adapter and nvim-dap   (DEFAULT)
+    //     "external"   → a separate OS terminal window
+    //
+    //   CROSS-PLATFORM: the field and all three values behave identically on
+    //   Linux, macOS, and Windows. (codelldb has NO `console` field — that's
+    //   cppdbg/cpptools. Setting "console": ... on a codelldb config is
+    //   silently ignored, leaving you on the "integrated" default.)
+    //
+    //   On WINDOWS, prefer "console". codelldb's default ("integrated")
+    //   relies on the runInTerminal reverse-request, which frequently hangs
+    //   on Windows when paired with nvim-dap — the session appears to start,
+    //   the dap-ui opens, and then nothing happens because the adapter is
+    //   waiting on a terminal that never reports back. (Separately, the
+    //   auto-session config closes [dap-*] windows before a save and wipes
+    //   those buffers on exit, because a session can't recreate them — see
+    //   lua/plugins/session.lua.) "console" skips that handshake entirely,
+    //   so it's the safe default on every OS.
+    //
+    //   On Linux/macOS, "integrated" is fine if your program needs an
+    //   interactive stdin TTY; otherwise "console" keeps everything in nvim.
+    //
+    // STDIN
+    //   With "console", the debuggee's stdin is the dap-repl — type there.
+    //   If that's awkward and you're NOT on Windows, use "integrated"; or
+    //   redirect a file (pass it via args and read the file instead of
+    //   stdin), which works on every platform.
+    {
+      "name": "Debug ‹app› (codelldb)",
+      "type": "codelldb",
+      "request": "launch",
+
+      // Same as cppdbg: path to the compiled binary, built with symbols.
+      "program": "${workspaceFolder}/build/Debug/app",
+
+      // Array of args, exactly like cppdbg.
+      "args": [],
+
+      "cwd": "${workspaceFolder}",
+
+      // OBJECT form — note this is NOT the cppdbg array-of-objects shape.
+      "env": {
+        // "RUST_LOG": "debug"
+      },
+
+      // codelldb's spelling of stopAtEntry.
+      "stopOnEntry": false,
+
+      // Keep stdio in nvim's debug console. Safe on every OS; strongly
+      // preferred on Windows (see the `terminal` notes above).
+      "terminal": "console",
+
+      // SLOW FIRST LAUNCH? Defer symbol parsing. For large native binaries
+      // (e.g. an ACIS/OpenGL app with many big DLLs) LLDB preloads every
+      // module's debug info at launch — a dap trace showed this costing
+      // 1–2 MINUTES of cold start. This loads symbols lazily instead and is
+      // always safe. On a recent-enough LLDB you can add a second line
+      //   "settings set symbols.load-on-demand true"
+      // for per-compile-unit loading (so even breakpoint resolution is
+      // cheap) — drop it if it errors on an older LLDB. The other half of
+      // the win is OS-side: exclude your build output and the Mason
+      // codelldb folder from Windows Defender real-time scanning.
+      "initCommands": [
+        "settings set target.preload-symbols false"
+      ]
+
+      // Rust users: uncomment for nicer enum/Option/Result rendering and
+      // to load Rust's LLDB formatters.
+      // , "sourceLanguages": ["rust"]
+    },
+
+    // ════════════════════════════════════════════════════════════════════
+    //  codelldb — attach by PID
+    // ════════════════════════════════════════════════════════════════════
+    // codelldb attach. Use `pid` with the process picker, or hard-code a
+    // number. `program` is optional for attach but helps symbol resolution.
+    {
+      "name": "Attach ‹app› (codelldb)",
+      "type": "codelldb",
+      "request": "attach",
+      "program": "${workspaceFolder}/build/Debug/app",
+      "pid": "${command:pickProcess}"
+    },
+
+    // ════════════════════════════════════════════════════════════════════
+    //  cppdbg — CMake multi-config / preset output path
+    // ════════════════════════════════════════════════════════════════════
+    // If you build with CMake presets or a multi-config generator, the
+    // binary lives under a per-preset / per-config directory. There's no
+    // ${command:cmake.activeConfigurePresetName} in nvim-dap (that's a VS
+    // Code cmake-tools variable), so spell the path out, or use an input
+    // prompt (see the very bottom) to choose at launch.
+    {
+      "name": "Debug ‹app› (CMake preset: default)",
+      "type": "cppdbg",
+      "request": "launch",
+      // out-of-source preset layout, e.g. `cmake --preset default`:
+      "program": "${workspaceFolder}/out/build/default/app",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        { "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing", "ignoreFailures": true }
+      ]
+    },
+
+    // ════════════════════════════════════════════════════════════════════
+    //  cppdbg — post-mortem: open a core dump
+    // ════════════════════════════════════════════════════════════════════
+    // Debug a crash after the fact. `coreDumpPath` loads a core file
+    // instead of launching the program; you get the stack/locals at the
+    // moment of the crash but can't step (the process is dead).
+    //   Linux: enable cores with `ulimit -c unlimited`; find them per
+    //   /proc/sys/kernel/core_pattern (often `core` in cwd, or under
+    //   /var/lib/systemd/coredump via coredumpctl).
+    {
+      "name": "Debug core dump (cppdbg)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/Debug/app",
+      "coreDumpPath": "${workspaceFolder}/core",
+      "MIMode": "gdb",
+      "setupCommands": [
+        { "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing", "ignoreFailures": true }
+      ]
+    },
+
+    // codelldb equivalent uses initCommands to load the core:
+    // {
+    //   "name": "Debug core dump (codelldb)",
+    //   "type": "codelldb", "request": "launch",
+    //   "program": "${workspaceFolder}/build/Debug/app",
+    //   "initCommands": ["target create ${workspaceFolder}/build/Debug/app --core ${workspaceFolder}/core"],
+    //   "terminal": "console"
+    // },
+
+    // ════════════════════════════════════════════════════════════════════
+    //  cppdbg — remote debugging over gdbserver
+    // ════════════════════════════════════════════════════════════════════
+    // The program runs on another machine/container/board under
+    // `gdbserver :1234 ./app`; your local gdb connects to it. `program`
+    // is the LOCAL copy of the binary (for symbols); paths on the target
+    // are mapped if they differ.
+    {
+      "name": "Debug remote (gdbserver)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/Debug/app",
+      "MIMode": "gdb",
+      // host:port of gdbserver
+      "miDebuggerServerAddress": "localhost:1234",
+      "cwd": "${workspaceFolder}",
+      // If the target's source paths differ from yours, remap so
+      // breakpoints bind: "sourceFileMap": { "/build/on/target": "${workspaceFolder}" }
+      "setupCommands": [
+        { "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing", "ignoreFailures": true }
+      ]
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    //  Windows native (MSVC) — cppvsdbg, NOT bundled
+    // ════════════════════════════════════════════════════════════════════
+    // To debug a binary built with the MSVC toolchain (cl.exe / PDBs),
+    // VS Code uses `"type": "cppvsdbg"`. That adapter ships with VS Code's
+    // C/C++ extension and is NOT one of the Mason-installed adapters here, so
+    // it won't work out of the box in this config. For MSVC builds prefer
+    // codelldb (works with PDBs via LLDB) using "terminal":"console"
+    // as shown above. Documented here only so you know why a copied
+    // cppvsdbg config from a VS Code project does nothing.
+    // {
+    //   "name": "Debug (MSVC / cppvsdbg)",
+    //   "type": "cppvsdbg", "request": "launch",
+    //   "program": "${workspaceFolder}/build/Debug/app.exe",
+    //   "args": [], "cwd": "${workspaceFolder}", "console": "integratedTerminal"
+    // }
+  ],
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  inputs — prompt for a value at launch. nvim-dap supports "pickString"
+  //  and "promptString" inputs, referenced as ${input:id}; VS Code's
+  //  "command" inputs aren't supported. Handy for picking a build config or
+  //  passing ad-hoc args without editing this file.
+  // ══════════════════════════════════════════════════════════════════════
+  "inputs": [
+    // Reference as "${input:buildType}" inside a program path, e.g.
+    //   "program": "${workspaceFolder}/out/build/${input:buildType}/app"
+    // {
+    //   "id": "buildType",
+    //   "type": "pickString",
+    //   "description": "Which build to debug?",
+    //   "options": ["Debug", "RelWithDebInfo", "Release"],
+    //   "default": "Debug"
+    // }
+  ]
+}

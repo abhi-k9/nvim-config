@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Neovim Config — Plugins</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
+  :root {
+    --bg:#1e1e2e;--surface:#181825;--overlay:#313244;--muted:#6c7086;
+    --subtle:#7f849c;--text:#cdd6f4;--subtext:#a6adc8;
+    --lavender:#b4befe;--blue:#89b4fa;--sky:#89dceb;--teal:#94e2d5;
+    --green:#a6e3a1;--yellow:#f9e2af;--peach:#fab387;--red:#f38ba8;
+    --mauve:#cba6f7;--pink:#f5c2e7;--flamingo:#f2cdcd;--sapphire:#74c7ec;
+    --rosewater:#f5e0dc;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;
+    font-size:12px;line-height:1.5;padding:22px 26px 48px}
+  header{display:flex;align-items:baseline;justify-content:space-between;
+    border-bottom:1px solid var(--overlay);padding-bottom:11px;margin-bottom:18px}
+  header h1{font-size:18px;font-weight:700;color:var(--lavender);letter-spacing:-.3px}
+  header .meta{font-size:10.5px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+  .col-2{grid-column:span 2}.col-full{grid-column:span 3}
+  .card{background:var(--surface);border:1px solid var(--overlay);border-radius:7px;overflow:hidden}
+  .card-header{display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid var(--overlay)}
+  .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .card-header h2{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--subtext)}
+  .card-header .note{font-size:10px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-style:italic}
+  table{width:100%;border-collapse:collapse}
+  tr:not(:last-child) td{border-bottom:1px solid rgba(49,50,68,.5)}
+  td{padding:3.5px 10px;vertical-align:middle}
+  td:first-child{width:1%;white-space:nowrap}
+  td:last-child{color:var(--subtext);font-size:11px}
+  .divider td{padding:3px 10px;font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--muted);background:rgba(49,50,68,.4);
+    border-bottom:1px solid var(--overlay)!important}
+  kbd{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:10.5px;
+    font-weight:600;padding:1px 5px;border-radius:4px;background:var(--overlay);
+    color:var(--text);white-space:nowrap}
+  kbd.blue    {background:rgba(137,180,250,.13);color:var(--blue);    border:1px solid rgba(137,180,250,.26)}
+  kbd.mauve   {background:rgba(203,166,247,.13);color:var(--mauve);   border:1px solid rgba(203,166,247,.26)}
+  kbd.green   {background:rgba(166,227,161,.13);color:var(--green);   border:1px solid rgba(166,227,161,.26)}
+  kbd.yellow  {background:rgba(249,226,175,.13);color:var(--yellow);  border:1px solid rgba(249,226,175,.26)}
+  kbd.peach   {background:rgba(250,179,135,.13);color:var(--peach);   border:1px solid rgba(250,179,135,.26)}
+  kbd.teal    {background:rgba(148,226,213,.13);color:var(--teal);    border:1px solid rgba(148,226,213,.26)}
+  kbd.red     {background:rgba(243,139,168,.13);color:var(--red);     border:1px solid rgba(243,139,168,.26)}
+  kbd.sky     {background:rgba(137,220,235,.13);color:var(--sky);     border:1px solid rgba(137,220,235,.26)}
+  kbd.pink    {background:rgba(245,194,231,.13);color:var(--pink);    border:1px solid rgba(245,194,231,.26)}
+  kbd.lavender{background:rgba(180,190,254,.13);color:var(--lavender);border:1px solid rgba(180,190,254,.26)}
+  kbd.flamingo{background:rgba(242,205,205,.13);color:var(--flamingo);border:1px solid rgba(242,205,205,.26)}
+  kbd.rosewater{background:rgba(245,224,220,.13);color:var(--rosewater);border:1px solid rgba(245,224,220,.26)}
+  .note{color:var(--muted);font-size:10.5px;font-style:italic}
+  code{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--subtle)}
+  .wide td{width:auto;white-space:nowrap}
+  .wide td:nth-child(even){color:var(--subtext);font-size:11px;padding-right:18px}
+  footer{margin-top:16px;padding-top:10px;border-top:1px solid var(--overlay);
+    font-size:10px;color:var(--muted);display:flex;justify-content:space-between}
+  @media print{
+    body{background:#fff;color:#000;padding:5mm;font-size:8px}
+    .card{border-color:#ccc;break-inside:avoid}
+    .card-header{background:#f5f5f5;border-color:#ccc}
+    .divider td{background:#ebebeb;color:#555;border-color:#ccc!important}
+    kbd,kbd.blue,kbd.mauve,kbd.green,kbd.yellow,kbd.peach,kbd.teal,kbd.red,
+    kbd.sky,kbd.pink,kbd.lavender,kbd.flamingo,kbd.rosewater{
+      background:#eee;color:#000;border:1px solid #bbb}
+    .note{color:#777} td:last-child{color:#333} header h1{color:#000}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Neovim Config — Plugins</h1>
+  <span class="meta">Each plugin's commands, behaviors &amp; config file</span>
+</header>
+<div class="grid">
+
+<!-- ═══════════════════ LAZY / MASON ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--lavender)"></div><h2>lazy.nvim <span class="note">plugin manager</span></h2></div>
+  <table>
+    <tr><td><code>:Lazy</code></td><td>Open dashboard</td></tr>
+    <tr><td><code>:Lazy sync</code></td><td>Install + update + clean</td></tr>
+    <tr><td><code>:Lazy update</code></td><td>Update all</td></tr>
+    <tr><td><code>:Lazy clean</code></td><td>Remove unused plugin dirs</td></tr>
+    <tr><td><code>:Lazy restore</code></td><td>Restore from lockfile</td></tr>
+    <tr><td><code>:Lazy profile</code></td><td>Startup time breakdown</td></tr>
+    <tr><td><code>:Lazy health</code></td><td>Health checks</td></tr>
+    <tr><td><kbd class="lavender">&lt;leader&gt;L</kbd></td><td>Dashboard</td></tr>
+    <tr class="divider"><td colspan="2">Inside dashboard</td></tr>
+    <tr><td><kbd class="lavender">I</kbd> <kbd class="lavender">U</kbd> <kbd class="lavender">X</kbd></td><td>Install / Update / Clean</td></tr>
+    <tr><td><kbd class="lavender">?</kbd></td><td>Full keymap help</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>mason.nvim <span class="note">LSP / DAP / formatter installer</span></h2></div>
+  <table>
+    <tr><td><code>:Mason</code></td><td>Open package manager UI</td></tr>
+    <tr><td><code>:MasonUpdate</code></td><td>Refresh registry</td></tr>
+    <tr><td><code>:MasonInstall</code><span class="note"> &lt;pkg&gt;</span></td><td>Install a package</td></tr>
+    <tr><td><code>:MasonUninstall</code></td><td>Remove a package</td></tr>
+    <tr><td><code>:MasonLog</code></td><td>View install log</td></tr>
+    <tr><td><kbd class="peach">&lt;leader&gt;cm</kbd></td><td>Open :Mason</td></tr>
+    <tr class="divider"><td colspan="2">Inside :Mason</td></tr>
+    <tr><td><kbd class="peach">1-5</kbd></td><td>Switch tab (All / LSP / DAP / Linter / Formatter)</td></tr>
+    <tr><td><kbd class="peach">i</kbd> <kbd class="peach">X</kbd> <kbd class="peach">u</kbd> <kbd class="peach">U</kbd></td><td>Install / uninstall / update / update all</td></tr>
+    <tr><td><kbd class="peach">&lt;C-f&gt;</kbd></td><td>Filter by language <span class="note">plain <kbd>/</kbd> is Vim's buffer search</span></td></tr>
+    <tr><td><kbd class="peach">g?</kbd></td><td>Help</td></tr>
+    <tr class="divider"><td colspan="2">Companions</td></tr>
+    <tr><td colspan="2" class="note">mason-lspconfig (<code>lsp.lua</code>) auto-installs the LSPs listed in its <code>ensure_installed</code> — ruff and taplo, which conform also uses as formatters, come from here</td></tr>
+    <tr><td colspan="2" class="note">mason-tool-installer (<code>formatting.lua</code>) installs everything else once on startup: the formatters stylua, clang-format, shfmt and prettierd, plus shellcheck and the debug adapters debugpy, codelldb, cpptools and bash-debug-adapter</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--teal)"></div><h2>LSP <span class="note">nvim-lspconfig + fidget</span></h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Ex commands <span class="note">Neovim's built-in <code>:lsp</code>; on 0.12 nvim-lspconfig no longer defines the old <code>:Lsp*</code> commands shown in parentheses</span></td></tr>
+    <tr><td><code>:checkhealth vim.lsp</code></td><td>Show clients attached to buffer <span class="note">(was <code>:LspInfo</code>)</span></td></tr>
+    <tr><td><code>:lsp enable &lt;name&gt;</code></td><td>Enable a server for this and future buffers <span class="note">(was <code>:LspStart</code>)</span></td></tr>
+    <tr><td><code>:lsp stop &lt;name&gt;</code></td><td>Stop the running client; it starts again for the next buffer you open <span class="note">(was <code>:LspStop</code>)</span></td></tr>
+    <tr><td><code>:lsp disable &lt;name&gt;</code></td><td>Stop it <em>and</em> keep it off for future buffers (until <code>:lsp enable</code>)</td></tr>
+    <tr><td><code>:lsp restart &lt;name&gt;</code></td><td>Restart &amp; reattach <span class="note">(was <code>:LspRestart</code>)</span></td></tr>
+    <tr><td><code>:lua vim.cmd.edit(vim.lsp.log.get_filename())</code></td><td>Open LSP log <span class="note">(was <code>:LspLog</code>)</span></td></tr>
+    <tr class="divider"><td colspan="2">Servers pre-installed</td></tr>
+    <tr><td colspan="2" class="note">lua_ls · bashls · clangd · pyright · ruff · ts_ls · rust_analyzer ·<br>
+      jsonls · yamlls · html · cssls · marksman · taplo<br>
+      <span style="opacity:0.75">(gopls present but commented out in <code>lsp.lua</code> — uncomment after installing the Go toolchain)</span></td></tr>
+    <tr><td colspan="2" class="note"><b>Python runs two servers:</b> <b>pyright</b> for types + completion + hover,
+      <b>ruff</b> for lint diagnostics + import sorting. pyright's import organizer is off (ruff owns it) and
+      ruff's hover is silenced (pyright's wins), so they don't double up. The one <code>ruff</code> binary
+      also backs conform's <code>ruff_format</code> / <code>ruff_organize_imports</code>.</td></tr>
+    <tr class="divider"><td colspan="2">Features auto-enabled</td></tr>
+    <tr><td colspan="2" class="note">Inlay hints (toggle <kbd class="teal">&lt;leader&gt;lh</kbd>) ·
+      Linked tag editing — HTML/XML/JSX closing tags follow the opening tag (toggle <kbd class="teal">&lt;leader&gt;lt</kbd>) ·
+      Document colours, e.g. CSS colour values (toggle <kbd class="teal">&lt;leader&gt;lc</kbd>) ·
+      Document highlight on CursorHold · Diagnostic floats &amp; signs · Rounded borders on hover,
+      signature help and diagnostic floats (<code>'winborder'</code> in <code>options.lua</code>).</td></tr>
+    <tr><td colspan="2" class="note">Smarter folds are handled by the separate
+      <code>nvim-ufo</code> plugin (LSP folding ranges, falling back to treesitter, or to indent
+      where the language has no treesitter folds), not by the LSP setup directly.
+      See the Folding (ufo) card on the keymaps cheatsheet.</td></tr>
+    <tr><td colspan="2" class="note"><b>fidget</b>: floating spinner shows server progress
+      ("rust-analyzer: indexing…") in bottom-right.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ TREESITTER ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--green)"></div><h2>Treesitter <span class="note">main branch</span></h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Commands</td></tr>
+    <tr><td><code>:TSInstall</code><span class="note"> &lt;lang&gt;</span></td><td>Install a parser <span class="note">also the way to retry one that failed or is missing</span></td></tr>
+    <tr><td><code>:TSUpdate</code></td><td>Update the installed parsers to the versions this plugin expects <span class="note">runs after every plugin update (<code>build</code>); it never installs a missing parser</span></td></tr>
+    <tr><td><code>:TSUninstall</code><span class="note"> &lt;lang&gt;</span></td><td>Remove a parser</td></tr>
+    <tr><td><code>:checkhealth nvim-treesitter</code></td><td>CLI presence + every installed parser and its queries <span class="note">(the <code>main</code> branch has no <code>:TSInstallInfo</code>)</span></td></tr>
+    <tr class="divider"><td colspan="2">What's wired up</td></tr>
+    <tr><td colspan="2" class="note">Highlight &amp; indent (via a FileType autocmd) ·
+      textobjects (select / move / swap) — plugin is on the rewritten <code>main</code> branch
+      of <code>nvim-treesitter</code> + <code>nvim-treesitter-textobjects</code>.</td></tr>
+    <tr class="divider"><td colspan="2">Requires (one-time)</td></tr>
+    <tr><td colspan="2" class="note">Neovim 0.12.0+, <code>tar</code> and <code>curl</code>, the
+      <code>tree-sitter</code> CLI 0.26.1+ on <code>PATH</code> (<strong>not npm</strong>), and a C
+      compiler; each parser is compiled locally. Install the CLI with a package manager when the
+      version is new enough (<code>scoop install tree-sitter</code>, <code>brew install tree-sitter</code>,
+      <code>pacman -S tree-sitter</code>), else <code>cargo install --locked tree-sitter-cli</code>
+      (after <a href="https://rustup.rs">rustup</a>), else a prebuilt
+      <code>tree-sitter-*</code> asset from the
+      <a href="https://github.com/tree-sitter/tree-sitter/releases">tree-sitter releases</a>.
+      Full steps: README &rarr; <em>Installing the tree-sitter CLI</em>.
+      <code>:checkhealth config</code> flags npm, an old version, or a missing CLI. Compiler on
+      Windows: MSVC Build Tools are found automatically; set <code>CC=clang</code> for LLVM.</td></tr>
+    <tr class="divider"><td colspan="2">Incremental selection <span class="note">built into Neovim 0.12</span></td></tr>
+    <tr><td colspan="2" class="note">In Visual mode <kbd>an</kbd> grows the selection to the parent node,
+      <kbd>in</kbd> shrinks it to a child, and <kbd>]n</kbd> / <kbd>[n</kbd> move it to the next / previous
+      node (<code>:h treesitter-incremental-selection</code>). The <code>master</code> branch's
+      <kbd>&lt;C-Space&gt;</kbd> / <kbd>&lt;BS&gt;</kbd> maps are gone on <code>main</code>.</td></tr>
+    <tr class="divider"><td colspan="2">Sticky context (treesitter-context)</td></tr>
+    <tr><td colspan="2" class="note">Up to 3 lines of enclosing scope pinned at top of window.
+      <kbd class="green">&lt;leader&gt;cC</kbd> jumps up to it.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ NEOGEN ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--rosewater)"></div><h2>neogen <span class="note">doc-comment scaffolding</span></h2></div>
+  <table>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;cd</kbd></td><td>Generate doc comment <span class="note">auto-detects function/class/type</span></td></tr>
+    <tr><td><code>:Neogen func</code></td><td>Doc for nearest function (explicit)</td></tr>
+    <tr><td><code>:Neogen class</code></td><td>Doc for nearest class</td></tr>
+    <tr><td><code>:Neogen type</code></td><td>Doc for type / struct</td></tr>
+    <tr><td><code>:Neogen file</code></td><td>File header comment</td></tr>
+    <tr class="divider"><td colspan="2">Style per language <span class="note">(neogen defaults; overridable in <code>neogen.lua</code>)</span></td></tr>
+    <tr><td>C / C++</td><td>doxygen (<code>/** @param @return */</code>)</td></tr>
+    <tr><td>Lua</td><td>ldoc / EmmyLua (<code>--- @param @return</code>)</td></tr>
+    <tr><td>Python</td><td>numpydoc (Parameters / Returns sections)</td></tr>
+    <tr><td>TS / JS</td><td>jsdoc</td></tr>
+    <tr><td>Rust</td><td>rustdoc (<code>/// # Arguments # Returns</code>)</td></tr>
+    <tr class="divider"><td colspan="2">After generation</td></tr>
+    <tr><td colspan="2" class="note"><kbd>&lt;Tab&gt;</kbd> / <kbd>&lt;S-Tab&gt;</kbd> walk between empty
+      placeholders — neogen inserts the comment as a LuaSnip snippet
+      (<code>snippet_engine = "luasnip"</code>), so these are blink.cmp's usual snippet jumps.</td></tr>
+    <tr><td colspan="2" class="note">Doxygen tags inside C/C++ comments get distinct highlighting
+      via the <code>doxygen</code> treesitter parser (installed automatically — see Treesitter card).</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ COMPLETION ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--pink)"></div><h2>blink.cmp <span class="note">completion</span></h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Sources (default order)</td></tr>
+    <tr><td><code>lazydev</code></td><td>Lua config: <code>vim.*</code> API + <code>require</code> module paths <span class="note">Lua buffers only — added per filetype, so it never loads anywhere else</span></td></tr>
+    <tr><td><code>lsp</code></td><td>Language server completions</td></tr>
+    <tr><td><code>path</code></td><td>File-path completion</td></tr>
+    <tr><td><code>snippets</code></td><td>LuaSnip — friendly-snippets bundled</td></tr>
+    <tr><td><code>buffer</code></td><td>Words from open buffers (fallback)</td></tr>
+    <tr class="divider"><td colspan="2">Behavior</td></tr>
+    <tr><td colspan="2" class="note">Auto-show docs after 200 ms · ghost text inline ·
+      signature window enabled · Rust fuzzy matcher (prebuilt)</td></tr>
+    <tr class="divider"><td colspan="2">Snippets</td></tr>
+    <tr><td colspan="2" class="note">Try <code>fn</code>, <code>cls</code>, <code>if</code>, <code>for</code>
+      — different per language via <b>friendly-snippets</b>.</td></tr>
+    <tr><td colspan="2" class="note">LuaSnip's optional jsregexp extension is never built (no <code>build</code> step, on any OS);
+      only regex transforms inside snippet bodies need it — <code>luarocks --lua-version=5.1 install jsregexp</code> if you do.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ LAZYDEV ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--pink)"></div><h2>lazydev.nvim <span class="note">Lua config editing</span></h2></div>
+  <table>
+    <tr><td colspan="2" class="note">Feeds <code>lua_ls</code> the right type libraries on demand while editing
+      config Lua, so you get real completion + hover for the whole <code>vim.*</code> API and for
+      <code>require</code>d plugin modules — not just the silenced <code>vim</code> global.</td></tr>
+    <tr class="divider"><td colspan="2">Loads</td></tr>
+    <tr><td colspan="2" class="note">On <code>ft = lua</code> only — zero startup cost. luv (<code>vim.uv</code>) types
+      load when a file references them.</td></tr>
+    <tr class="divider"><td colspan="2">Add a library</td></tr>
+    <tr><td colspan="2" class="note">Edit <code>library</code> in <code>lua/plugins/lazydev.lua</code> (e.g. add
+      <code>"lazy.nvim"</code> to get lazy-spec types). The blink completion source is wired in
+      <code>completion.lua</code>.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ FORMAT ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--sapphire)"></div><h2>conform.nvim <span class="note">format runner</span></h2></div>
+  <table>
+    <tr><td><code>:ConformInfo</code></td><td>Per-buffer formatter status</td></tr>
+    <tr><td><kbd class="sapphire">&lt;leader&gt;cf</kbd></td><td>Format buffer or selection <span class="note">this config's own files too — hand-aligned blocks sit in <code>-- stylua: ignore start/end</code></span></td></tr>
+    <tr class="divider"><td colspan="2">Formatters by filetype</td></tr>
+    <tr><td>lua</td><td>stylua</td></tr>
+    <tr><td>c / cpp</td><td>clang-format <span class="note">the Mason binary; reads the project's <code>.clang-format</code></span></td></tr>
+    <tr><td>python</td><td>ruff (format + organize imports)</td></tr>
+    <tr><td>js / ts / json / yaml / md / html / css</td><td>prettierd → prettier <span class="note">prettierd auto-installed by Mason</span></td></tr>
+    <tr><td>go</td><td>goimports → gofmt</td></tr>
+    <tr><td>rust</td><td>rustfmt (LSP fallback)</td></tr>
+    <tr><td>sh / bash</td><td>shfmt <span class="note">follows the project's <code>.editorconfig</code> when there is one, else <code>-i &lt;shiftwidth&gt; -ci</code>; diagnostics: bashls + shellcheck</span></td></tr>
+    <tr><td>toml</td><td>taplo</td></tr>
+    <tr><td>(other)</td><td>LSP formatting when a server offers it (e.g. cssls for scss/less), else trim_whitespace</td></tr>
+    <tr><td colspan="2" class="note">A filetype whose formatter isn't installed falls back to LSP formatting too.</td></tr>
+    <tr class="divider"><td colspan="2">Format-on-save</td></tr>
+    <tr><td colspan="2" class="note">Off by default. To enable it, uncomment the <code>format_on_save</code>
+      function in <code>formatting.lua</code> <em>and</em> add <code>event = { "BufWritePre" }</code> to the
+      conform spec — conform otherwise loads only on <code>:ConformInfo</code> or its keys, so <code>:w</code>
+      wouldn't format. The function honours runtime toggling via:</td></tr>
+    <tr><td><code>:FormatToggle</code></td><td>Toggle format-on-save for the current buffer</td></tr>
+    <tr><td><code>:FormatToggle!</code></td><td>Toggle format-on-save globally</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ DAP ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>nvim-dap <span class="note">debugger</span></h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Adapters pre-installed</td></tr>
+    <tr><td>python</td><td>debugpy</td></tr>
+    <tr><td>codelldb</td><td>C / C++ / Rust / Zig</td></tr>
+    <tr><td>cppdbg</td><td>C / C++ via cpptools (GDB/LLDB-based)</td></tr>
+    <tr><td>bash</td><td>bashdb</td></tr>
+    <tr><td colspan="2" class="note">Not installed or configured: <code>js</code> (vscode-js-debug — needs node+npm) and
+      <code>delve</code> (Go — needs <code>go</code>); Mason would retry their failing builds on every startup.
+      To add one: install the toolchain, add its Mason package to mason-tool-installer's list in
+      <code>lua/plugins/formatting.lua</code>, <em>and</em> define
+      <code>dap.adapters.&lt;name&gt;</code> plus <code>dap.configurations.&lt;filetype&gt;</code> in
+      <code>lua/config/dap.lua</code>.</td></tr>
+    <tr class="divider"><td colspan="2">Workflow</td></tr>
+    <tr><td colspan="2" class="note">1. Place breakpoints (<kbd class="mauve">&lt;leader&gt;db</kbd>).<br>
+      2. <kbd class="mauve">&lt;leader&gt;dc</kbd> to start — UI opens automatically.<br>
+      3. <kbd class="mauve">&lt;leader&gt;de</kbd> on an expression to evaluate it.<br>
+      4. <kbd class="mauve">&lt;leader&gt;dt</kbd> to terminate — UI closes.</td></tr>
+    <tr class="divider"><td colspan="2">Sign symbols</td></tr>
+    <tr><td>● red</td><td>Breakpoint</td></tr>
+    <tr><td>◆ red</td><td>Conditional / hit-count breakpoint</td></tr>
+    <tr><td>◆ blue</td><td>Log point</td></tr>
+    <tr><td>▶ yellow</td><td>Currently stopped line</td></tr>
+    <tr class="divider"><td colspan="2">launch.json (per-project)</td></tr>
+    <tr><td colspan="2" class="note">Drop a <code>.vscode/launch.json</code> in the project root —
+      nvim-dap reads it on every <kbd class="mauve">&lt;leader&gt;dc</kbd>.
+      <kbd class="mauve">&lt;leader&gt;dL</kbd> validates the file and previews its configs
+      without launching anything (same as <code>:DapLoadLaunchJSON</code>). <code>${workspaceFolder}</code> resolves to
+      <code>vim.fn.getcwd()</code>; change with <code>:cd</code> / <code>:tcd</code> / <code>:lcd</code>.
+      See <code>docs/templates/dap/launch.json.example</code> for a template.</td></tr>
+    <tr class="divider"><td colspan="2">QOL (Visual-Studio-like)</td></tr>
+    <tr><td>inline values</td><td>nvim-dap-virtual-text paints each variable's value at end-of-line while stopped (VS inline values)</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dp</kbd> / <kbd class="mauve">dT</kbd></td><td>Pause without the thread picker / toggle the picker back for non-stop adapters</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dE</kbd></td><td>Exception breakpoints — break on thrown/caught (VS Exception Settings)</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dg</kbd> / <kbd class="mauve">dR</kbd></td><td>Set next statement / restart session (VS yellow-arrow drag / Ctrl+Shift+F5)</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ PERSISTENT BREAKPOINTS ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>persistent-breakpoints <span class="note">breakpoint persistence</span></h2></div>
+  <table>
+    <tr><td colspan="2" class="note">Breakpoints survive <code>:qa</code> and re-attach when
+      you re-open the file. State lives in <code>stdpath("data")/nvim_checkpoints/</code>,
+      one file per working directory (so open the project from the same cwd), and
+      includes conditions, hit counts, and log-point messages.</td></tr>
+    <tr class="divider"><td colspan="2">Wrapped keymaps <span class="note">(saved automatically)</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;db</kbd></td><td>Toggle breakpoint</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dB</kbd></td><td>Conditional / hit-count <span class="note">prompts for both; both empty cancels</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dP</kbd></td><td>Log point <span class="note">prints, doesn't break — use {expr}</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dx</kbd></td><td>List all breakpoints in Trouble</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dX</kbd></td><td>Clear all breakpoints</td></tr>
+    <tr class="divider"><td colspan="2">"Disable" without losing the marker</td></tr>
+    <tr><td colspan="2" class="note">dap-ui's Breakpoints panel has <kbd>t</kbd> (enable/disable) and
+      <kbd>d</kbd> (remove), but neither is saved: on the next start the breakpoint is back, enabled.
+      To silence one for good, give it hit-count <code>&gt; 999999</code> or convert it to a log
+      point — both keep the marker visible and are saved. To delete one for good: <kbd>o</kbd> in the
+      panel, then <kbd class="mauve">&lt;leader&gt;db</kbd>.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ ATONE (UNDO TREE) ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--lavender)"></div><h2>atone.nvim <span class="note">undo tree</span></h2></div>
+  <table>
+    <tr><td><kbd class="lavender">&lt;leader&gt;u</kbd></td><td>Toggle undo-tree pane</td></tr>
+    <tr><td><code>:Atone</code> / <code>:Atone open</code></td><td>Open the tree</td></tr>
+    <tr><td><code>:Atone close</code></td><td>Close all atone panes</td></tr>
+    <tr><td><code>:Atone focus</code></td><td>Move cursor into the tree pane</td></tr>
+    <tr class="divider"><td colspan="2">Inside the tree pane <span class="note">(plugin defaults)</span></td></tr>
+    <tr><td><kbd class="lavender">j</kbd> <kbd class="lavender">k</kbd></td><td>Move between nodes (supports counts)</td></tr>
+    <tr><td><kbd class="lavender">gg</kbd> <kbd class="lavender">G</kbd></td><td>Jump to first / last node</td></tr>
+    <tr><td><kbd class="lavender">&lt;CR&gt;</kbd></td><td>Revert buffer to node under cursor</td></tr>
+    <tr><td><kbd class="lavender">u</kbd> <kbd class="lavender">&lt;C-r&gt;</kbd></td><td>Undo / redo one step in the attached buffer</td></tr>
+    <tr><td><kbd class="lavender">gd</kbd></td><td>Toggle a centred floating diff window</td></tr>
+    <tr class="divider"><td colspan="2">Node marks (bookmark important states)</td></tr>
+    <tr><td><kbd class="lavender">m</kbd></td><td>Set mark — type <code>N</code> or <code>N:name</code> (slot 0–9)</td></tr>
+    <tr><td><kbd class="lavender">x</kbd> <kbd class="lavender">X</kbd></td><td>Delete mark on node under cursor</td></tr>
+    <tr><td><kbd class="lavender">dM</kbd></td><td>Delete all marks in current buffer</td></tr>
+    <tr><td><kbd class="lavender">'</kbd> <kbd class="lavender">`</kbd></td><td>Jump to mark slot</td></tr>
+    <tr><td><kbd class="lavender">s</kbd></td><td>Open mark picker (fuzzy find)</td></tr>
+    <tr class="divider"><td colspan="2">Pane controls</td></tr>
+    <tr><td><kbd class="lavender">?</kbd> <kbd class="lavender">g?</kbd></td><td>Show in-pane help</td></tr>
+    <tr><td><kbd class="lavender">q</kbd> <kbd class="lavender">&lt;C-c&gt;</kbd></td><td>Close all atone windows</td></tr>
+    <tr><td colspan="2" class="note">Diff preview is TreeSitter-syntax-highlighted with word-level
+      inline diff. Pairs with <code>undofile = true</code> in <code>options.lua</code>
+      — yesterday's undo states are visible too.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ GIT ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--red)"></div><h2>gitsigns <span class="note">+ diffview+</span></h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">gitsigns features</td></tr>
+    <tr><td colspan="2" class="note">Sign column markers · hunk preview / stage / reset ·
+      blame line (toggle inline) · text object <kbd class="red">ih</kbd> for hunks ·
+      the +/~/- counts in the statusline (lualine's diff component reads them from gitsigns).</td></tr>
+    <tr class="divider"><td colspan="2">diffview+ commands</td></tr>
+    <tr><td colspan="2" class="note">diffview-plus.nvim, a maintained fork of diffview.nvim: same commands, plus the ones marked <em>new</em>.</td></tr>
+    <tr><td><code>:DiffviewOpen</code></td><td>Working tree vs the index (unstaged changes)</td></tr>
+    <tr><td><code>:DiffviewOpen HEAD</code></td><td>Everything since the last commit (staged + unstaged)</td></tr>
+    <tr><td><code>:DiffviewOpen HEAD~3</code></td><td>Diff vs a ref</td></tr>
+    <tr><td><code>:DiffviewToggle</code></td><td>Close the current view, or open one <span class="note">new</span></td></tr>
+    <tr><td><code>:DiffviewClose</code></td><td>Close</td></tr>
+    <tr><td><code>:DiffviewToggleFiles</code></td><td>Show / hide files panel</td></tr>
+    <tr><td><code>:DiffviewRefresh</code></td><td>Re-read the git state</td></tr>
+    <tr><td><code>:DiffviewFileHistory %</code></td><td>History of current file</td></tr>
+    <tr><td><code>:DiffviewFileHistory</code></td><td>History of repo</td></tr>
+    <tr><td><code>:'&lt;,'&gt;DiffviewFileHistory</code></td><td>History of a line range</td></tr>
+    <tr><td><code>:DiffviewFileHistory --pin-local %</code></td><td>Each commit vs the working copy <span class="note">new</span></td></tr>
+    <tr><td><code>:DiffviewDiffFiles {a} {b}</code></td><td>Two files, no git needed <span class="note">new</span></td></tr>
+    <tr><td><code>:DiffviewDiffDirs {a} {b}</code></td><td>Two directories, no git needed <span class="note">new</span></td></tr>
+    <tr><td><code>:DiffviewMergeFiles {out} [{base}] {l} {r}</code></td><td>Merge files on disk, e.g. as git's external <code>mergetool</code> <span class="note">new</span></td></tr>
+    <tr><td><code>:DiffviewWorktreeOverview</code></td><td>All git worktrees and their state <span class="note">new</span></td></tr>
+    <tr class="divider"><td colspan="2">File panel</td></tr>
+    <tr><td><kbd class="red">w</kbd></td><td>Mark / unmark a file as reviewed (works on a visual range)</td></tr>
+    <tr><td><kbd class="red">H</kbd></td><td>Hide / show the reviewed files</td></tr>
+    <tr><td><kbd class="red">C</kbd></td><td>Clear all marks</td></tr>
+    <tr><td colspan="2" class="note">Marks last for the session only (<code>persist_selections</code> is off). Open views are
+      restored with the session: diffview+ writes a <code>&lt;session&gt;.diffview.json</code> next to the session file.</td></tr>
+    <tr class="divider"><td colspan="2">Merge view</td></tr>
+    <tr><td colspan="2" class="note">During a merge conflict, <code>:DiffviewOpen</code> shows OURS | THEIRS
+      side by side above the result you edit (layout <code>diff3_mixed</code>; there is no BASE pane).</td></tr>
+    <tr><td><kbd class="red">[x</kbd> <kbd class="red">]x</kbd></td><td>Previous / next conflict</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;co</kbd> <kbd class="red">&lt;leader&gt;ct</kbd></td><td>Take OURS / THEIRS for the conflict under the cursor</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;cb</kbd> <kbd class="red">&lt;leader&gt;ca</kbd></td><td>Take BASE / all versions</td></tr>
+    <tr><td><kbd class="red">dx</kbd></td><td>Delete the conflict region</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;cO</kbd> <kbd class="red">cT</kbd> <kbd class="red">cB</kbd> <kbd class="red">cA</kbd> · <kbd class="red">dX</kbd></td><td>The same for every conflict in the file</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;cso</kbd> <kbd class="red">cst</kbd> <kbd class="red">csb</kbd></td><td>Replace the whole result with the OURS / THEIRS / BASE file <span class="note">new; also drops the non-conflicting changes merged from the other side</span></td></tr>
+    <tr><td colspan="2" class="note">diffview's own defaults, local to the merge buffers — there they shadow this
+      config's <kbd>&lt;leader&gt;c…</kbd> code keys.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ TROUBLE ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>trouble.nvim</h2></div>
+  <table>
+    <tr><td><code>:Trouble diagnostics</code></td><td>Workspace diagnostics</td></tr>
+    <tr><td><code>:Trouble symbols</code></td><td>LSP outline</td></tr>
+    <tr><td><code>:Trouble lsp</code></td><td>Refs / defs / impl combined</td></tr>
+    <tr><td><code>:Trouble qflist</code></td><td>Quickfix</td></tr>
+    <tr><td><code>:Trouble loclist</code></td><td>Location list</td></tr>
+    <tr><td><code>:Trouble todo</code></td><td>TODOs</td></tr>
+    <tr class="divider"><td colspan="2">Inside the list</td></tr>
+    <tr><td><kbd class="peach">&lt;CR&gt;</kbd></td><td>Jump to item</td></tr>
+    <tr><td><kbd class="peach">o</kbd></td><td>Jump &amp; close</td></tr>
+    <tr><td><kbd class="peach">p</kbd></td><td>Preview</td></tr>
+    <tr><td><kbd class="peach">P</kbd></td><td>Toggle preview window</td></tr>
+    <tr><td><kbd class="peach">r</kbd></td><td>Refresh</td></tr>
+    <tr><td><kbd class="peach">?</kbd></td><td>Help</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ FINDERS ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--blue)"></div><h2>telescope + fzf-lua <span class="note">two finders, pick your favorite</span></h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Telescope</td></tr>
+    <tr><td><code>:Telescope</code></td><td>Pick a picker</td></tr>
+    <tr><td><code>:Telescope builtin</code></td><td>List all pickers</td></tr>
+    <tr><td><code>:Telescope resume</code></td><td>Reopen last picker</td></tr>
+    <tr><td colspan="2" class="note">Extensions: fzf (native sorter, very fast — compiled on install, so it needs
+      <code>make</code> + gcc or cmake; telescope carries on without it if the build failed), ui-select
+      (replaces vim.ui.select).</td></tr>
+    <tr><td colspan="2" class="note">Loads on first use: a <kbd>&lt;leader&gt;f</kbd> key, <code>:Telescope</code>,
+      or the first <code>vim.ui.select()</code> (code actions and the like), which is then shown in telescope.</td></tr>
+    <tr class="divider"><td colspan="2">Inside a Telescope picker (insert mode)</td></tr>
+    <tr><td><kbd>&lt;C-j&gt;</kbd> / <kbd>&lt;C-k&gt;</kbd></td><td>Next / previous result</td></tr>
+    <tr><td><kbd>&lt;C-q&gt;</kbd></td><td>Send all results to quickfix + open</td></tr>
+    <tr><td><kbd>&lt;C-y&gt;</kbd></td><td>Yank highlighted entry's full path to clipboard &amp; show via notify <span class="note">non-closing — peek without leaving picker</span></td></tr>
+    <tr><td><kbd>&lt;C-d&gt;</kbd></td><td>Delete buffer <span class="note">buffers picker only</span></td></tr>
+    <tr><td><kbd>&lt;Esc&gt;</kbd></td><td>Close picker (single press, no normal mode dance)</td></tr>
+    <tr class="divider"><td colspan="2">fzf-lua</td></tr>
+    <tr><td><code>:FzfLua</code></td><td>Pick a picker</td></tr>
+    <tr><td><code>:FzfLua resume</code></td><td>Reopen last picker</td></tr>
+    <tr><td><code>:FzfLua builtin</code></td><td>List all pickers</td></tr>
+    <tr><td colspan="2" class="note">Backed by the <code>fzf</code> binary — handles
+      100k-file repos with no lag. Preview via Neovim's builtin previewer
+      (treesitter-highlighted, no external binary). Switch to <code>bat</code> in
+      <code>finder.lua</code> if you install it. Path display uses
+      <code>formatter = "path.filename_first"</code> so filenames sit at the left
+      of each row with the directory dimmed after — useful in narrow split
+      layouts where the right side of the row gets truncated.</td></tr>
+    <tr><td colspan="2" class="note">In-picker keys are fzf-lua's stock set (<kbd>&lt;F1&gt;</kbd> lists them); the
+      only change is the buffers/tabs pickers' layout-safe <kbd>&lt;C-x&gt;</kbd> delete. See the keymaps cheatsheet.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ SCOPER ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>scoper.nvim <span class="note">scoped search &amp; clangd</span></h2></div>
+  <table>
+    <tr><td colspan="2" class="note">Bundled local plugin. Narrow your finder/grep/replace
+      to a subset of the project — useful in monorepos. Each scope is a named set of
+      include directories and exclude globs, persisted to disk.</td></tr>
+    <tr class="divider"><td colspan="2">Commands</td></tr>
+    <tr><td><code>:ScoperFind</code></td><td>Find files within active scope</td></tr>
+    <tr><td><code>:ScoperGrep</code></td><td>Live grep within active scope</td></tr>
+    <tr><td><code>:ScoperReplace</code></td><td>grug-far, paths preset to scope</td></tr>
+    <tr><td><code>:ScoperToggle</code></td><td>Enable / disable scoping <span class="note">off (or a scope with no includes): Find / Grep / Replace search the whole cwd, without excludes</span></td></tr>
+    <tr><td><code>:ScoperStatus</code></td><td>Show active scope + sizes</td></tr>
+    <tr><td><code>:ScoperNew &lt;name&gt;</code></td><td>Create a new scope</td></tr>
+    <tr><td><code>:ScoperUse &lt;name&gt;</code></td><td>Switch active scope</td></tr>
+    <tr><td><code>:ScoperAdd</code> / <code>:ScoperRemove</code></td><td>Add/remove one or more paths (no args → multi-select picker)</td></tr>
+    <tr><td><code>:ScoperExclude</code> / <code>:ScoperRemoveExclude</code></td><td>Add/remove a deny glob (add with no args → prompts for one; remove with no args → multi-select picker) <span class="note">invalid globs are refused with a warning</span></td></tr>
+    <tr><td><code>:ScoperShow</code></td><td>Show the active scope's includes and excludes</td></tr>
+    <tr><td><code>:ScoperClear</code></td><td>Empty the active scope (keeps the excludes)</td></tr>
+    <tr><td><code>:ScoperScopes</code></td><td>List all scopes for this project</td></tr>
+    <tr><td><code>:ScoperDelete</code></td><td>Delete one or more scopes</td></tr>
+    <tr><td><code>:ScoperLspReload</code></td><td>Reconfigure clangd for the current scope and restart it</td></tr>
+    <tr><td><code>:ScoperTogglePicker</code></td><td>Switch backend: fzf-lua ↔ telescope</td></tr>
+    <tr class="divider"><td colspan="2">Picker backend</td></tr>
+    <tr><td colspan="2" class="note">Defaults to fzf-lua. Set <code>vim.g.scoper_picker = "telescope"</code>
+      (or call <code>:ScoperTogglePicker</code>) for the telescope backend, which adds
+      <kbd>&lt;M-p&gt;</kbd> (insert and normal mode): it shows the highlighted entry's full path
+      in the prompt title without closing the picker.</td></tr>
+    <tr class="divider"><td colspan="2">clangd integration</td></tr>
+    <tr><td colspan="2" class="note">When scoping changes, this project's clangd is restarted so its index
+      respects the new boundaries (clangd clients of other projects are left alone) — and the filtered config is also applied at startup and
+      on <code>:cd</code>, so the first (cold-start) index is already scoped. Press
+      <kbd>&lt;F4&gt;</kbd> in a fzf-lua picker to toggle its preview pane if results are too
+      narrow to read.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ UI SUITE ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--sky)"></div><h2>UI Suite</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Statusline (lualine)</td></tr>
+    <tr><td colspan="2" class="note">Global statusline (laststatus=3). Sections: mode · git branch + diff ·
+      diagnostics · filetype · filename · macro indicator · encoding · pos.</td></tr>
+    <tr class="divider"><td colspan="2">Bufferline</td></tr>
+    <tr><td colspan="2" class="note">Tabs per buffer. Slant separators. Diagnostic counts visible per tab.
+      Auto-hides when only one buffer is open. Shifts when neo-tree opens. Loads at startup, so pinned
+      buffers come back pinned when auto-session restores a session.</td></tr>
+    <tr><td colspan="2" class="note"><strong>Superscript ordinals</strong> (¹ ² ³ …) on each tab — map 1-to-1 to
+      <kbd>&lt;leader&gt;1</kbd>…<kbd>&lt;leader&gt;9</kbd> for quick-jump. Beyond 9 the number is omitted to
+      avoid clutter; use <kbd>&lt;leader&gt;bj</kbd> (letter picker) or <kbd>&lt;leader&gt;fb</kbd> for the rest.</td></tr>
+    <tr><td colspan="2" class="note"><strong>Mouse</strong> — left = focus tab · middle = no-op · right = context
+      menu (open in split/vsplit, copy path / filename, toggle pin, close, close others). Bufferline's
+      default right-click is <code>bdelete</code>; we override it. The menu is a small custom floating window
+      rather than <code>vim.ui.select</code> — that route hit a progressive-indent glitch in our setup
+      (telescope-ui-select dropdown theme + custom mappings; not a generic telescope bug). Press
+      <kbd>1</kbd>..<kbd>8</kbd> to jump straight to an action, or <kbd>j</kbd>/<kbd>k</kbd>
+      + <kbd>&lt;CR&gt;</kbd>. <kbd>q</kbd> or <kbd>&lt;Esc&gt;</kbd> closes.</td></tr>
+    <tr><td colspan="2" class="note"><strong>Scrolling</strong> — bufferline auto-scrolls to keep the active tab
+      visible; press <kbd>&lt;S-l&gt;</kbd> / <kbd>&lt;S-h&gt;</kbd> to cycle through, or
+      <kbd>&lt;leader&gt;bj</kbd> to letter-pick. There's no mouse-wheel scroll on the tab bar itself.</td></tr>
+    <tr><td colspan="2" class="note"><strong>Per-tab buffers</strong> (scope.nvim) — each tab shows only the
+      buffers you opened in it (VS-Code-style "each tab owns its files"); Vim buffers are global, so scope.nvim
+      toggles <code>buflisted</code> on tab switch and bufferline just follows. <kbd>&lt;leader&gt;fb</kbd> lists
+      this tab's buffers, <kbd>&lt;leader&gt;fB</kbd> lists all tabs', <code>:ScopeMoveBuf &lt;tab&gt;</code> moves one.
+      Survives sessions via <code>sessionoptions+=globals</code> and auto-session's
+      <code>:ScopeSaveState</code>/<code>:ScopeLoadState</code> hooks.</td></tr>
+    <tr class="divider"><td colspan="2">Incline</td></tr>
+    <tr><td colspan="2" class="note">Floating filename in top-right of each split. Shows ●
+      when modified.</td></tr>
+    <tr class="divider"><td colspan="2">Cursor effects</td></tr>
+    <tr><td colspan="2" class="note">neoscroll smooths C-d / C-u, C-f / C-b, C-y / C-e and zt / zz / zb ·
+      smear-cursor animates the cursor between positions.</td></tr>
+    <tr class="divider"><td colspan="2">Indent guides</td></tr>
+    <tr><td colspan="2" class="note">blink.indent — static <code>│</code> on every level, accent on current scope.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ EDITOR SUITE ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--yellow)"></div><h2>Editor Suite</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">nvim-autopairs</td></tr>
+    <tr><td colspan="2" class="note">Treesitter-aware brackets/quotes, in every filetype including Vim script
+      (there a <code>"</code> at the start of a line opens a comment, so it isn't paired). Fast wrap: type an opening
+      bracket or quote, press <kbd class="yellow">&lt;M-e&gt;</kbd> (insert mode) and pick where the closing one goes.</td></tr>
+    <tr class="divider"><td colspan="2">Commenting <span class="note">built into Neovim — no plugin</span></td></tr>
+    <tr><td colspan="2" class="note"><kbd class="yellow">gcc</kbd> line, <kbd class="yellow">gc</kbd>{motion} or a Visual
+      selection, <kbd class="yellow">gc</kbd> as a text object (<code>:h commenting</code>). The style is the
+      <code>'commentstring'</code> of the treesitter language under the cursor; nvim-ts-context-commentstring
+      (<code>editor.lua</code>) refines it per node, e.g. <code>{/* … */}</code> inside JSX.</td></tr>
+    <tr class="divider"><td colspan="2">flash.nvim</td></tr>
+    <tr><td colspan="2" class="note">Labels appear after the first char. <kbd class="yellow">S</kbd> picks
+      a treesitter node. Works as operator (<code>ds</code>, <code>cs</code>) too.</td></tr>
+    <tr class="divider"><td colspan="2">todo-comments</td></tr>
+    <tr><td colspan="2" class="note">Highlights <code>TODO/FIXME/HACK/NOTE/WARN/PERF</code>.
+      Jump <kbd class="yellow">]t</kbd>/<kbd class="yellow">[t</kbd>, list via
+      Trouble or Telescope.</td></tr>
+    <tr class="divider"><td colspan="2">mini.surround</td></tr>
+    <tr><td colspan="2" class="note">Verbs <code>gza / gzd / gzr / gzf / gzF / gzh / gzn</code>. Order
+      is action → object → char. Lives on the <code>gz</code> prefix (not mini's default
+      <code>s</code>): flash.nvim owns <code>s</code> for jumps, and sharing the prefix made
+      every flash jump wait <code>timeoutlen</code> for disambiguation.</td></tr>
+    <tr class="divider"><td colspan="2">mini.align</td></tr>
+    <tr><td colspan="2" class="note">Visual-select lines, then <kbd class="yellow">ga</kbd>
+      + delimiter char (e.g. <code>=</code>) to column-align. <kbd class="yellow">gA</kbd>
+      adds a preview; as an operator <code>gaip=</code> aligns the inner paragraph on
+      <code>=</code>. Use when <code>.clang-format</code>'s deliberate no-alignment
+      is the wrong call for a particular block.</td></tr>
+    <tr class="divider"><td colspan="2">render-markdown.nvim</td></tr>
+    <tr><td colspan="2" class="note">Renders Markdown in-buffer (headings, bullets, checkboxes,
+      code-block backgrounds, tables) via the <code>markdown</code> parser. Raw markup shows on the
+      cursor's line so it stays editable. Markdown-only (<code>ft</code>); toggle with
+      <code>:RenderMarkdown toggle</code>. Great for editing this repo's README/CHANGES.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ COLORS / EXPLORER / TERM ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>Colorscheme</h2></div>
+  <table>
+    <tr><td><code>:colorscheme</code></td><td>Pick scheme</td></tr>
+    <tr><td colspan="2" class="note">Default: <code>catppuccin</code> (mocha).
+      Change flavour in <code>colorscheme.lua</code> →
+      latte / frappe / macchiato / mocha.</td></tr>
+    <tr class="divider"><td colspan="2">If you change flavour</td></tr>
+    <tr><td colspan="2" class="note">Lualine auto-syncs via <code>theme = "auto"</code>
+      in <code>ui.lua</code> — no manual change needed when you switch flavours.</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--rosewater)"></div><h2>neo-tree <span class="note">explorer</span></h2></div>
+  <table>
+    <tr><td><code>:Neotree</code></td><td>Open at default position</td></tr>
+    <tr><td><code>:Neotree toggle</code></td><td>Show / hide</td></tr>
+    <tr><td><code>:Neotree reveal</code></td><td>Focus &amp; reveal current file</td></tr>
+    <tr><td><code>:Neotree git_status</code></td><td>Git status source</td></tr>
+    <tr><td><code>:Neotree buffers</code></td><td>Open buffers source <span class="note"><kbd>d</kbd>/<kbd>bd</kbd> there delete a buffer layout-safely (splits kept, unsaved skipped)</span></td></tr>
+    <tr><td><code>:Neotree float</code></td><td>Open in floating window</td></tr>
+    <tr class="divider"><td colspan="2">Auto-behaviors</td></tr>
+    <tr><td colspan="2" class="note">Auto-opens on <code>nvim .</code>.
+      Follows current file. Live-updates on filesystem changes.</td></tr>
+    <tr class="divider"><td colspan="2">In-tree keys <span class="note"><kbd>P</kbd>, <kbd>&lt;C-s&gt;</kbd>, <kbd>&lt;Tab&gt;</kbd>, <kbd>&lt;C-;&gt;</kbd> are neo-tree defaults; <kbd>Y</kbd> / <kbd>&lt;C-S-c&gt;</kbd> are this config's</span></td></tr>
+    <tr><td><kbd class="rosewater">P</kbd></td><td>Toggle the floating preview of the node under the cursor</td></tr>
+    <tr><td><kbd class="rosewater">&lt;C-s&gt;</kbd></td><td>Quick-jump — labelled jump + open/toggle</td></tr>
+    <tr><td><kbd class="rosewater">&lt;Tab&gt;</kbd> <kbd class="rosewater">&lt;C-;&gt;</kbd></td><td>Multi-select toggle / clear selection</td></tr>
+    <tr><td><kbd class="rosewater">Y</kbd> <kbd class="rosewater">&lt;C-S-c&gt;</kbd></td><td>Copy node's absolute path to system clipboard (text)</td></tr>
+    <tr><td colspan="2" class="note">quick_jump / select / clear_selection exist only on neo-tree's <code>main</code> branch (this config tracks it — run <code>:Lazy sync</code> after a branch change). <kbd>y</kbd>/<kbd>x</kbd>/<kbd>p</kbd> use neo-tree's internal FILE clipboard, not the system one — use <kbd>Y</kbd> to copy a path as text. <kbd>&lt;C-S-c&gt;</kbd> is usually grabbed by the terminal; <kbd>Y</kbd> is reliable.</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--green)"></div><h2>toggleterm</h2></div>
+  <table>
+    <tr><td><code>:ToggleTerm</code></td><td>Default direction (float)</td></tr>
+    <tr><td><code>:ToggleTerm size=15 direction=horizontal</code></td><td>Custom split</td></tr>
+    <tr><td><code>:TermExec cmd=&quot;npm run dev&quot;</code></td><td>Run &amp; show output</td></tr>
+    <tr><td><code>:2ToggleTerm</code></td><td>Open terminal #2 (multiple supported)</td></tr>
+    <tr class="divider"><td colspan="2">Built-in shortcuts</td></tr>
+    <tr><td colspan="2" class="note">Lazygit float bound to <kbd class="green">&lt;leader&gt;tg</kbd>: there
+      <kbd>&lt;Esc&gt;</kbd> goes straight to lazygit and the window keys aren't mapped (leave terminal mode with
+      <kbd>&lt;C-\&gt;&lt;C-n&gt;</kbd>). In every other terminal, <kbd class="green">&lt;C-h/j/k/l&gt;</kbd> jump to
+      splits, on Windows too.</td></tr>
+    <tr><td colspan="2" class="note">Shell: on Windows, terminals run PowerShell 7 (<code>pwsh -NoLogo</code>)
+      when it's installed; <code>'shell'</code> itself stays cmd.exe for <code>:!</code>, <code>system()</code> and
+      plugins. Elsewhere they use <code>'shell'</code>.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ MISC / TIPS ═══════════════════ -->
+<div class="card col-full">
+  <div class="card-header"><div class="dot" style="background:var(--flamingo)"></div><h2>Misc — grug-far · ufo · auto-session · which-key</h2></div>
+  <table class="wide">
+    <tr>
+      <td><b>grug-far</b></td><td>Project find/replace UI. Edit results, then <kbd class="flamingo">\r</kbd> applies. <kbd class="flamingo">\q</kbd> exports to quickfix. Engine toggle: ripgrep / astgrep / astgrep-rules.</td>
+      <td><b>nvim-ufo</b></td><td>LSP-driven folds, falling back to treesitter or indent. <kbd class="sapphire">K</kbd> peeks a fold without opening it; elsewhere it's LSP hover, or Vim's <kbd>K</kbd> (<code>'keywordprg'</code>) with no server. Folds open by default (foldlevel=99).</td>
+    </tr>
+    <tr>
+      <td><b>auto-session</b></td><td>Per-cwd session, saved on exit and restored when <code>nvim</code> starts without file arguments. Never in <code>~</code>, <code>~/Downloads</code>, the temp dir (<code>$TEMP</code>/<code>$TMP</code>/<code>$TMPDIR</code>) or the drive root (<code>C:\</code> on Windows; <code>/tmp</code>, <code>/</code> elsewhere). <code>:AutoSession save|restore|delete|search</code>; browse sessions with <kbd class="lavender">&lt;leader&gt;wf</kbd> (Telescope picker).</td>
+      <td><b>which-key</b></td><td>Popup appears after which-key's own <code>delay</code> (200 ms; instantly for marks, registers and spelling). <code>'timeoutlen'</code> (400 ms) only decides when an ambiguous mapping fires. <kbd class="lavender">&lt;leader&gt;?</kbd> shows buffer-local mappings only. <code>:WhichKey</code> shows everything.</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ HEALTH / DIAG ═══════════════════ -->
+<div class="card col-full">
+  <div class="card-header"><div class="dot" style="background:var(--red)"></div><h2>Health Checks</h2></div>
+  <table class="wide">
+    <tr>
+      <td><code>:checkhealth config</code></td><td>This config's own check: external toolchain + writable swap/undo state dirs</td>
+      <td colspan="4"><span class="note">start here — then the plugin-specific variants below</span></td>
+    </tr>
+    <tr>
+      <td><code>:checkhealth</code></td><td>Full report</td>
+      <td><code>:checkhealth lazy</code></td><td>Plugin loader</td>
+      <td><code>:checkhealth mason</code></td><td>External binaries</td>
+    </tr>
+    <tr>
+      <td><code>:checkhealth vim.lsp</code></td><td>LSP clients / servers</td>
+      <td><code>:checkhealth nvim-treesitter</code></td><td>Parsers / compiler</td>
+      <td><code>:checkhealth telescope</code></td><td>Picker prerequisites</td>
+    </tr>
+    <tr>
+      <td><code>:checkhealth vim.deprecated</code></td><td>Deprecated API calls (config or plugins)</td>
+      <td><code>:Lazy log</code></td><td>Recent plugin operations</td>
+      <td><code>:MasonLog</code></td><td>Last install attempt</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ DIAGNOSTICS / HANG TRIAGE ═══════════════════ -->
+<div class="card col-full">
+  <div class="card-header"><div class="dot" style="background:var(--red)"></div><h2>Diagnostics <span class="note">when something is wrong</span></h2></div>
+  <table class="wide">
+    <tr>
+      <td><code>:DiagnosticDump</code></td>
+      <td colspan="3">Writes a snapshot (version, paths, swap/undo settings, <code>:messages</code>, active LSP
+        clients, loaded buffers w/ treesitter state, swap files, scoper's scope and clangd filter state,
+        DAP session, plugin list, LSP-log tail) to
+        <code>stdpath('log')/diagnostic_&lt;timestamp&gt;.txt</code>. Attach the file when reporting.</td>
+    </tr>
+    <tr>
+      <td><code>:lua print(vim.lsp.log.get_filename())</code></td>
+      <td colspan="3">Print the LSP log file path. Open with <code>:lua vim.cmd.edit(vim.lsp.log.get_filename())</code>.</td>
+    </tr>
+    <tr>
+      <td><code>:lua vim.lsp.log.set_level("debug")</code></td>
+      <td colspan="3">Crank LSP logging up for verbose JSON-RPC capture. <code>"trace"</code> is even
+        louder; revert with <code>"warn"</code> when done. Sessions only — doesn't persist.</td>
+    </tr>
+    <tr>
+      <td colspan="4" class="note">When nvim is fully hung: <kbd>&lt;C-c&gt;</kbd> first; if that
+        fails, force-kill from Task Manager, restart, then run <code>:DiagnosticDump</code> —
+        the LSP-log tail survives across kills and is usually the smoking gun.</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ SWAP FILES / CRASH RECOVERY ═══════════════════ -->
+<div class="card col-full">
+  <div class="card-header"><div class="dot" style="background:var(--yellow)"></div><h2>Swap files <span class="note">collisions &amp; crash recovery</span></h2></div>
+  <table class="wide">
+    <tr>
+      <td colspan="4" class="note"><code>'swapfile'</code> is <b>on</b>. Opening a file that already has a
+        swap is handled by a guard (default on) so it is livable rather than noisy — behaviour depends on
+        <i>who</i> owns the swap.</td>
+    </tr>
+    <tr>
+      <td>File open in another Nvim</td>
+      <td colspan="3">Live owner detected → the file opens <b>read-only</b> here with a one-line notice.
+        Close it there, then <code>:e!</code> to take over.</td>
+    </tr>
+    <tr>
+      <td>Crash leftover</td>
+      <td colspan="3">No live owner → a <b>concise</b> recovery prompt
+        (<kbd>R</kbd>ecover / <kbd>O</kbd>pen&nbsp;RO / <kbd>E</kbd>dit / <kbd>D</kbd>elete / <kbd>Q</kbd>uit),
+        replacing Vim's ~17-line <code>E325</code> block. The default button follows the swap: <b>Delete</b> when
+        it holds no unsaved changes; <b>Open read-only</b>, with a warning, when the file on disk is newer than
+        the swap (compare before you recover); otherwise <b>Recover</b>. <kbd>Esc</kbd> quits.</td>
+    </tr>
+    <tr>
+      <td>Unreadable swap</td>
+      <td colspan="3">Empty or damaged → no prompt, so a session restore never stops on it. An empty swap
+        older than a minute is deleted; any other is kept and the file opens <b>read-only</b> with a notice
+        naming the swap. <code>:SwapDelete</code>, then <code>:e!</code>, to edit.</td>
+    </tr>
+    <tr>
+      <td><code>:SwapGuardToggle</code></td>
+      <td colspan="3">Flip the guard. <b>Off</b> = stock Nvim exactly (edit-anyway + <code>W325</code> for a
+        live owner; the full <code>E325</code> prompt for a crash leftover or an unreadable swap). Affects the
+        next collision.</td>
+    </tr>
+    <tr>
+      <td><code>:SwapDelete</code></td>
+      <td colspan="3">Delete the current buffer's leftover swap without hunting the path — it scans the
+        swap dir and matches by the swap's recorded file name (needed because <code>swapname()</code> is empty
+        after Edit-anyway / Open-RO), plus an unreadable swap the guard opened the file over. Shows the exact
+        path + facts and asks to confirm (default <b>Cancel</b>). This session's own active swap is left alone.</td>
+    </tr>
+    <tr>
+      <td><code>:SwapDelete {path}</code></td>
+      <td colspan="3">Delete a specific swap file by path — clears a leftover without opening the file it
+        belongs to. Refuses any swap a different running Nvim is actively using, and anything that isn't a
+        swap (a link, a folder, a file not named <code>*.sw?</code>). An unreadable swap needs
+        <code>:SwapDelete! {path}</code>.</td>
+    </tr>
+    <tr>
+      <td><code>:SwapClean</code></td>
+      <td colspan="3">Review <i>every</i> swap in the swap dir: lists the leftovers it would delete (no running
+        owner and no unsaved changes, or empty) and the ones it keeps, with the reason (running Nvim, unsaved
+        changes → recover first, unreadable). One confirm, default <b>Cancel</b>. Full workflow, shell
+        commands per OS: <code>docs/workflows/swap-files.md</code>.</td>
+    </tr>
+  </table>
+</div>
+
+</div>
+<footer>
+  <span>Catppuccin Mocha · JetBrains Mono</span>
+  <span>Plugin specs live in <code>lua/plugins/</code> of the config dir — <code>%LOCALAPPDATA%\nvim</code> (Windows), <code>~/.config/nvim</code> (Linux/macOS)</span>
+</footer>
+</body>
+</html>

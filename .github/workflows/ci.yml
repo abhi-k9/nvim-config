@@ -1,0 +1,209 @@
+# .github/workflows/ci.yml
+#
+# Continuous integration for this Neovim config. Turns the standards that
+# were previously only DOCUMENTED (the Makefile has always had `check` and
+# `test`, but nothing ran them) into ones that are ENFORCED on every push and
+# pull request.
+#
+# Jobs, split by cost and by what they prove:
+#
+#   * lint  — luacheck AND `stylua --check` over both trees (init.lua lua/
+#             tests/ AND scoper.nvim's lua/ plugin/ tests/) PLUS the doc-sync
+#             guards (make check-docs). Pure
+#             static analysis, no Neovim needed, runs in seconds. Hand-aligned
+#             blocks are protected with `-- stylua: ignore start/end` (see
+#             the Makefile header).
+#
+#   * test  — the full-config plenary specs. `make test` boots the REAL
+#             init.lua headlessly to prove it loads without error and has no
+#             duplicate <leader> maps, then runs the behaviour specs; because
+#             that path runs config.lazy, lazy.nvim clones the plugin set on
+#             first run (a couple of minutes, cached across runs) — hence git
+#             + a C toolchain + the tree-sitter CLI are installed so
+#             treesitter's parser build in that boot doesn't error. Ubuntu
+#             only: the full plugin/parser install is too slow and flaky to
+#             gate on across OSes.
+#
+#   Both Neovim-running jobs run on `stable`. The declared floor is 0.12.0
+#   (MIN_NVIM in init.lua); nvim-treesitter's `main` branch needs 0.12 and
+#   supports only the latest stable, so a pinned older job would test a
+#   combination upstream doesn't. To exercise a specific release, add it
+#   to the `nvim` lists below (e.g. v0.12.0).
+#
+#   * test-scoper — scoper.nvim's own specs, on BOTH Ubuntu and
+#             Windows. Its harness clones only plenary (git is preinstalled on
+#             the runners) — no full plugin set, no treesitter, no compiler —
+#             so it runs reliably cross-platform and is the cheapest way to
+#             exercise scoper/path.lua's drive-letter / UNC / backslash logic
+#             on a REAL Windows box, not just via has('win32') branches on
+#             Linux.
+#
+#   * test-seed — tests/offline_seed_test.py on Ubuntu, Windows and macOS:
+#             hostile seeds (path escapes, links, devices, sizes), install
+#             swap/rollback, checksum and lockfile gates, and the fail-closed
+#             completeness check. Python standard library only.
+#
+# Runs the same targets as `make ci` (check, check-docs, test, test-scoper,
+# test-seed), but not in the same environment: CI is Linux (plus the Windows
+# and macOS jobs),
+# installs the latest stylua and tree-sitter CLI, and runs check-docs's
+# clang-format comparison only if the runner image has clang-format.
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+# Cancel superseded runs on the same ref so a rapid push sequence doesn't
+# pile up.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Action versions: latest major of each as of 2026-10 (checkout v7, cache
+# v6, gh-actions-lua v13, gh-actions-luarocks v6, rhysd/action-setup-vim v1,
+# tree-sitter/setup-action v2). Every input used below exists in those
+# majors' action.yml.
+
+jobs:
+  lint:
+    name: luacheck + stylua + doc-sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Lua
+        uses: leafo/gh-actions-lua@v13
+        with:
+          luaVersion: "5.1" # LuaJIT-compatible; matches `std = "luajit"` in .luacheckrc
+
+      - name: Set up LuaRocks
+        uses: leafo/gh-actions-luarocks@v6
+
+      - name: Install luacheck
+        run: luarocks install luacheck
+
+      # The latest stylua, like the unpinned Mason package used locally. A
+      # release that formats some lines differently fails this job on
+      # untouched code: update locally (`:MasonToolsUpdate`), run
+      # `make format`, and commit the result.
+      - name: Install stylua (latest)
+        run: |
+          curl -sSL -o /tmp/stylua.zip \
+            https://github.com/JohnnyMorganz/StyLua/releases/latest/download/stylua-linux-x86_64.zip
+          sudo unzip -o -q /tmp/stylua.zip -d /usr/local/bin
+          stylua --version
+
+      # `make check` = luacheck + stylua --check, in init.lua lua/ tests/ AND
+      # in scoper.nvim's lua/ plugin/ tests/, each tree using its own
+      # .luacheckrc / stylua.toml.
+      - name: Lint + format check (both trees)
+        run: make check
+
+      # `make check-docs` = the doc-sync guards listed in scripts/check-docs.sh
+      # (README tree, keymaps, user commands, plugins vs lazy-lock.json,
+      # version floor, template pairs). Pure POSIX shell, no Neovim — runs
+      # here in the fast job.
+      - name: Doc-sync guards
+        run: make check-docs
+
+  test:
+    name: plenary specs (full config, nvim ${{ matrix.nvim }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        nvim: [stable]
+    steps:
+      - uses: actions/checkout@v7
+
+      # tree-sitter CLI + a C compiler so the treesitter parser build during
+      # the real-config boot (make test) doesn't fail. nvim-treesitter `main`
+      # wants tree-sitter-cli >= 0.26.1 and NOT the npm package, so install
+      # the official release binary (the action's default is the latest
+      # release). build-essential ships cc/make; tar and curl are on the
+      # runner image already.
+      - name: Set up tree-sitter CLI
+        uses: tree-sitter/setup-action/cli@v2
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git
+          tree-sitter --version
+
+      - name: Set up Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.nvim }}
+
+      # Real-config smoke test + leader-key duplicate detector. First run
+      # clones the plugin set via lazy.nvim (slow once; the plugin cache is
+      # keyed below so later runs are fast).
+      - name: Cache Neovim plugins
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.local/share/nvim
+            ~/.cache/nvim
+          # lazy-lock.json (if you commit it) pins plugin revisions, so it is
+          # part of the key: a lock bump invalidates the cache.
+          key: nvim-data-${{ runner.os }}-${{ matrix.nvim }}-${{ hashFiles('lua/plugins/**/*.lua', 'lazy-lock.json') }}
+          restore-keys: |
+            nvim-data-${{ runner.os }}-${{ matrix.nvim }}-
+
+      - name: Test config (smoke, leader maps, behaviour specs)
+        run: make test
+
+  test-scoper:
+    name: scoper specs (${{ matrix.os }}, nvim ${{ matrix.nvim }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        nvim: [stable]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.nvim }}
+
+      # scoper's harness clones only plenary (git is preinstalled on the
+      # runners), so this needs no toolchain and runs the same on both OSes.
+      # Invoke nvim directly rather than `make` (GNU make isn't guaranteed on
+      # the Windows runner); `shell: bash` gives one command that works on
+      # ubuntu and windows alike (Git Bash ships on the Windows image).
+      - name: Run scoper specs
+        shell: bash
+        working-directory: scoper.nvim
+        run: |
+          nvim --headless --noplugin -u tests/minimal_init.lua \
+            -c "PlenaryBustedDirectory tests/ { minimal_init = 'tests/minimal_init.lua' }"
+
+  test-seed:
+    name: offline-seed tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+
+      # Standard library only, against the runner's own Python: no Neovim
+      # (the completeness check runs a fake nvim), no network.
+      - name: Run offline-seed tests
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          py=$(command -v python3 || command -v python)
+          "$py" --version
+          "$py" -m unittest discover -s tests -p "offline_seed_test.py" -v

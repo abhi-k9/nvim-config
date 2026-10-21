@@ -1,0 +1,13 @@
+# Enforced: `make check` (and CI) run `stylua --check` over the tree.
+# Hand-aligned blocks are wrapped in `-- stylua: ignore start` /
+# `-- stylua: ignore end`; put new columnar tables inside such a pair.
+# collapse_simple_statement = "ConditionalOnly" keeps one-line guards like
+# `if not ok then return end` on one line.
+
+column_width = 100
+line_endings = "Unix"
+indent_type = "Spaces"
+indent_width = 2
+quote_style = "AutoPreferDouble"
+call_parentheses = "Always"
+collapse_simple_statement = "ConditionalOnly"

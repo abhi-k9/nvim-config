@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C/C++ Tooling — clangd · clang-format · clang-tidy</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
+  :root {
+    --bg:#1e1e2e;--surface:#181825;--overlay:#313244;--muted:#6c7086;
+    --subtle:#7f849c;--text:#cdd6f4;--subtext:#a6adc8;
+    --lavender:#b4befe;--blue:#89b4fa;--sky:#89dceb;--teal:#94e2d5;
+    --green:#a6e3a1;--yellow:#f9e2af;--peach:#fab387;--red:#f38ba8;
+    --mauve:#cba6f7;--pink:#f5c2e7;--flamingo:#f2cdcd;--sapphire:#74c7ec;
+    --rosewater:#f5e0dc;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;
+    font-size:12px;line-height:1.5;padding:22px 26px 48px}
+  header{display:flex;align-items:baseline;justify-content:space-between;
+    border-bottom:1px solid var(--overlay);padding-bottom:11px;margin-bottom:18px}
+  header h1{font-size:18px;font-weight:700;color:var(--lavender);letter-spacing:-.3px}
+  header .meta{font-size:10.5px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+  .col-2{grid-column:span 2}.col-full{grid-column:span 3}
+  .card{background:var(--surface);border:1px solid var(--overlay);border-radius:7px;overflow:hidden}
+  .card-header{display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid var(--overlay)}
+  .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .card-header h2{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--subtext)}
+  .card-header .note{font-size:10px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-style:italic}
+  table{width:100%;border-collapse:collapse}
+  tr:not(:last-child) td{border-bottom:1px solid rgba(49,50,68,.5)}
+  td{padding:3.5px 10px;vertical-align:top}
+  td:first-child{width:1%;white-space:nowrap}
+  td:last-child{color:var(--subtext);font-size:11px}
+  .divider td{padding:3px 10px;font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--muted);background:rgba(49,50,68,.4);
+    border-bottom:1px solid var(--overlay)!important}
+  kbd{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:10.5px;
+    font-weight:600;padding:1px 5px;border-radius:4px;background:var(--overlay);
+    color:var(--text);white-space:nowrap}
+  kbd.blue    {background:rgba(137,180,250,.13);color:var(--blue);    border:1px solid rgba(137,180,250,.26)}
+  kbd.mauve   {background:rgba(203,166,247,.13);color:var(--mauve);   border:1px solid rgba(203,166,247,.26)}
+  kbd.green   {background:rgba(166,227,161,.13);color:var(--green);   border:1px solid rgba(166,227,161,.26)}
+  kbd.peach   {background:rgba(250,179,135,.13);color:var(--peach);   border:1px solid rgba(250,179,135,.26)}
+  kbd.sky     {background:rgba(137,220,235,.13);color:var(--sky);     border:1px solid rgba(137,220,235,.26)}
+  .note{color:var(--muted);font-size:10.5px;font-style:italic}
+  code{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--subtle)}
+  .wide td{width:auto;white-space:normal}
+  .wide td:first-child{white-space:nowrap}
+  .wide td:nth-child(even){color:var(--subtext);font-size:11px;padding-right:18px}
+  b.k{color:var(--text);font-weight:600}
+  footer{margin-top:16px;padding-top:10px;border-top:1px solid var(--overlay);
+    font-size:10px;color:var(--muted);display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+<header>
+  <h1>C/C++ Tooling</h1>
+  <span class="meta">.clangd · .clang-format · .clang-tidy — project-root files</span>
+</header>
+
+<div class="grid">
+
+  <!-- ═══════════════ WHO DOES WHAT ═══════════════ -->
+  <div class="card col-full">
+    <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>Who does what <span class="note">three tools, three jobs — easy to conflate</span></h2></div>
+    <table class="wide">
+      <tr><td><b class="k">clangd</b></td>
+        <td>The language <b class="k">server</b>: live diagnostics, go-to-def, hover, completion, the red squiggles. Parses your code semantically using compile flags from <code>compile_commands.json</code>. <b class="k">This is what reports "C++98 doesn't have…"</b> when it can't find flags for a file.</td></tr>
+      <tr><td><b class="k">clang-format</b></td>
+        <td>A <b class="k">formatter</b>. Layout — indent, brace placement, line breaks, include order. A few opt-in options add or move tokens (<code>InsertBraces</code>, on in this config's template, adds braces to single-statement bodies), but it <b class="k">never rewrites expressions</b> (can't convert <code>=</code> init to <code>{}</code> — that's clang-tidy).</td></tr>
+      <tr><td><b class="k">clang-tidy</b></td>
+        <td>A <b class="k">linter</b>. Style/correctness/modernize checks (naming, use-nullptr, bugprone). Runs <b class="k">inside clangd</b> here (via the <code>--clang-tidy</code> flag), so its findings appear as clangd diagnostics + fix-its.</td></tr>
+    </table>
+  </div>
+
+  <!-- ═══════════════ FILE → TOOL → PLACEMENT ═══════════════ -->
+  <div class="card col-2">
+    <div class="card-header"><div class="dot" style="background:var(--blue)"></div><h2>The three files <span class="note">all go in the PROJECT root, not the nvim config</span></h2></div>
+    <table class="wide">
+      <tr class="divider"><td colspan="2">discovered by walking up from the edited file</td></tr>
+      <tr><td><code>.clangd</code></td><td>clangd behaviour: the <code>-std</code> pin for C++ files (overrides the database), diagnostic suppressions, inlay hints, index settings.</td></tr>
+      <tr><td><code>.clang-format</code></td><td>Formatting style. Read by clang-format and by clangd's LSP formatter.</td></tr>
+      <tr><td><code>.clang-tidy</code></td><td>Which tidy checks run + their options. Read live by clangd.</td></tr>
+      <tr><td><code>compile_commands.json</code></td><td>NOT hand-written — generated by your build (CMake <code>-DCMAKE_EXPORT_COMPILE_COMMANDS=ON</code>, Bazel, etc.). The source of truth for per-file flags &amp; the C++ standard.</td></tr>
+    </table>
+  </div>
+
+  <!-- ═══════════════ CLANGD QUICK USE ═══════════════ -->
+  <div class="card">
+    <div class="card-header"><div class="dot" style="background:var(--sky)"></div><h2>clangd in-editor</h2></div>
+    <table>
+      <tr><td><kbd class="sky">gd</kbd></td><td>Definition</td></tr>
+      <tr><td><kbd class="sky">gr</kbd></td><td>References</td></tr>
+      <tr><td><kbd class="sky">K</kbd></td><td>Hover</td></tr>
+      <tr><td><kbd class="sky">&lt;leader&gt;la</kbd></td><td>Code action (apply tidy fix-its here)</td></tr>
+      <tr><td><kbd class="sky">&lt;leader&gt;cf</kbd></td><td>Format — conform runs the Mason clang-format binary</td></tr>
+      <tr><td><kbd class="sky">&lt;leader&gt;lf</kbd></td><td>Format via clangd (its built-in clang-format library)</td></tr>
+      <tr><td><code>:LspClangdSwitchSourceHeader</code></td><td>Switch header ↔ source <span class="note">nvim-lspconfig's clangd command</span></td></tr>
+    </table>
+  </div>
+
+  <!-- ═══════════════ THE C++98 / HEADER PROBLEM ═══════════════ -->
+  <div class="card col-full">
+    <div class="card-header"><div class="dot" style="background:var(--red)"></div><h2>"C++98 doesn't have…" on a header <span class="note">the most common clangd confusion</span></h2></div>
+    <table class="wide">
+      <tr><td><b class="k">Why</b></td>
+        <td><code>compile_commands.json</code> lists only source TUs (<code>.cpp</code>), never headers. To parse a header, clangd borrows flags from a <code>.cpp</code> that <code>#include</code>s it. If it can't find one — sibling not in the DB, not yet indexed, or filtered out by scoper — it falls back to an <b class="k">old default standard</b>, and modern C++ in the header lights up red. An <code>include/</code> vs <code>src/</code> split doesn't matter: clangd matches by which TU includes the header, not by folder.</td></tr>
+      <tr><td><b class="k">Fix</b></td>
+        <td>Pin the standard in <code>.clangd</code> at the project root (the template does this). clangd appends it after the database flags, so it applies to <i>every</i> C++ file — orphan headers included — and overrides the database's <code>-std</code>; the template's <code>If: PathMatch</code> keeps it off C files:
+          <br><code>If: PathMatch: …C++ extensions…</code> &nbsp; <code>CompileFlags:</code> &nbsp; <code>Add: [-std=c++20]</code></td></tr>
+      <tr><td><b class="k">Then</b></td>
+        <td>Restart clangd so it rereads the file: <code>:ScoperLspReload</code> (scoper reconfigures and restarts this project's clangd only) or <code>:lsp restart clangd</code> (restarts every clangd client, other projects' too). Alternatives: keep the header's sibling <code>.cpp</code> in scope (<code>:ScoperAdd</code>), or <code>:ScoperToggle</code> the LSP filtering off to use the full unfiltered DB.</td></tr>
+    </table>
+  </div>
+
+  <!-- ═══════════════ CLANG-FORMAT KEY OPTIONS ═══════════════ -->
+  <div class="card col-2">
+    <div class="card-header"><div class="dot" style="background:var(--green)"></div><h2>.clang-format — key knobs <span class="note">override on BasedOnStyle</span></h2></div>
+    <table class="wide">
+      <tr><td><code>BasedOnStyle</code></td><td>LLVM / Google / Mozilla / WebKit / Microsoft — start here, override the rest.</td></tr>
+      <tr><td><code>ColumnLimit</code></td><td>Line width (100 is the modern choice; 0 = no limit).</td></tr>
+      <tr><td><code>IndentWidth</code> / <code>UseTab</code></td><td>Spaces per level / tabs vs spaces.</td></tr>
+      <tr><td><code>PointerAlignment</code></td><td><code>Left</code> = <code>int* p</code> (modern), <code>Right</code> = <code>int *p</code>.</td></tr>
+      <tr><td><code>BreakBeforeBraces</code></td><td><code>Attach</code> (K&amp;R) / <code>Allman</code> (brace on own line). <span class="note">Attach, not "Attached"</span></td></tr>
+      <tr><td><code>InsertBraces</code></td><td><code>true</code> adds braces to single-statement if/for/while (kills goto-fail bugs).</td></tr>
+      <tr><td><code>SortIncludes</code> / <code>IncludeBlocks</code></td><td>Sort &amp; regroup <code>#include</code>s; order via <code>IncludeCategories</code> regexes.</td></tr>
+      <tr><td><code>QualifierAlignment</code></td><td>Leave it <code>Leave</code> — auto-moving <code>const</code> can produce wrong code.</td></tr>
+      <tr><td colspan="2" class="note">Regenerate a full reference: <code>clang-format -style=llvm -dump-config</code>. Toggle off a region with <code>// clang-format off</code> … <code>// clang-format on</code>.</td></tr>
+    </table>
+  </div>
+
+  <!-- ═══════════════ CLANG-TIDY CHECK FAMILIES ═══════════════ -->
+  <div class="card">
+    <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>.clang-tidy — families</h2></div>
+    <table>
+      <tr><td><code>bugprone-*</code></td><td>likely bugs</td></tr>
+      <tr><td><code>modernize-*</code></td><td>C++11→latest idioms</td></tr>
+      <tr><td><code>performance-*</code></td><td>perf smells</td></tr>
+      <tr><td><code>cppcoreguidelines-*</code></td><td>Core Guidelines</td></tr>
+      <tr><td><code>readability-*</code></td><td>clarity / naming</td></tr>
+      <tr><td><code>misc-*</code></td><td>everything else</td></tr>
+      <tr><td colspan="2" class="note"><code>Checks: '-*, modernize-*, -modernize-use-trailing-return-type'</code> — enable a family, subtract members.</td></tr>
+    </table>
+  </div>
+
+  <!-- ═══════════════ TIDY GOTCHAS ═══════════════ -->
+  <div class="card col-full">
+    <div class="card-header"><div class="dot" style="background:var(--yellow)"></div><h2>clang-tidy gotchas <span class="note">things that fail silently</span></h2></div>
+    <table class="wide">
+      <tr><td><b class="k">No "brace-init everywhere" check</b></td>
+        <td>clang-tidy won't blanket-rewrite <code>=</code>/<code>()</code> init to <code>{}</code>. Closest: <code>modernize-use-default-member-init</code> with <code>UseAssignment: false</code> → produces <code>int n{5};</code> for member init it understands.</td></tr>
+      <tr><td><b class="k">Removed options vanish silently</b></td>
+        <td>An unknown / removed <code>CheckOptions</code> key is dropped without error. E.g. <code>cppcoreguidelines-prefer-member-initializer.UseAssignment</code> was removed in clang-tidy 19 — use the <code>modernize-use-default-member-init</code> one instead. Keep options matched to your clangd version.</td></tr>
+      <tr><td><b class="k">WarningsAsErrors reaches the editor</b></td>
+        <td>clangd honours it too: the listed checks show as errors (not warnings) in the buffer, and they fail a standalone <code>clang-tidy</code> run / CI. The template leaves it empty.</td></tr>
+      <tr><td><b class="k">Suppress inline</b></td>
+        <td><code>// NOLINT(check-name)</code> on the line, <code>// NOLINTNEXTLINE(...)</code> for the next, or <code>NOLINTBEGIN/END</code> for a block.</td></tr>
+    </table>
+  </div>
+
+  <!-- ═══════════════ SEARCH OPERATORS REMINDER (cross-ref) ═══════════════ -->
+  <div class="card col-full">
+    <div class="card-header"><div class="dot" style="background:var(--teal)"></div><h2>How they interact <span class="note">one standard, three tools</span></h2></div>
+    <table class="wide">
+      <tr><td><b class="k">Standard</b></td><td>Comes from <code>compile_commands.json</code>, unless <code>.clangd</code> adds its own <code>-std</code> — the template's does, for every C++ file, and as the last flag it wins. Headers without a database entry borrow an including TU's flags. clang-format's <code>Standard:</code> only affects PARSING, not your compiler target. clang-tidy's modernize checks read the same standard clangd sees.</td></tr>
+      <tr><td><b class="k">Naming</b></td><td>clang-tidy <i>flags</i> names; clang-format never touches them — so they can't conflict. Keep <code>*.Case</code> + <code>PrivateMemberSuffix</code> in sync with your real convention.</td></tr>
+      <tr><td><b class="k">Formatting vs fixits</b></td><td>clang-format edits layout; clang-tidy edits tokens (via code actions). Run format after applying a batch of tidy fixes to re-tidy the layout.</td></tr>
+    </table>
+  </div>
+
+</div>
+
+<footer>
+  <span>Catppuccin Mocha · JetBrains Mono</span>
+  <span>files live in the project root · clangd runs tidy via --clang-tidy</span>
+</footer>
+</body>
+</html>

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Neovim Config — Debugging</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
+  :root {
+    --bg:#1e1e2e;--surface:#181825;--overlay:#313244;--muted:#6c7086;
+    --subtle:#7f849c;--text:#cdd6f4;--subtext:#a6adc8;
+    --lavender:#b4befe;--blue:#89b4fa;--sky:#89dceb;--teal:#94e2d5;
+    --green:#a6e3a1;--yellow:#f9e2af;--peach:#fab387;--red:#f38ba8;
+    --mauve:#cba6f7;--pink:#f5c2e7;--flamingo:#f2cdcd;--sapphire:#74c7ec;
+    --rosewater:#f5e0dc;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;
+    font-size:12px;line-height:1.5;padding:22px 26px 48px}
+  header{display:flex;align-items:baseline;justify-content:space-between;
+    border-bottom:1px solid var(--overlay);padding-bottom:11px;margin-bottom:18px}
+  header h1{font-size:18px;font-weight:700;color:var(--lavender);letter-spacing:-.3px}
+  header .meta{font-size:10.5px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+  .col-2{grid-column:span 2}.col-full{grid-column:span 3}
+  .card{background:var(--surface);border:1px solid var(--overlay);border-radius:7px;overflow:hidden}
+  .card-header{display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid var(--overlay)}
+  .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .card-header h2{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--subtext)}
+  .card-header .note{font-size:10px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-style:italic}
+  table{width:100%;border-collapse:collapse}
+  tr:not(:last-child) td{border-bottom:1px solid rgba(49,50,68,.5)}
+  td{padding:3.5px 10px;vertical-align:middle}
+  td:first-child{width:1%;white-space:nowrap}
+  td:last-child{color:var(--subtext);font-size:11px}
+  .divider td{padding:3px 10px;font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--muted);background:rgba(49,50,68,.4);
+    border-bottom:1px solid var(--overlay)!important}
+  kbd{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:10.5px;
+    font-weight:600;padding:1px 5px;border-radius:4px;background:var(--overlay);
+    color:var(--text);white-space:nowrap}
+  kbd.blue    {background:rgba(137,180,250,.13);color:var(--blue);    border:1px solid rgba(137,180,250,.26)}
+  kbd.mauve   {background:rgba(203,166,247,.13);color:var(--mauve);   border:1px solid rgba(203,166,247,.26)}
+  kbd.green   {background:rgba(166,227,161,.13);color:var(--green);   border:1px solid rgba(166,227,161,.26)}
+  kbd.yellow  {background:rgba(249,226,175,.13);color:var(--yellow);  border:1px solid rgba(249,226,175,.26)}
+  kbd.peach   {background:rgba(250,179,135,.13);color:var(--peach);   border:1px solid rgba(250,179,135,.26)}
+  kbd.teal    {background:rgba(148,226,213,.13);color:var(--teal);    border:1px solid rgba(148,226,213,.26)}
+  kbd.red     {background:rgba(243,139,168,.13);color:var(--red);     border:1px solid rgba(243,139,168,.26)}
+  kbd.sky     {background:rgba(137,220,235,.13);color:var(--sky);     border:1px solid rgba(137,220,235,.26)}
+  kbd.pink    {background:rgba(245,194,231,.13);color:var(--pink);    border:1px solid rgba(245,194,231,.26)}
+  kbd.lavender{background:rgba(180,190,254,.13);color:var(--lavender);border:1px solid rgba(180,190,254,.26)}
+  kbd.flamingo{background:rgba(242,205,205,.13);color:var(--flamingo);border:1px solid rgba(242,205,205,.26)}
+  kbd.rosewater{background:rgba(245,224,220,.13);color:var(--rosewater);border:1px solid rgba(245,224,220,.26)}
+  .note{color:var(--muted);font-size:10.5px;font-style:italic}
+  code{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--subtle)}
+  .wide td{width:auto;white-space:nowrap}
+  .wide td:nth-child(even){color:var(--subtext);font-size:11px;padding-right:18px}
+  footer{margin-top:16px;padding-top:10px;border-top:1px solid var(--overlay);
+    font-size:10px;color:var(--muted);display:flex;justify-content:space-between}
+  @media print{
+    body{background:#fff;color:#000;padding:5mm;font-size:8px}
+    .card{border-color:#ccc;break-inside:avoid}
+    .card-header{background:#f5f5f5;border-color:#ccc}
+    .divider td{background:#ebebeb;color:#555;border-color:#ccc!important}
+    kbd,kbd.blue,kbd.mauve,kbd.green,kbd.yellow,kbd.peach,kbd.teal,kbd.red,
+    kbd.sky,kbd.pink,kbd.lavender,kbd.flamingo,kbd.rosewater{
+      background:#eee;color:#000;border:1px solid #bbb}
+    .note{color:#777} td:last-child{color:#333} header h1{color:#000}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Neovim Config — Debugging</h1>
+  <span class="meta">nvim-dap + dap-ui + codelldb (LLDB) &nbsp;·&nbsp; DEBUG CONSOLE is in 'commands' mode → prefix expressions with <code>?</code></span>
+</header>
+<div class="grid">
+
+<!-- ═══════════════════ SESSION & FLOW ═══════════════════ -->
+<div class="card col-2">
+  <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>Session &amp; flow <span class="note">leader = &lt;Space&gt;</span></h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Start / stop</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dc</kbd></td><td>Continue / start (reads <code>.vscode/launch.json</code>) <span class="note">without one, pick a <code>‹fallback›</code> config; at its "Path to executable" prompt <kbd>&lt;Esc&gt;</kbd> cancels ("Run aborted")</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dl</kbd></td><td>Run last config</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dR</kbd></td><td>Restart session <span class="note">(VS Ctrl+Shift+F5)</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dt</kbd></td><td>Terminate <span class="note">UI closes, unless auto-close is off — <kbd class="mauve">&lt;leader&gt;dU</kbd></span></td></tr>
+    <tr><td colspan="2" class="note">A launch/attach that fails (bad path, adapter error) closes the UI again.
+      Saving the session mid-debug keeps the program running; quitting Neovim terminates it.
+      Python fallback uses <code>$VIRTUAL_ENV</code>, then <code>$CONDA_PREFIX</code>, then
+      <code>./.venv</code> / <code>./venv</code>, then <code>python</code> (Windows) or <code>python3</code> (elsewhere) on PATH.</td></tr>
+    <tr class="divider"><td colspan="2">Step</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;di</kbd> <kbd class="mauve">do</kbd> <kbd class="mauve">dO</kbd></td><td>Step into / over / out</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dC</kbd></td><td>Run to cursor</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dg</kbd></td><td>Set next statement — jump exec to cursor <span class="note">(VS yellow-arrow drag)</span></td></tr>
+    <tr class="divider"><td colspan="2">Pause / threads</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dp</kbd></td><td>Pause — first thread, no picker (all-stop halts all)</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dT</kbd></td><td>Toggle the pause thread-picker back on (non-stop adapters)</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dk</kbd> <kbd class="mauve">dj</kbd></td><td>Move up / down the call stack</td></tr>
+    <tr class="divider"><td colspan="2">Inspect</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;du</kbd></td><td>Toggle DAP UI</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dr</kbd></td><td>Toggle REPL / DEBUG CONSOLE</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;de</kbd></td><td>Eval expression under cursor / selection (n, x)</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dw</kbd></td><td>Hover value in a widgets float <span class="note">lighter than <kbd class="mauve">de</kbd>; no full UI (n, x)</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dv</kbd></td><td>Toggle inline end-of-line values</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dU</kbd></td><td>Toggle UI auto-close on exit <span class="note">off = panels + REPL stay up after the program ends so you can read final state; option <code>vim.g.dap_autoclose_ui</code></span></td></tr>
+    <tr class="divider"><td colspan="2">VS Code function keys <span class="note">unmodified only</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;F5&gt;</kbd> <kbd class="mauve">&lt;F6&gt;</kbd></td><td>Continue / start &nbsp;·&nbsp; Pause</td></tr>
+    <tr><td><kbd class="mauve">&lt;F9&gt;</kbd></td><td>Toggle breakpoint <span class="note">persistent, like <kbd class="mauve">db</kbd></span></td></tr>
+    <tr><td><kbd class="mauve">&lt;F10&gt;</kbd> <kbd class="mauve">&lt;F11&gt;</kbd></td><td>Step over &nbsp;·&nbsp; Step into</td></tr>
+    <tr><td colspan="2" class="note">Shift+F5 (stop), Shift+F11 (step out) &amp; Ctrl+Shift+F5 (restart) are deliberately <em>not</em> bound: the Windows console (and zellij/tmux running over it) doesn't pass modified F-keys to nvim reliably. Use <kbd class="mauve">&lt;leader&gt;dt</kbd> / <kbd class="mauve">dO</kbd> / <kbd class="mauve">dR</kbd> instead.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ BREAKPOINTS ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--red)"></div><h2>Breakpoints <span class="note">saved across restarts</span></h2></div>
+  <table>
+    <tr><td><kbd class="mauve">&lt;leader&gt;db</kbd></td><td>Toggle</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dB</kbd></td><td>Conditional / hit-count <span class="note">asks for a condition, then a hit count (<code>5</code>, <code>&gt;= 5</code>); leave both empty to cancel</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dP</kbd></td><td>Log point — prints, no break</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dE</kbd></td><td>Exception breakpoints (toggle filters)</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dx</kbd></td><td>List all (in Trouble)</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dX</kbd></td><td>Clear all</td></tr>
+    <tr class="divider"><td colspan="2">Condition syntax (codelldb)</td></tr>
+    <tr><td colspan="2" class="note">Any expr evaluator (simple/python/native). Stops when the
+      condition is truthy <em>or</em> errors. Hit-count operators:
+      <code>&gt; n</code> <code>&gt;= n</code> <code>= n</code> <code>% n</code> (every n hits).
+      Log-point messages embed <code>{expr}</code>.</td></tr>
+    <tr class="divider"><td colspan="2">Signs</td></tr>
+    <tr><td>● red</td><td>Breakpoint &nbsp; ◆ red = conditional/hit</td></tr>
+    <tr><td>◆ blue</td><td>Log point &nbsp; ▶ yellow = stopped line</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ DATA BREAKPOINTS ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>Data breakpoints <span class="note">break on value change</span></h2></div>
+  <table>
+    <tr><td colspan="2" class="note">VS's "break when value changes". No nvim keymap — set it from the REPL:</td></tr>
+    <tr><td><code>watchpoint set variable x</code></td><td>Stop when <code>x</code> changes</td></tr>
+    <tr><td><code>watchpoint set expression -- &amp;buf[10]</code></td><td>Watch an address</td></tr>
+    <tr><td><code>watchpoint list</code> / <code>delete</code></td><td>Manage them</td></tr>
+    <tr><td colspan="2" class="note">Hardware-backed: at most <strong>4</strong> watchpoints, each on a
+      1/2/4/8-byte region (x86_64). Re-arm after the watched object goes out of scope.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ DAP-UI PANELS ═══════════════════ -->
+<div class="card col-2">
+  <div class="card-header"><div class="dot" style="background:var(--green)"></div><h2>dap-ui panels &amp; inline values</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Inside Scopes / Watches</td></tr>
+    <tr><td><kbd class="green">&lt;CR&gt;</kbd></td><td>Expand / collapse the variable (children)</td></tr>
+    <tr><td><kbd class="green">w</kbd></td><td>Send variable under cursor → Watches panel</td></tr>
+    <tr><td><kbd class="green">e</kbd></td><td>Edit (set a variable's value, or edit a watch expr)</td></tr>
+    <tr><td><kbd class="green">r</kbd></td><td>Send to REPL</td></tr>
+    <tr class="divider"><td colspan="2">Inside Breakpoints panel</td></tr>
+    <tr><td><kbd class="green">o</kbd></td><td>Jump to the breakpoint's location (go-to)</td></tr>
+    <tr><td><kbd class="green">t</kbd></td><td>Enable / disable the breakpoint</td></tr>
+    <tr><td><kbd class="green">d</kbd></td><td>Remove the breakpoint</td></tr>
+    <tr><td colspan="2" class="note"><kbd class="green">t</kbd> and <kbd class="green">d</kbd> last for this session only: they bypass the saved
+      breakpoint file, so the breakpoint is back (enabled) on the next start. To delete one for good:
+      <kbd class="green">o</kbd> then <kbd class="mauve">&lt;leader&gt;db</kbd>; all: <kbd class="mauve">&lt;leader&gt;dX</kbd>.
+      No multi-select in the panel (dap-ui limitation).</td></tr>
+    <tr class="divider"><td colspan="2">Watches — add expressions</td></tr>
+    <tr><td colspan="2" class="note">In the Watches panel, enter insert mode and type an expression
+      (e.g. <code>vec.size()</code>, <code>obj.field</code>), then Enter. Anything the
+      evaluators below accept works here.</td></tr>
+    <tr class="divider"><td colspan="2">Inline values</td></tr>
+    <tr><td colspan="2" class="note">nvim-dap-virtual-text paints each variable's value at end-of-line while
+      stopped — the VS "inline values" equivalent.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ REPL & EVALUATORS ═══════════════════ -->
+<div class="card col-full">
+  <div class="card-header"><div class="dot" style="background:var(--sky)"></div><h2>REPL / DEBUG CONSOLE &amp; the three evaluators</h2></div>
+  <table class="wide">
+    <tr>
+      <td><code>?</code><i>expr</i></td><td>Evaluate an expression (console is in <strong>commands</strong> mode, so bare input = LLDB command)</td>
+      <td><code>/se</code></td><td><strong>Simple</strong> (default) — arithmetic/logic over <em>formatted</em> values; <code>vec[i]</code>, <code>str == "x"</code> just work</td>
+    </tr>
+    <tr>
+      <td><code>v</code> / <code>frame variable</code></td><td>LLDB: print locals (honors the child cap)</td>
+      <td><code>/py</code></td><td><strong>Python</strong> — full Python; <code>$var</code> pulls in debuggee variables (see below)</td>
+    </tr>
+    <tr>
+      <td><code>bt</code></td><td>LLDB: backtrace &nbsp;·&nbsp; <code>thread list</code> / <code>thread select n</code></td>
+      <td><code>/nat</code></td><td><strong>Native</strong> — LLDB's C++ evaluator; can call functions / build types, but ignores formatters (raw values)</td>
+    </tr>
+    <tr>
+      <td><code>expr</code> <i>code</i></td><td>LLDB: native expression / call a function</td>
+      <td colspan="2" class="note">Prefixes work in the WATCH panel, the console (after <code>?</code>), and breakpoint conditions.
+        Set the default per-config with the <code>"expressions"</code> launch property.</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ WATCH / FORMAT ═══════════════════ -->
+<div class="card col-full">
+  <div class="card-header"><div class="dot" style="background:var(--teal)"></div><h2>Watch expressions &amp; format specifiers <span class="note">codelldb</span></h2></div>
+  <table class="wide">
+    <tr>
+      <td><code>vec[12345]</code></td><td>Index a container (simple evaluator)</td>
+      <td><code>obj.field</code> / <code>p-&gt;m</code></td><td>Member access</td>
+    </tr>
+    <tr>
+      <td><code>vec.size()</code></td><td>Call a member (function call in the inferior)</td>
+      <td><code>expr,x</code></td><td>Format suffix: hex. Others: <code>d o u b c f p s y Y</code></td>
+    </tr>
+    <tr>
+      <td><code>vec.data(),[50]</code></td><td>View a <strong>window</strong> of 50 elements (array specifier)</td>
+      <td><code>vec.data()+1000,[50]</code></td><td>Elements 1000–1049 (pointer math + array)</td>
+    </tr>
+    <tr>
+      <td><code>ptr,x[16]</code></td><td>Combine format + array (16 elements, hex)</td>
+      <td><code>ptr,p</code></td><td>Show the raw address instead of the pointee</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ PYTHON EVALUATOR ═══════════════════ -->
+<div class="card col-full">
+  <div class="card-header"><div class="dot" style="background:var(--yellow)"></div><h2>Python evaluator <span class="note">/py — the power tool</span></h2></div>
+  <table class="wide">
+    <tr><td colspan="4" class="note">In the DEBUG CONSOLE (commands mode) prefix with <code>?</code> — e.g. <code>?/py len($vec)</code>; the evaluator prefix stacks on the <code>?</code>. In the WATCH panel input is already an expression, so bare <code>/py …</code> works (but don't put side-effecting code like the file dump in a watch — it re-runs every step).</td></tr>
+    <tr>
+      <td><code>$var</code></td><td>Substituted with the debuggee variable from the current frame (becomes a <code>Value</code>)</td>
+      <td><code>${ native }</code></td><td>Embed a native LLDB expression inside Python</td>
+    </tr>
+    <tr>
+      <td><code>Value</code></td><td>Proxy over <code>lldb.SBValue</code> with Python operators: iterate, <code>[i]</code> index, <code>.attr</code>, arithmetic, compare, <code>len()</code></td>
+      <td><code>script import math</code></td><td>Import a module once (or <code>"initCommands": ["script import math"]</code>)</td>
+    </tr>
+    <tr>
+      <td><code>codelldb</code> / <code>debugger</code></td><td>Auto-imported module: <code>evaluate(expr)</code>, <code>wrap()/unwrap()</code>, <code>get_config()</code>, <code>create_webview()</code></td>
+      <td class="note" colspan="2">stdout → DEBUG CONSOLE, stderr → the adapter's output. codelldb's Python may not be the one on your PATH: <code>script import sys; print(sys.version, sys.prefix)</code> in the REPL shows which installation it uses, then run that installation's <code>python -m pip install --user &lt;pkg&gt;</code>. (VS Code's "LLDB: Command Prompt" helper doesn't exist in Neovim.)</td>
+    </tr>
+    <tr class="divider"><td colspan="4">Examples</td></tr>
+    <tr>
+      <td><code>/py len($vec)</code></td><td>Element count (bypasses the display cap)</td>
+      <td><code>/py [x for x in $vec if x &gt; 100]</code></td><td>Filter — list-comprehend over the container</td>
+    </tr>
+    <tr>
+      <td><code>/py sum(float(x) for x in $vec)</code></td><td>Aggregate across all elements</td>
+      <td><code>/py $obj.field</code></td><td>Reach into members like normal Python</td>
+    </tr>
+    <tr class="divider"><td colspan="4">Dump a whole container to a file — anatomy</td></tr>
+    <tr><td colspan="4"><code>?/py open(r'C:\Temp\vec.txt','w').write('\n'.join(map(str, $vec)))</code> <span class="note">— typed in the console; the leading <code>?</code> is required</span></td></tr>
+    <tr>
+      <td><code>?</code> + <code>/py</code></td><td><code>?</code> = evaluate as an expression (console defaults to commands); <code>/py</code> stacks on it to pick Python</td>
+      <td><code>$vec</code></td><td>→ the debuggee's <code>vec</code> as a <code>Value</code> (rewritten to <code>__eval('vec')</code>)</td>
+    </tr>
+    <tr>
+      <td><code>map(str, $vec)</code></td><td>Iterate the Value's elements, <code>str()</code> each to its formatted text</td>
+      <td><code>'\n'.join(...)</code></td><td>One element per line into a single string</td>
+    </tr>
+    <tr>
+      <td><code>open(r'...','w')</code></td><td>Plain Python file open in codelldb's <em>host-side</em> interpreter — raw string keeps the Windows backslashes literal; the file lands on the debugger machine, not the debuggee</td>
+      <td><code>.write(...)</code></td><td>Writes the joined text</td>
+    </tr>
+    <tr><td colspan="4" class="note">Stopped at a frame where <code>vec</code> is live. Iteration goes through the data
+      formatter, so it's still bounded by <code>target.max-children-count</code> — raise it first (next card) for the full 20k, or this truncates.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ LARGE CONTAINERS ═══════════════════ -->
+<div class="card col-2">
+  <div class="card-header"><div class="dot" style="background:var(--pink)"></div><h2>Large variables <span class="note">the 20k-vector problem</span></h2></div>
+  <table>
+    <tr><td colspan="2" class="note">dap-ui / LLDB cap how many children are shown
+      (<code>target.max-children-count</code>, a few hundred). Options, cheapest first:</td></tr>
+    <tr><td><code>vec.data(),[50]</code></td><td>Window N elements in a watch (best — no cap fight)</td></tr>
+    <tr><td><code>vec[12345]</code></td><td>Jump straight to one element</td></tr>
+    <tr><td><code>?/py len($vec)</code></td><td>Python iterates the real container, cap-free</td></tr>
+    <tr class="divider"><td colspan="2">Full dump into a buffer</td></tr>
+    <tr><td>1.</td><td><code>settings set target.max-children-count 100000</code> (REPL)</td></tr>
+    <tr><td>2.</td><td><code>frame variable vec</code> → prints into the REPL buffer</td></tr>
+    <tr><td>3.</td><td>The REPL is a real buffer: <code>/</code> search, yank, or <code>:w dump.txt</code></td></tr>
+    <tr><td colspan="2" class="note">Or dump to a file via the <code>/py open(...)</code> one-liner (left).</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ LLDB QUICK-REF ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--lavender)"></div><h2>LLDB commands <span class="note">type bare in REPL</span></h2></div>
+  <table>
+    <tr><td><code>v</code> / <code>frame variable</code></td><td>Locals</td></tr>
+    <tr><td><code>bt</code></td><td>Backtrace</td></tr>
+    <tr><td><code>thread list</code></td><td>All threads</td></tr>
+    <tr><td><code>thread select n</code></td><td>Switch thread</td></tr>
+    <tr><td><code>register read</code></td><td>CPU registers</td></tr>
+    <tr><td><code>memory read &amp;x</code></td><td>Raw memory</td></tr>
+    <tr><td><code>disassemble -f</code></td><td>Current function asm</td></tr>
+    <tr><td><code>image lookup -n sym</code></td><td>Find a symbol</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ LAUNCH.JSON ═══════════════════ -->
+<div class="card col-full">
+  <div class="card-header"><div class="dot" style="background:var(--flamingo)"></div><h2>launch.json — codelldb essentials <span class="note">codelldb ≠ cppdbg field names</span></h2></div>
+  <table class="wide">
+    <tr>
+      <td><code>"type": "codelldb"</code></td><td>LLDB-based; cross-platform</td>
+      <td><code>"terminal": "console"</code></td><td>stdio → DEBUG CONSOLE, no extra window. <code>integrated</code> (default) can hang on Windows; <code>external</code> = OS window</td>
+    </tr>
+    <tr>
+      <td><code>"stopOnEntry": true</code></td><td>Stop at entry — <strong>NOT</strong> <code>stopAtEntry</code> (cppdbg's name; silently ignored)</td>
+      <td><code>"env": { "K": "v" }</code></td><td>OBJECT — not cppdbg's <code>environment</code> array of <code>{name,value}</code></td>
+    </tr>
+    <tr>
+      <td><code>"program" / "args" / "cwd"</code></td><td>Same shapes as cppdbg</td>
+      <td><code>"initCommands": [...]</code></td><td>LLDB startup cmds — codelldb's analogue of <code>setupCommands</code> (no <code>MIMode</code>). <strong>Slow first launch?</strong> add <code>settings set target.preload-symbols false</code> here (lazy symbols)</td>
+    </tr>
+    <tr>
+      <td class="note">perf</td><td class="note">A 3-min cold start on a big native app is usually symbol loading, not the adapter. Lazy symbols (left) + excluding the build dir &amp; Mason codelldb folder from Windows Defender are the two big wins.</td>
+      <td><code>"sourceLanguages": ["rust"]</code></td><td>Nicer Rust enum/Option/Result rendering</td>
+    </tr>
+    <tr>
+      <td class="note">trap</td><td class="note" colspan="3">Don't copy a cppdbg block and just swap <code>type</code>: <code>MIMode</code> / <code>setupCommands</code> / <code>stopAtEntry</code> / <code>environment</code> are all no-ops under codelldb. Full reference: <code>docs/templates/dap/launch.json.example</code>.</td>
+    </tr>
+  </table>
+</div>
+
+</div>
+<footer>
+  <span>Catppuccin Mocha · JetBrains Mono</span>
+  <span>nvim-dap + dap-ui + nvim-dap-virtual-text · codelldb (LLDB) · ? = evaluate · /py = Python</span>
+</footer>
+</body>
+</html>

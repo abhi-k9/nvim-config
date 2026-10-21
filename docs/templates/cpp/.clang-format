@@ -1,0 +1,117 @@
+# .clang-format — project formatting style (modern C++).
+#
+# PLACEMENT: project root (e.g. <project-root>/.clang-format), NOT your
+# Neovim config. clang-format finds it by walking up from the file being
+# formatted. A subdirectory may carry its own .clang-format; use
+# `BasedOnStyle: InheritParentConfig` there to extend rather than replace.
+#
+# HOW IT APPLIES IN THIS SETUP: <leader>cf (conform.nvim) runs the
+# clang-format binary Mason installs; <leader>lf asks clangd, which uses
+# clang-format's library. Both read this file, as does clang-format run
+# directly. It changes layout; the only tokens it adds are the braces from
+# InsertBraces below. It never rewrites expressions (so it can't convert
+# `=` init to `{}`; that's a clang-tidy job, see .clang-tidy).
+#
+# DESIGN: start from a predefined base and override only deliberate
+# choices, so the file stays short and upgrades cleanly between
+# clang-format versions (new options inherit sane base defaults instead of
+# being frozen here). Regenerate a fully-expanded reference any time with:
+#     clang-format -style=llvm -dump-config > full-reference.clang-format
+#
+# VERSION: needs clang-format 15 or newer (InsertBraces). A few keys keep
+# their original spelling, which newer releases still accept:
+# AlignTrailingComments / AlignConsecutive* as booleans, BinPackArguments /
+# BinPackParameters, AlwaysBreakTemplateDeclarations and
+# KeepEmptyLinesAtTheStartOfBlocks. `--dump-config` prints the current names
+# (e.g. BreakTemplateDeclarations, KeepEmptyLines, PackArguments in 23).
+# docs/templates/cpp/clang-format.example must produce the same style;
+# scripts/check-docs.sh compares the two dumps.
+
+---
+Language: Cpp
+
+# Base style. LLVM is a clean, widely-understood starting point. Swap to
+# Google / Microsoft / Mozilla / WebKit if your team prefers one of those;
+# every override below still applies on top.
+BasedOnStyle: LLVM
+
+# --- Width & indentation -----------------------------------------------
+ColumnLimit: 100          # 80 is cramped for modern C++ with templates/namespaces; 100 is the common modern choice
+IndentWidth: 4            # 4 spaces reads better than LLVM's 2 for most teams
+TabWidth: 4
+UseTab: Never             # spaces only — portable, no tab/space mixing
+ContinuationIndentWidth: 4
+AccessModifierOffset: -4  # put public:/private: at the class's own indent level
+NamespaceIndentation: None  # don't indent inside namespaces (modern convention; avoids deep nesting)
+
+# --- Pointers & qualifiers ---------------------------------------------
+DerivePointerAlignment: false  # don't guess from the file; enforce the choice below
+PointerAlignment: Left         # `int* p` (type-attached) — the modern C++ convention
+ReferenceAlignment: Left       # `int& r` to match
+QualifierAlignment: Leave      # do NOT auto-move const/volatile: clang-format lacks full
+                               # semantic info and can produce wrong code. Leave it; enforce
+                               # east/west const via clang-tidy if you care.
+
+# --- Braces ------------------------------------------------------------
+BreakBeforeBraces: Attach      # `if (x) {` on the same line (K&R/LLVM style)
+InsertBraces: true             # add braces to single-statement if/for/while — removes a
+                               # whole class of goto-fail bugs. (clang-format 15+.)
+
+# --- Includes ----------------------------------------------------------
+SortIncludes: CaseSensitive    # keep #includes sorted & deduplicated
+IncludeBlocks: Regroup         # regroup into the categories below, separated by blank lines
+# Order: this project's own paired header first (""), then other project
+# headers, then third-party/library <...>, then C++ stdlib last. Tune the
+# regexes to your layout (e.g. your include/ root).
+IncludeCategories:
+  - Regex: '^".*"'        # project headers in quotes
+    Priority: 1
+  - Regex: '^<[a-z_]+>$'  # C++ stdlib (<vector>, <string>, no slash/extension)
+    Priority: 4
+  - Regex: '^<.*\.h>$'    # C / system headers with .h
+    Priority: 3
+  - Regex: '^<.*>$'       # other library headers in angle brackets
+    Priority: 2
+
+# --- Spacing & alignment -----------------------------------------------
+SpaceBeforeParens: ControlStatements  # `if (` and `while (`, but `foo(` for calls
+SpaceAfterTemplateKeyword: false
+AlignAfterOpenBracket: Align
+AlignTrailingComments: true
+AlignConsecutiveAssignments: false    # alignment churn on edits; leave off
+AlignConsecutiveDeclarations: false
+PackConstructorInitializers: NextLine # ctor init list wraps cleanly when long
+
+# --- Short constructs: keep them expanded for readable diffs ------------
+AllowShortFunctionsOnASingleLine: Empty   # only `{}` bodies collapse
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortLambdasOnASingleLine: All       # short lambdas inline is idiomatic & tidy
+
+# --- Line breaking -----------------------------------------------------
+BinPackArguments: false       # one-arg-per-line when a call wraps (clearer diffs)
+BinPackParameters: false      # same for declarations
+BreakConstructorInitializers: BeforeColon
+BreakBeforeBinaryOperators: NonAssignment
+AlwaysBreakTemplateDeclarations: Yes  # `template <...>` on its own line
+Cpp11BracedListStyle: true    # `{1, 2, 3}` without extra inner spaces
+
+# --- Misc modern niceties ----------------------------------------------
+FixNamespaceComments: true    # add/maintain `// namespace foo` on closing braces
+IndentCaseLabels: true
+EmptyLineBeforeAccessModifier: LogicalBlock
+SeparateDefinitionBlocks: Leave
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+Standard: Latest              # parse newest C++ syntax (structured bindings, concepts, etc.)
+# Note: `Standard: Latest` controls how clang-format PARSES syntax, not
+# which standard your compiler targets — that comes from compile flags /
+# .clangd. It's safe to leave at Latest.
+
+# RemoveSemicolon: clang-format 16+ can strip stray `;` after function
+# bodies. Off by default here because it edits tokens (a delete), which
+# some teams prefer to keep out of a pure formatter. Uncomment to enable:
+# RemoveSemicolon: true
+...

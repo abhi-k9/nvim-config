@@ -1,0 +1,91 @@
+-- lua/plugins/search.lua
+--
+-- grug-far.nvim — project-wide search & replace with a live preview pane.
+-- Think VS Code's "search across files" view, but inside Neovim and backed
+-- by ripgrep / ast-grep. Far more pleasant than `:cdo s/foo/bar/g | update`.
+
+return {
+  "MagicDuck/grug-far.nvim",
+  cmd = { "GrugFar" },
+  keys = {
+    -- ---- Project-wide search/replace --------------------------------------
+    -- `<leader>sr` is bound TWICE on purpose: once for normal mode (open
+    -- empty) and once for visual mode ("x" — not "v", which would also
+    -- catch select mode inside snippet placeholders) to prefill the
+    -- selected text.
+    -- A naive duplicate-keymap detector might flag these as a conflict;
+    -- the test suite's `tests/config_spec.lua` checker is mode-aware and
+    -- correctly treats them as distinct bindings.
+    {
+      "<leader>sr",
+      function()
+        require("grug-far").open()
+      end,
+      desc = "Search/Replace (project)",
+    },
+
+    -- Search/replace the word under the cursor. `<cword>` is Vim's
+    -- "current word" expansion — letters, digits, underscores — so this
+    -- works for identifiers in any language without language-specific
+    -- helpers.
+    {
+      "<leader>sw",
+      function()
+        require("grug-far").open({ prefills = { search = vim.fn.expand("<cword>") } })
+      end,
+      desc = "Search/Replace word under cursor",
+    },
+
+    -- Restrict the search to the current file by prefilling `paths`.
+    -- Useful for repetitive in-file edits where :substitute would lose
+    -- you to typos in the regex.
+    {
+      "<leader>sf",
+      function()
+        -- grug-far splits `paths` on spaces itself and only understands a
+        -- BACKSLASH-escaped space ("my\ dir/f.c"); double quotes are
+        -- passed through literally, so `"my dir/f.c"` searched nothing.
+        -- Escaping only spaces keeps Windows separators intact.
+        local path = vim.fn.expand("%"):gsub(" ", "\\ ")
+        require("grug-far").open({ prefills = { paths = path } })
+      end,
+      desc = "Search/Replace (current file)",
+    },
+
+    -- Visual-mode variant of <leader>sr: open() called from visual mode
+    -- prefills the "search" field with the live selection itself.
+    {
+      "<leader>sr",
+      function()
+        require("grug-far").open()
+      end,
+      mode = "x",
+      desc = "Search/Replace selection",
+    },
+  },
+  -- grug-far's in-buffer actions are <localleader>-prefixed by default, so
+  -- they don't collide with global <leader> bindings. Our <localleader> is
+  -- "\" (lua/config/options.lua): `\r` replace, `\q` quickfix, `\s` sync,
+  -- `\e` swaps the engine (rg → ast-grep → ast-grep rules), g? lists them
+  -- all. <down>/<up> step match by match and <enter> jumps.
+  opts = {},
+  -- grug-far has no "next file" action: buffer-local ]f / [f jump between
+  -- the file-path headers of the results. Each file group follows a blank
+  -- line, so a header is "a non-blank line right after a blank one" (a
+  -- column-0 test would also hit match lines, which show raw source text).
+  init = function()
+    vim.api.nvim_create_autocmd("FileType", {
+      group = require("config.util").augroup("grugfar_file_nav"),
+      pattern = "grug-far",
+      callback = function(ev)
+        local header_pat = [[^\s*$\n\zs\S]]
+        vim.keymap.set("n", "]f", function()
+          vim.fn.search(header_pat, "W")
+        end, { buffer = ev.buf, desc = "Next file header (grug-far)" })
+        vim.keymap.set("n", "[f", function()
+          vim.fn.search(header_pat, "bW")
+        end, { buffer = ev.buf, desc = "Prev file header (grug-far)" })
+      end,
+    })
+  end,
+}

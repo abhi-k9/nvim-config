@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Neovim Config — Keymaps</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
+  :root {
+    --bg:#1e1e2e;--surface:#181825;--overlay:#313244;--muted:#6c7086;
+    --subtle:#7f849c;--text:#cdd6f4;--subtext:#a6adc8;
+    --lavender:#b4befe;--blue:#89b4fa;--sky:#89dceb;--teal:#94e2d5;
+    --green:#a6e3a1;--yellow:#f9e2af;--peach:#fab387;--red:#f38ba8;
+    --mauve:#cba6f7;--pink:#f5c2e7;--flamingo:#f2cdcd;--sapphire:#74c7ec;
+    --rosewater:#f5e0dc;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;
+    font-size:12px;line-height:1.5;padding:22px 26px 48px}
+  header{display:flex;align-items:baseline;justify-content:space-between;
+    border-bottom:1px solid var(--overlay);padding-bottom:11px;margin-bottom:18px}
+  header h1{font-size:18px;font-weight:700;color:var(--lavender);letter-spacing:-.3px}
+  header .meta{font-size:10.5px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+  .col-2{grid-column:span 2}.col-full{grid-column:span 3}
+  .card{background:var(--surface);border:1px solid var(--overlay);border-radius:7px;overflow:hidden}
+  .card-header{display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid var(--overlay)}
+  .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .card-header h2{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--subtext)}
+  .card-header .note{font-size:10px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-style:italic}
+  table{width:100%;border-collapse:collapse}
+  tr:not(:last-child) td{border-bottom:1px solid rgba(49,50,68,.5)}
+  td{padding:3.5px 10px;vertical-align:middle}
+  td:first-child{width:1%;white-space:nowrap}
+  td:last-child{color:var(--subtext);font-size:11px}
+  .divider td{padding:3px 10px;font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--muted);background:rgba(49,50,68,.4);
+    border-bottom:1px solid var(--overlay)!important}
+  kbd{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:10.5px;
+    font-weight:600;padding:1px 5px;border-radius:4px;background:var(--overlay);
+    color:var(--text);white-space:nowrap}
+  kbd.blue    {background:rgba(137,180,250,.13);color:var(--blue);    border:1px solid rgba(137,180,250,.26)}
+  kbd.mauve   {background:rgba(203,166,247,.13);color:var(--mauve);   border:1px solid rgba(203,166,247,.26)}
+  kbd.green   {background:rgba(166,227,161,.13);color:var(--green);   border:1px solid rgba(166,227,161,.26)}
+  kbd.yellow  {background:rgba(249,226,175,.13);color:var(--yellow);  border:1px solid rgba(249,226,175,.26)}
+  kbd.peach   {background:rgba(250,179,135,.13);color:var(--peach);   border:1px solid rgba(250,179,135,.26)}
+  kbd.teal    {background:rgba(148,226,213,.13);color:var(--teal);    border:1px solid rgba(148,226,213,.26)}
+  kbd.red     {background:rgba(243,139,168,.13);color:var(--red);     border:1px solid rgba(243,139,168,.26)}
+  kbd.sky     {background:rgba(137,220,235,.13);color:var(--sky);     border:1px solid rgba(137,220,235,.26)}
+  kbd.pink    {background:rgba(245,194,231,.13);color:var(--pink);    border:1px solid rgba(245,194,231,.26)}
+  kbd.lavender{background:rgba(180,190,254,.13);color:var(--lavender);border:1px solid rgba(180,190,254,.26)}
+  kbd.flamingo{background:rgba(242,205,205,.13);color:var(--flamingo);border:1px solid rgba(242,205,205,.26)}
+  kbd.rosewater{background:rgba(245,224,220,.13);color:var(--rosewater);border:1px solid rgba(245,224,220,.26)}
+  .note{color:var(--muted);font-size:10.5px;font-style:italic}
+  code{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--subtle)}
+  .wide td{width:auto;white-space:nowrap}
+  .wide td:nth-child(even){color:var(--subtext);font-size:11px;padding-right:18px}
+  footer{margin-top:16px;padding-top:10px;border-top:1px solid var(--overlay);
+    font-size:10px;color:var(--muted);display:flex;justify-content:space-between}
+  @media print{
+    body{background:#fff;color:#000;padding:5mm;font-size:8px}
+    .card{border-color:#ccc;break-inside:avoid}
+    .card-header{background:#f5f5f5;border-color:#ccc}
+    .divider td{background:#ebebeb;color:#555;border-color:#ccc!important}
+    kbd,kbd.blue,kbd.mauve,kbd.green,kbd.yellow,kbd.peach,kbd.teal,kbd.red,
+    kbd.sky,kbd.pink,kbd.lavender,kbd.flamingo,kbd.rosewater{
+      background:#eee;color:#000;border:1px solid #bbb}
+    .note{color:#777} td:last-child{color:#333} header h1{color:#000}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Neovim Config — Keymaps</h1>
+  <span class="meta">Leader = &lt;Space&gt; &nbsp;·&nbsp; Press &lt;leader&gt; and wait → which-key shows the rest</span>
+</header>
+<div class="grid">
+
+<!-- ═══════════════════ LEADER NAMESPACES ═══════════════════ -->
+<div class="card col-full">
+  <div class="card-header"><div class="dot" style="background:var(--lavender)"></div><h2>Leader Namespaces <span class="note">&lt;Space&gt; + letter — popup appears after which-key's 200 ms delay</span></h2></div>
+  <table class="wide">
+    <tr>
+      <td><kbd class="lavender">&lt;leader&gt;b</kbd></td><td>buffer</td>
+      <td><kbd class="lavender">&lt;leader&gt;c</kbd></td><td>code (format, Mason, doc comment, swap args, context)</td>
+      <td><kbd class="lavender">&lt;leader&gt;d</kbd></td><td>debug (DAP)</td>
+    </tr>
+    <tr>
+      <td><kbd class="lavender">&lt;leader&gt;f</kbd></td><td>find — Telescope</td>
+      <td><kbd class="lavender">&lt;leader&gt;F</kbd></td><td>find — fzf-lua</td>
+      <td><kbd class="lavender">&lt;leader&gt;g</kbd></td><td>git</td>
+    </tr>
+    <tr>
+      <td><kbd class="lavender">&lt;leader&gt;l</kbd></td><td>LSP</td>
+      <td><kbd class="lavender">&lt;leader&gt;s</kbd></td><td>search / replace (grug-far)</td>
+      <td><kbd class="lavender">&lt;leader&gt;t</kbd></td><td>terminal</td>
+    </tr>
+    <tr>
+      <td><kbd class="lavender">&lt;leader&gt;w</kbd></td><td>window / session</td>
+      <td><kbd class="lavender">&lt;leader&gt;x</kbd></td><td>diagnostics (Trouble)</td>
+      <td>&nbsp;</td><td>&nbsp;</td>
+    </tr>
+    <tr class="divider"><td colspan="6">Standalone leader commands <span class="note">(single-shot, not namespaces)</span></td></tr>
+    <tr>
+      <td><kbd class="lavender">&lt;leader&gt;e</kbd></td><td>explorer toggle (neo-tree)</td>
+      <td><kbd class="lavender">&lt;leader&gt;?</kbd></td><td>buffer-local keymaps</td>
+      <td><kbd class="lavender">&lt;leader&gt;L</kbd></td><td>Lazy.nvim UI</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ QOL / EDITING ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>QoL Editing</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Motion (improved)</td></tr>
+    <tr><td><kbd class="peach">j</kbd> <kbd class="peach">k</kbd></td><td>Display-line aware (use count for real lines)</td></tr>
+    <tr><td><kbd class="peach">&lt;C-d&gt;</kbd> <kbd class="peach">&lt;C-u&gt;</kbd></td><td>Half-page, recentered</td></tr>
+    <tr><td><kbd class="peach">n</kbd> <kbd class="peach">N</kbd></td><td>Next/prev search, recentered + open folds</td></tr>
+    <tr><td><kbd class="peach">&lt;A-l&gt;</kbd> <kbd class="peach">&lt;A-h&gt;</kbd></td><td>Scroll right/left 16 cols <span class="note">single chord, hold to repeat — beats mashing <kbd>zl</kbd>/<kbd>zh</kbd>; needs nowrap</span></td></tr>
+    <tr class="divider"><td colspan="2">Visual</td></tr>
+    <tr><td><kbd class="peach">&lt;</kbd> <kbd class="peach">&gt;</kbd></td><td>Indent, keep selection</td></tr>
+    <tr><td><kbd class="peach">&lt;A-j&gt;</kbd> <kbd class="peach">&lt;A-k&gt;</kbd></td><td>Move line / selection down/up (re-indents; a count moves further, e.g. <kbd>3&lt;A-j&gt;</kbd>) <span class="note">normal mode moves the current line; visual mode moves the block; edges no-op. visual <kbd>J</kbd> stays join-lines</span></td></tr>
+    <tr><td><kbd class="peach">p</kbd></td><td>Paste without clobbering register</td></tr>
+    <tr><td><kbd class="peach">an</kbd> <kbd class="peach">in</kbd></td><td>Expand / shrink the selection by syntax node <span class="note">Neovim 0.12+ built-in (also after an operator: <kbd>dan</kbd>); treesitter, or LSP selectionRange where no parser is active</span></td></tr>
+    <tr><td><kbd class="peach">]n</kbd> <kbd class="peach">[n</kbd></td><td>Select next / previous sibling node <span class="note">Neovim 0.12+ built-in, Visual mode</span></td></tr>
+    <tr><td><kbd class="peach">&lt;C-v&gt;</kbd> … <kbd class="peach">I</kbd></td><td>Insert on every selected line <span class="note">needs a BLOCK selection: a mouse drag is characterwise (<kbd>I</kbd> inserts once — standard Vim). Drag then <kbd>&lt;C-v&gt;</kbd>, or <kbd>Alt</kbd>+drag, then <kbd>I</kbd>; or <code>:norm I…</code> on any selection. See vs-to-nvim → Selection.</span></td></tr>
+    <tr class="divider"><td colspan="2">Misc</td></tr>
+    <tr><td><kbd class="peach">&lt;Esc&gt;</kbd></td><td>Clear hlsearch + close popups <span class="note">LSP hover, signature help, diagnostic floats and gitsigns hunk previews; UI floats (treesitter-context, incline, fidget) stay</span></td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ WINDOWS & BUFFERS ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--sky)"></div><h2>Windows &amp; Buffers</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Move between splits</td></tr>
+    <tr><td><kbd class="sky">&lt;C-h&gt;</kbd> <kbd class="sky">&lt;C-j&gt;</kbd> <kbd class="sky">&lt;C-k&gt;</kbd> <kbd class="sky">&lt;C-l&gt;</kbd></td><td>Left / down / up / right</td></tr>
+    <tr class="divider"><td colspan="2">Resize</td></tr>
+    <tr><td><kbd class="sky">&lt;C-↑&gt;</kbd> <kbd class="sky">&lt;C-↓&gt;</kbd></td><td>Taller / shorter</td></tr>
+    <tr><td><kbd class="sky">&lt;C-←&gt;</kbd> <kbd class="sky">&lt;C-→&gt;</kbd></td><td>Narrower / wider</td></tr>
+    <tr class="divider"><td colspan="2">Splits</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;ws</kbd></td><td>Split horizontally</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;wv</kbd></td><td>Split vertically</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;wc</kbd></td><td>Close window <span class="note">in the last window it just says what to do instead of E444</span></td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;wo</kbd></td><td>Close all other windows</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;wm</kbd></td><td>Zoom current window (toggle) — maximizes the focused window; second press restores the exact layout. Works with neo-tree and other fixed-width buffers.</td></tr>
+    <tr class="divider"><td colspan="2">Buffers (bufferline)</td></tr>
+    <tr><td><kbd class="sky">&lt;S-l&gt;</kbd> <kbd class="sky">&lt;S-h&gt;</kbd></td><td>Next / prev buffer <span class="note">bufferline visual order (pins first) — also scrolls hidden tabs into view; the strip has no view-only scroll and its truncation markers are not clickable buttons</span></td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;bd</kbd></td><td>Delete buffer <span class="note">keeps the window — switches to next listed buffer first</span></td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;bD</kbd></td><td>Force-delete buffer (discard unsaved changes)</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;bm</kbd></td><td>Tab context menu <span class="note">keyboard version of right-clicking the tab: pin, copy path, open in split, close, close others. j/k + <kbd>&lt;CR&gt;</kbd>, or 1-8 to pick; q/<kbd>&lt;Esc&gt;</kbd> to dismiss</span></td></tr>
+    <tr><td colspan="2" class="note">Plain <code>:bd</code> still works but also closes the buffer's window — use the keymap above when you want to keep your split layout intact.</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;bp</kbd></td><td>Pin buffer</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;bP</kbd></td><td>Close unpinned <span class="note">buffers with unsaved changes stay open; splits keep their layout</span></td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;bj</kbd></td><td>Pick by letter</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;bJ</kbd></td><td>Pick + close</td></tr>
+    <tr><td><kbd class="sky">[B</kbd> <kbd class="sky">]B</kbd></td><td>Move buffer left / right (reorder)</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;1</kbd>…<kbd class="sky">&lt;leader&gt;9</kbd></td><td>Jump to buffer N (matches superscript on each tab)</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;0</kbd></td><td>Jump to last buffer</td></tr>
+    <tr><td colspan="2" class="note">Right-click a tab in the bufferline for a context menu: open in split/vsplit, copy path/filename, toggle pin, close, close others.</td></tr>
+    <tr class="divider"><td colspan="2">Save / quit</td></tr>
+    <tr><td><kbd class="sky">&lt;C-s&gt;</kbd></td><td>Save (works in n/i/v)</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;W</kbd></td><td>Save all</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;q</kbd></td><td>Quit (confirm)</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;Q</kbd></td><td>Force quit all</td></tr>
+    <tr class="divider"><td colspan="2">History</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;u</kbd></td><td>Toggle undo tree pane (atone.nvim)</td></tr>
+    <tr><td colspan="2" class="note">In the pane: <kbd>j</kbd>/<kbd>k</kbd> navigate · <kbd>&lt;CR&gt;</kbd> revert to node · <kbd>m</kbd>/<kbd>x</kbd> set/clear marks · <kbd>q</kbd> close. See <kbd>?</kbd> in-pane for the full table.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ MOTION (FLASH + TREESITTER) ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--yellow)"></div><h2>Jump <span class="note">flash + treesitter</span></h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">jumplist <span class="note">jumpoptions=stack</span></td></tr>
+    <tr><td><kbd class="yellow">&lt;C-o&gt;</kbd> <kbd class="yellow">&lt;C-i&gt;</kbd></td><td>Back / forward through the jumplist <span class="note">browser-style stack: a new jump after going back with <kbd>&lt;C-o&gt;</kbd> discards the forward entries</span></td></tr>
+    <tr class="divider"><td colspan="2">flash.nvim</td></tr>
+    <tr><td><kbd class="yellow">s</kbd><span class="note">{c…}</span></td><td>Jump anywhere on screen <span class="note">labels appear after the first char; type the label, or more chars to narrow</span></td></tr>
+    <tr><td><kbd class="yellow">S</kbd></td><td>Pick treesitter node interactively</td></tr>
+    <tr><td><kbd class="yellow">r</kbd></td><td>Remote flash (operator-pending)</td></tr>
+    <tr><td><kbd class="yellow">R</kbd></td><td>Treesitter node search (operator-pending / visual)</td></tr>
+    <tr><td><kbd class="yellow">&lt;C-s&gt;</kbd></td><td>Toggle flash in <kbd>/</kbd> search</td></tr>
+    <tr class="divider"><td colspan="2">nvim-treesitter-textobjects (motion)</td></tr>
+    <tr><td colspan="2" class="note">Incremental selection is built into Neovim 0.12: <kbd>an</kbd> / <kbd>in</kbd> grow / shrink by syntax node, <kbd>]n</kbd> / <kbd>[n</kbd> step to siblings (QoL Editing → Visual).</td></tr>
+    <tr><td><kbd class="yellow">]f</kbd> <kbd class="yellow">[f</kbd></td><td>Next / prev function start</td></tr>
+    <tr><td><kbd class="yellow">]k</kbd> <kbd class="yellow">[k</kbd></td><td>Next / prev class start <span class="note">]c/[c left to diff-mode</span></td></tr>
+    <tr><td><kbd class="yellow">]a</kbd> <kbd class="yellow">[a</kbd></td><td>Next / prev parameter</td></tr>
+    <tr><td><kbd class="yellow">&lt;leader&gt;cs</kbd></td><td>Swap argument with next</td></tr>
+    <tr><td><kbd class="yellow">&lt;leader&gt;cS</kbd></td><td>Swap argument with prev</td></tr>
+    <tr class="divider"><td colspan="2">treesitter-context</td></tr>
+    <tr><td><kbd class="yellow">&lt;leader&gt;cC</kbd></td><td>Jump to context (sticky header)</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ TEXT OBJECTS ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--green)"></div><h2>Text Objects <span class="note">v / d / c + these</span></h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Treesitter</td></tr>
+    <tr><td><kbd class="green">af</kbd> <kbd class="green">if</kbd></td><td>A / inner function</td></tr>
+    <tr><td><kbd class="green">ac</kbd> <kbd class="green">ic</kbd></td><td>A / inner class</td></tr>
+    <tr><td><kbd class="green">aa</kbd> <kbd class="green">ia</kbd></td><td>An / inner argument</td></tr>
+    <tr><td><kbd class="green">al</kbd> <kbd class="green">il</kbd></td><td>A / inner loop</td></tr>
+    <tr><td><kbd class="green">ai</kbd> <kbd class="green">ii</kbd></td><td>An / inner conditional</td></tr>
+    <tr class="divider"><td colspan="2">mini.surround <span class="note">on gz — s belongs to flash, keeps jumps delay-free</span></td></tr>
+    <tr><td><kbd class="green">gza</kbd><span class="note">{obj}{char}</span></td><td>Surround add — <code>gzaiw"</code> wraps word</td></tr>
+    <tr><td><kbd class="green">gzd</kbd><span class="note">{char}</span></td><td>Surround delete — <code>gzd"</code></td></tr>
+    <tr><td><kbd class="green">gzr</kbd><span class="note">{old}{new}</span></td><td>Replace surround — <code>gzr"'</code></td></tr>
+    <tr><td><kbd class="green">gzf</kbd> <kbd class="green">gzF</kbd></td><td>Find surrounding (right / left)</td></tr>
+    <tr><td><kbd class="green">gzh</kbd></td><td>Highlight surrounding</td></tr>
+    <tr class="divider"><td colspan="2">mini.align <span class="note">column-align consecutive lines</span></td></tr>
+    <tr><td><kbd class="green">ga</kbd><span class="note">{char}</span></td><td>Align on delimiter — visual-select first, then <code>ga=</code></td></tr>
+    <tr><td><kbd class="green">gA</kbd><span class="note">{char}</span></td><td>Same, with live preview</td></tr>
+    <tr><td><kbd class="green">ga</kbd><span class="note">{motion}{char}</span></td><td>As operator — <code>gaip=</code> aligns inner paragraph on <code>=</code></td></tr>
+    <tr class="divider"><td colspan="2">Git</td></tr>
+    <tr><td><kbd class="green">ih</kbd></td><td>Inside hunk (gitsigns)</td></tr>
+    <tr class="divider"><td colspan="2">Comments <span class="note">Neovim built-in — <code>:h commenting</code></span></td></tr>
+    <tr><td><kbd class="green">gcc</kbd></td><td>Toggle current line</td></tr>
+    <tr><td><kbd class="green">gc</kbd><span class="note">{motion}</span></td><td>Toggle over motion (e.g. <code>gcap</code>); in Visual mode, the selection</td></tr>
+    <tr><td><kbd class="green">gc</kbd> <span class="note">(text object)</span></td><td>A comment block — <code>dgc</code> deletes it</td></tr>
+    <tr><td colspan="2" class="note">Line comments only (no block-comment variant). The comment style is the <code>'commentstring'</code> of the treesitter language under the cursor, so embedded code (JS inside HTML, Lua inside Vim script) gets its own style; nvim-ts-context-commentstring refines it per node (<code>{/* … */}</code> inside JSX).</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ TELESCOPE (find) ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--blue)"></div><h2>Find — Telescope</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Files / text</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;ff</kbd></td><td>Find files</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fg</kbd></td><td>Live grep</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fw</kbd></td><td>Grep word under cursor</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fr</kbd></td><td>Recent files</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fb</kbd></td><td>Open buffers <span class="note">(this tab — scope.nvim)</span></td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fB</kbd></td><td>Open buffers — all tabs</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;f/</kbd></td><td>Search in current buffer</td></tr>
+    <tr class="divider"><td colspan="2">Vim things</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fh</kbd></td><td>Help tags</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fk</kbd></td><td>Keymaps</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fc</kbd></td><td>Ex commands</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fm</kbd></td><td>Marks</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fR</kbd></td><td>Registers</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;f:</kbd></td><td>Command history</td></tr>
+    <tr class="divider"><td colspan="2">LSP / git</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fs</kbd></td><td>Document symbols</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fS</kbd></td><td>Workspace symbols (dynamic)</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fd</kbd></td><td>Diagnostics (all buffers)</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fG</kbd></td><td>Git status</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fT</kbd></td><td>TODO comments</td></tr>
+    <tr class="divider"><td colspan="2">Inside the picker</td></tr>
+    <tr><td><kbd class="blue">&lt;C-j&gt;</kbd> <kbd class="blue">&lt;C-k&gt;</kbd></td><td>Move selection</td></tr>
+    <tr><td><kbd class="blue">&lt;C-q&gt;</kbd></td><td>Send all → quickfix → open</td></tr>
+    <tr><td><kbd class="blue">&lt;C-y&gt;</kbd></td><td>Yank the entry's full path <span class="note">to the clipboard and <code>"</code>; picker stays open</span></td></tr>
+    <tr><td><kbd class="blue">&lt;Esc&gt;</kbd></td><td>Close at once <span class="note">no normal-mode stop; <kbd>&lt;C-u&gt;</kbd> clears the prompt as in any input line</span></td></tr>
+    <tr><td><kbd class="blue">&lt;C-d&gt;</kbd> / <kbd class="blue">&lt;M-d&gt;</kbd></td><td>Delete buffer(s) (buffers picker) <span class="note"><kbd>&lt;Tab&gt;</kbd>/<kbd>&lt;S-Tab&gt;</kbd> multi-select first to bulk-close, scoper-style; picker stays open, windows are preserved, dirty buffers are skipped with a warning</span></td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ FZF-LUA ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>Find — fzf-lua <span class="note">snappier on huge repos</span></h2></div>
+  <table>
+    <tr><td><kbd class="mauve">&lt;leader&gt;Ff</kbd></td><td>Files</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;Fg</kbd></td><td>Live grep</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;Fw</kbd></td><td>Grep word</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;Fb</kbd></td><td>Buffers</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;Fr</kbd></td><td>Recent files</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;Fh</kbd></td><td>Help tags</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;Fk</kbd></td><td>Keymaps</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;Fd</kbd></td><td>Diagnostics (current buffer)</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;Fs</kbd></td><td>Document symbols</td></tr>
+    <tr class="divider"><td colspan="2">Inside the picker <span class="note">fzf-lua's stock keys; <kbd>&lt;F1&gt;</kbd> lists them all</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;F1&gt;</kbd></td><td>Toggle help</td></tr>
+    <tr><td><kbd class="mauve">&lt;F2&gt;</kbd></td><td>Toggle fullscreen</td></tr>
+    <tr><td><kbd class="mauve">&lt;F3&gt;</kbd></td><td>Toggle preview wrap</td></tr>
+    <tr><td><kbd class="mauve">&lt;F4&gt;</kbd></td><td>Toggle preview</td></tr>
+    <tr><td><kbd class="mauve">&lt;S-Down&gt;</kbd> <kbd class="mauve">&lt;S-Up&gt;</kbd></td><td>Scroll the preview a page down / up</td></tr>
+    <tr><td><kbd class="mauve">&lt;C-s&gt;</kbd> <kbd class="mauve">&lt;C-v&gt;</kbd> <kbd class="mauve">&lt;C-t&gt;</kbd></td><td>Open in a split / vertical split / tab</td></tr>
+    <tr><td><kbd class="mauve">&lt;M-q&gt;</kbd></td><td>Send the marked entries (<kbd>&lt;Tab&gt;</kbd>) to the quickfix list <span class="note"><kbd>&lt;M-a&gt;</kbd> marks all</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;M-i&gt;</kbd> <kbd class="mauve">&lt;M-h&gt;</kbd></td><td>Files / grep: toggle ignored / hidden files</td></tr>
+    <tr><td><kbd class="mauve">&lt;C-x&gt;</kbd></td><td>Delete buffer(s) (buffers and <code>:FzfLua tabs</code> pickers) <span class="note">same action as telescope's <kbd>&lt;C-d&gt;</kbd>: <kbd>&lt;Tab&gt;</kbd> marks, windows preserved, dirty buffers skipped. Needs fzf ≥ 0.45 for the tabs picker.</span></td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ LSP ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--teal)"></div><h2>LSP <span class="note">buffer-local on LspAttach</span></h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Navigate</td></tr>
+    <tr><td><kbd class="teal">gd</kbd></td><td>Go to definition</td></tr>
+    <tr><td><kbd class="teal">gD</kbd></td><td>Go to declaration</td></tr>
+    <tr><td><kbd class="teal">gr</kbd></td><td>References <span class="note">opens the Trouble panel (toggle) rather than the quickfix list — navigable, previews inline; gd/gD/gI/gy stay direct jumps</span></td></tr>
+    <tr><td><kbd class="teal">gI</kbd></td><td>Implementation <span class="note">capital I — plain <kbd>gi</kbd> stays Vim's "resume insert at the last insert position"</span></td></tr>
+    <tr><td><kbd class="teal">gy</kbd></td><td>Type definition</td></tr>
+    <tr class="divider"><td colspan="2">Hover / info</td></tr>
+    <tr><td><kbd class="teal">K</kbd></td><td>Peek a closed fold, else LSP hover <span class="note">with neither (help, Vim script, man buffers, no server) it falls back to Vim's <kbd>K</kbd> — <code>'keywordprg'</code>, count kept</span></td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;lk</kbd></td><td>Signature help <span class="note">normal mode — moved off &lt;C-k&gt; so it no longer shadows window-up in LSP buffers; blink auto-shows signatures while typing in insert mode</span></td></tr>
+    <tr class="divider"><td colspan="2">Refactor</td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;lr</kbd></td><td>Rename symbol</td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;la</kbd></td><td>Code action</td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;lf</kbd></td><td>Format (LSP)</td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;cf</kbd></td><td>Format (conform → external)</td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;cF</kbd></td><td>:ConformInfo</td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;cd</kbd></td><td>Generate doc comment (neogen) <span class="note">doxygen for C/C++</span></td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;cm</kbd></td><td>Open <code>:Mason</code> <span class="note">install / manage LSP servers, formatters, DAP adapters</span></td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;lh</kbd></td><td>Toggle inlay hints</td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;lc</kbd></td><td>Toggle color swatches <span class="note">Neovim 0.12+, servers with document colors (e.g. cssls); on by default</span></td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;lt</kbd></td><td>Toggle linked tag editing <span class="note">Neovim 0.12+, servers that support it (e.g. html): editing an opening tag renames its closing tag as you type. On by default; the toggle applies to the whole session</span></td></tr>
+    <tr class="divider"><td colspan="2">Diagnostics</td></tr>
+    <tr><td><kbd class="teal">]d</kbd> <kbd class="teal">[d</kbd></td><td>Next / prev diagnostic <span class="note">Neovim's built-in maps (<kbd>]D</kbd> / <kbd>[D</kbd> = last / first); the float opens after every jump via <code>vim.diagnostic.config({ jump = { on_jump } })</code>. Its <code>[code]</code> suffix names the clang-tidy check or <code>-W</code> flag</span></td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;ld</kbd></td><td>Line diagnostics float <span class="note">wraps — use when a message trails off the right edge</span></td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;lv</kbd></td><td>Toggle virtual text ↔ virtual lines <span class="note">virtual text never wraps; lines render the full message below the code (current line only)</span></td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ COMPLETION ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--pink)"></div><h2>Completion (blink.cmp) <span class="note">default preset · C-n/C-p open the menu</span></h2></div>
+  <table>
+    <tr><td><kbd class="pink">&lt;C-Space&gt;</kbd></td><td>Trigger / open menu <span class="note">works in most terminals; on the Windows console (and zellij/tmux running over it) Ctrl+Space can arrive as a bare <kbd>&lt;Space&gt;</kbd> = <kbd>&lt;leader&gt;</kbd> and pop which-key instead — use <kbd>&lt;C-n&gt;</kbd> there</span></td></tr>
+    <tr><td><kbd class="pink">&lt;C-n&gt;</kbd> <kbd class="pink">&lt;C-p&gt;</kbd></td><td>Open menu, then next / prev item <span class="note">terminal-safe trigger — sent cleanly everywhere. First press opens the menu (ghost-text preview only, nothing inserted); press again to move the selection. Overrides the default preset, whose <kbd>&lt;C-n&gt;</kbd> only moves the selection of a menu that is already open.</span></td></tr>
+    <tr><td><kbd class="pink">&lt;C-y&gt;</kbd></td><td>Accept selected <span class="note">the default preset's accept key</span></td></tr>
+    <tr><td><kbd class="pink">&lt;C-e&gt;</kbd></td><td>Cancel <span class="note">closes the menu and reverts a previewed item</span></td></tr>
+    <tr><td><kbd class="pink">&lt;C-b&gt;</kbd> <kbd class="pink">&lt;C-f&gt;</kbd></td><td>Scroll the documentation window up / down</td></tr>
+    <tr><td><kbd class="pink">&lt;CR&gt;</kbd></td><td>Inserts a newline — does <em>not</em> accept <span class="note">the <code>default</code> preset leaves &lt;CR&gt; unbound, so Enter falls through to a newline; Enter-to-accept is the separate <code>enter</code> preset. Accept with <kbd>&lt;C-y&gt;</kbd>.</span></td></tr>
+    <tr><td><kbd class="pink">&lt;Tab&gt;</kbd> <kbd class="pink">&lt;S-Tab&gt;</kbd></td><td>Snippet jump fwd / back <span class="note">only while a snippet is active (including neogen's doc-comment placeholders after <kbd>&lt;leader&gt;cd</kbd>); the session auto-exits once the cursor leaves it, so <kbd>&lt;Tab&gt;</kbd> indents (inserts spaces) normally everywhere else</span></td></tr>
+    <tr><td><kbd class="pink">&lt;C-k&gt;</kbd></td><td>Digraph (Vim's <code>i_CTRL-K</code>) <span class="note">blink's default signature toggle is switched off so digraphs work; signatures still pop up while you type, and <kbd>&lt;leader&gt;lk</kbd> opens one in normal mode</span></td></tr>
+    <tr class="divider"><td colspan="2">Command line (<kbd>:</kbd>)</td></tr>
+    <tr><td colspan="2" class="note">blink completes <kbd>:</kbd> commands, paths, and options as you type. Shell &amp; filter commands (<kbd>:!</kbd>, <kbd>:%!</kbd>, <kbd>:'&lt;,'&gt;!</kbd>) are deliberately skipped — their completion enumerates all of <code>$PATH</code> and hung Neovim for seconds. Press <kbd>&lt;Tab&gt;</kbd> inside <kbd>:!</kbd> to invoke native wildmenu completion on demand instead.</td></tr>
+    <tr class="divider"><td colspan="2">Ghost text</td></tr>
+    <tr><td colspan="2" class="note">Highlighted item appears inline. Just keep typing to ignore it.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ GIT ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--red)"></div><h2>Git (gitsigns + diffview+)</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Hunk navigation</td></tr>
+    <tr><td><kbd class="red">]h</kbd> <kbd class="red">[h</kbd></td><td>Next / prev hunk</td></tr>
+    <tr class="divider"><td colspan="2">Hunk operations</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gs</kbd></td><td>Stage hunk (toggle — press again to unstage)</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gr</kbd></td><td>Reset hunk</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gS</kbd></td><td>Stage entire buffer</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gR</kbd></td><td>Reset entire buffer</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gp</kbd></td><td>Preview hunk inline</td></tr>
+    <tr class="divider"><td colspan="2">Blame</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gb</kbd></td><td>Blame current line (full)</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gB</kbd></td><td>Toggle inline blame</td></tr>
+    <tr class="divider"><td colspan="2">Diffview (diffview+)</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gd</kbd></td><td>Toggle diffview: working tree vs the index <span class="note">press again to close. Unstaged changes; <code>:DiffviewOpen HEAD</code> shows everything since the last commit. During a merge it opens the conflict view (see the Git workflow)</span></td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gD</kbd></td><td>Close diffview</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gh</kbd></td><td>File history (this file) <span class="note">in visual mode: history of the selected lines only</span></td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gH</kbd></td><td>File history (whole repo)</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gl</kbd></td><td>File history, each commit vs the working copy <span class="note"><code>--pin-local</code>: "how far is my file from that commit"</span></td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gw</kbd></td><td>Git worktrees overview</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;ge</kbd></td><td>Git status in neo-tree</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;tg</kbd></td><td>Lazygit (terminal)</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ DAP ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>Debug (DAP)</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Session control</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dc</kbd></td><td>Continue / start (reads <code>.vscode/launch.json</code> automatically)</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dL</kbd></td><td>Validate launch.json &amp; preview its configs (sanity check)</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dC</kbd></td><td>Run to cursor</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dl</kbd></td><td>Run last</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dt</kbd></td><td>Terminate</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dp</kbd></td><td>Pause <span class="note">first thread, no "which thread?" picker (all-stop halts everything)</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dT</kbd></td><td>Toggle pause thread-picker <span class="note">on = restore per-thread choice for non-stop adapters</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dR</kbd></td><td>Restart session <span class="note">(VS: Ctrl+Shift+F5)</span></td></tr>
+    <tr class="divider"><td colspan="2">Step</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;di</kbd></td><td>Step into</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;do</kbd></td><td>Step over</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dO</kbd></td><td>Step out</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dg</kbd></td><td>Set next statement <span class="note">jump execution to cursor line (VS: drag the yellow arrow)</span></td></tr>
+    <tr class="divider"><td colspan="2">Breakpoints <span class="note">(saved across nvim restarts)</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;db</kbd></td><td>Toggle breakpoint</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dB</kbd></td><td>Conditional / hit-count breakpoint <span class="note">prompts for condition + hit count; both empty cancels</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dP</kbd></td><td>Log point — prints, doesn't break <span class="note">use {expr} for variables</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dx</kbd></td><td>List all breakpoints (in Trouble)</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dX</kbd></td><td>Clear all breakpoints</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dE</kbd></td><td>Exception breakpoints <span class="note">toggle adapter filters — codelldb: C++ on-throw / on-catch (VS: Exception Settings). Run during a session.</span></td></tr>
+    <tr class="divider"><td colspan="2">Inspect</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;du</kbd></td><td>Toggle DAP UI</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dr</kbd></td><td>Toggle REPL</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;de</kbd></td><td>Eval expression (n / v)</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dk</kbd></td><td>Stack: up</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dj</kbd></td><td>Stack: down</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dw</kbd></td><td>Hover value under cursor / selection <span class="note">small widgets float, no full UI (n / v)</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dv</kbd></td><td>Toggle inline end-of-line values</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dU</kbd></td><td>Toggle UI auto-close on program exit <span class="note">off = stay open to inspect post-mortem; sets <code>vim.g.dap_autoclose_ui</code></span></td></tr>
+    <tr><td colspan="2" class="note">Inline variable values show at end-of-line while stopped (nvim-dap-virtual-text — like VS inline values); <kbd class="mauve">&lt;leader&gt;dv</kbd> hides/shows them.</td></tr>
+    <tr class="divider"><td colspan="2">VS Code function keys</td></tr>
+    <tr><td><kbd class="mauve">&lt;F5&gt;</kbd></td><td>Continue / start</td></tr>
+    <tr><td><kbd class="mauve">&lt;F6&gt;</kbd></td><td>Pause</td></tr>
+    <tr><td><kbd class="mauve">&lt;F9&gt;</kbd></td><td>Toggle breakpoint <span class="note">persistent, like <kbd class="mauve">&lt;leader&gt;db</kbd></span></td></tr>
+    <tr><td><kbd class="mauve">&lt;F10&gt;</kbd></td><td>Step over</td></tr>
+    <tr><td><kbd class="mauve">&lt;F11&gt;</kbd></td><td>Step into</td></tr>
+    <tr><td colspan="2" class="note">Only the <em>unmodified</em> F-keys are bound. The modified ones VS Code uses — Shift+F5 (stop), Shift+F11 (step out), Ctrl+Shift+F5 (restart) — don't reach nvim reliably on the Windows console (or zellij/tmux running over it), so they're left unbound; use <kbd class="mauve">&lt;leader&gt;dt</kbd> / <kbd class="mauve">dO</kbd> / <kbd class="mauve">dR</kbd> for those.</td></tr>
+    <tr><td colspan="2" class="note">In the dap-ui <strong>Breakpoints</strong> panel: <kbd class="mauve">o</kbd> jump to it, <kbd class="mauve">t</kbd> enable/disable, <kbd class="mauve">d</kbd> remove. <kbd>t</kbd> and <kbd>d</kbd> last for this session only — the saved breakpoints come back on the next start. To delete one for good: <kbd class="mauve">o</kbd> then <kbd class="mauve">&lt;leader&gt;db</kbd>. No multi-select (dap-ui limitation).</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ DIAGNOSTICS / TROUBLE ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>Diagnostics — Trouble</h2></div>
+  <table>
+    <tr><td><kbd class="peach">&lt;leader&gt;xx</kbd></td><td>Workspace diagnostics</td></tr>
+    <tr><td><kbd class="peach">&lt;leader&gt;xX</kbd></td><td>Buffer diagnostics</td></tr>
+    <tr><td><kbd class="peach">&lt;leader&gt;xs</kbd></td><td>Symbols (LSP outline)</td></tr>
+    <tr><td><kbd class="peach">&lt;leader&gt;xl</kbd></td><td>LSP refs / defs / impl</td></tr>
+    <tr><td><kbd class="peach">&lt;leader&gt;xL</kbd></td><td>Location list</td></tr>
+    <tr><td><kbd class="peach">&lt;leader&gt;xq</kbd></td><td>Quickfix list</td></tr>
+    <tr><td><kbd class="peach">&lt;leader&gt;xt</kbd></td><td>TODO comments</td></tr>
+    <tr class="divider"><td colspan="2">Navigate items</td></tr>
+    <tr><td><kbd class="peach">]q</kbd> <kbd class="peach">[q</kbd></td><td>Next / prev item (Trouble or qf)</td></tr>
+    <tr><td><kbd class="peach">]t</kbd> <kbd class="peach">[t</kbd></td><td>Next / prev TODO</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ SEARCH / REPLACE ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--flamingo)"></div><h2>Search &amp; Replace — grug-far</h2></div>
+  <table>
+    <tr><td><kbd class="flamingo">&lt;leader&gt;sr</kbd></td><td>Open replace UI <span class="note">from Visual mode the selection prefills the search</span></td></tr>
+    <tr><td><kbd class="flamingo">&lt;leader&gt;sw</kbd></td><td>Replace word under cursor</td></tr>
+    <tr><td><kbd class="flamingo">&lt;leader&gt;sf</kbd></td><td>Replace within current file only</td></tr>
+    <tr class="divider"><td colspan="2">Inside the grug-far buffer (localleader = \) <span class="note">grug-far's stock keys</span></td></tr>
+    <tr><td><kbd class="flamingo">\r</kbd></td><td>Apply replace</td></tr>
+    <tr><td><kbd class="flamingo">\q</kbd></td><td>Send results to quickfix</td></tr>
+    <tr><td><kbd class="flamingo">\s</kbd></td><td>Sync <em>all</em> edited results back to their files</td></tr>
+    <tr><td><kbd class="flamingo">\l</kbd></td><td>Sync current line back to its file</td></tr>
+    <tr><td><kbd class="flamingo">\c</kbd></td><td>Close</td></tr>
+    <tr><td><kbd class="flamingo">\t</kbd> <kbd class="flamingo">\a</kbd></td><td>History open / add the current search</td></tr>
+    <tr><td><kbd class="flamingo">\f</kbd></td><td>Refresh</td></tr>
+    <tr><td><kbd class="flamingo">\b</kbd></td><td>Abort a running search or replace</td></tr>
+    <tr><td><kbd class="flamingo">\w</kbd></td><td>Show / hide the rg command line</td></tr>
+    <tr><td><kbd class="flamingo">\e</kbd></td><td>Swap engine (rg → ast-grep → ast-grep rules)</td></tr>
+    <tr><td><kbd class="flamingo">\x</kbd></td><td>Swap the replacement interpreter (e.g. a Lua expression)</td></tr>
+    <tr><td><kbd class="flamingo">&lt;Tab&gt;</kbd> <kbd class="flamingo">&lt;S-Tab&gt;</kbd></td><td>Next / prev input field</td></tr>
+    <tr class="divider"><td colspan="2">Navigation (in results)</td></tr>
+    <tr><td><kbd class="flamingo">&lt;Down&gt;</kbd> <kbd class="flamingo">&lt;Up&gt;</kbd></td><td>Next / prev match (opens it)</td></tr>
+    <tr><td><kbd class="flamingo">\j</kbd> <kbd class="flamingo">\k</kbd></td><td>Apply the change on this line, drop it from the list, go to the next / prev one</td></tr>
+    <tr><td><kbd class="flamingo">\n</kbd> <kbd class="flamingo">\p</kbd></td><td>Sync the edit on this line, go to the next / prev match</td></tr>
+    <tr><td><kbd class="flamingo">\v</kbd></td><td>Sync the edits in the current file only</td></tr>
+    <tr><td><kbd class="flamingo">&lt;Enter&gt;</kbd></td><td>Jump to match under cursor</td></tr>
+    <tr><td><kbd class="flamingo">\o</kbd></td><td>Open the match in the other window, cursor stays in grug-far</td></tr>
+    <tr><td><kbd class="flamingo">\i</kbd></td><td>Preview match under cursor</td></tr>
+    <tr><td><kbd class="flamingo">]f</kbd> <kbd class="flamingo">[f</kbd></td><td>Next / prev FILE header <span class="note">custom (lua/plugins/search.lua) — grug-far has no built-in file jump; works off the blank-line-separated file groups</span></td></tr>
+    <tr><td><kbd class="flamingo">g?</kbd></td><td>Help</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ TERMINAL ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--green)"></div><h2>Terminal (toggleterm)</h2></div>
+  <table>
+    <tr><td><kbd class="green">&lt;C-\&gt;</kbd></td><td>Toggle floating terminal</td></tr>
+    <tr><td><kbd class="green">&lt;leader&gt;tt</kbd></td><td>Float</td></tr>
+    <tr><td><kbd class="green">&lt;leader&gt;th</kbd></td><td>Horizontal split</td></tr>
+    <tr><td><kbd class="green">&lt;leader&gt;tv</kbd></td><td>Vertical split</td></tr>
+    <tr><td><kbd class="green">&lt;leader&gt;tg</kbd></td><td>Lazygit float</td></tr>
+    <tr class="divider"><td colspan="2">Inside the terminal</td></tr>
+    <tr><td><kbd class="green">&lt;Esc&gt;&lt;Esc&gt;</kbd></td><td>Exit terminal mode <span class="note">a single <kbd>&lt;Esc&gt;</kbd> still reaches the shell or TUI (vi-mode), after <code>'timeoutlen'</code>; Neovim's own <kbd>&lt;C-\&gt;&lt;C-n&gt;</kbd> works too</span></td></tr>
+    <tr><td><kbd class="green">&lt;C-h/j/k/l&gt;</kbd></td><td>Navigate out to splits <span class="note">on Windows too</span></td></tr>
+    <tr><td colspan="2" class="note">Lazygit float: <kbd>&lt;Esc&gt;</kbd> goes to lazygit at once and <kbd>&lt;C-h/j/k/l&gt;</kbd> stay lazygit's; leave terminal mode with <kbd>&lt;C-\&gt;&lt;C-n&gt;</kbd>, quit with <kbd>q</kbd>.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ EXPLORER / SESSION ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--rosewater)"></div><h2>Explorer &amp; Session</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">neo-tree</td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;e</kbd></td><td>Toggle tree</td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;E</kbd></td><td>Reveal current file</td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;fe</kbd></td><td>Focus existing tree</td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;ge</kbd></td><td>Git status panel</td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;be</kbd></td><td>Buffers panel <span class="note"><kbd>d</kbd> / <kbd>bd</kbd> delete the buffer like <kbd>&lt;leader&gt;bd</kbd>: splits kept, unsaved buffers skipped</span></td></tr>
+    <tr class="divider"><td colspan="2">Inside the tree</td></tr>
+    <tr><td><kbd class="rosewater">a</kbd></td><td>Add file (end with <code>/</code> for dir)</td></tr>
+    <tr><td><kbd class="rosewater">d</kbd> <kbd class="rosewater">r</kbd></td><td>Delete / rename</td></tr>
+    <tr><td><kbd class="rosewater">y</kbd> <kbd class="rosewater">x</kbd> <kbd class="rosewater">p</kbd></td><td>Copy / cut / paste <span class="note">file ops via neo-tree's OWN clipboard — <kbd>y</kbd>, navigate to a dir, then <kbd>p</kbd> duplicates the file. NOT the system clipboard or a register; can't be pasted into a buffer. <kbd class="rosewater">&lt;C-r&gt;</kbd> clears it.</span></td></tr>
+    <tr><td><kbd class="rosewater">Y</kbd> <span class="note">/ <kbd class="rosewater">&lt;C-S-c&gt;</kbd></span></td><td>Copy absolute path to system clipboard, as text <span class="note">custom mapping. <kbd>&lt;C-S-c&gt;</kbd> is usually grabbed by the terminal's own copy shortcut, so <kbd>Y</kbd> is the reliable one.</span></td></tr>
+    <tr><td><kbd class="rosewater">/</kbd> <kbd class="rosewater">D</kbd></td><td>Fuzzy-filter visible items / fuzzy-find directories</td></tr>
+    <tr><td><kbd class="rosewater">H</kbd></td><td>Toggle hidden files</td></tr>
+    <tr><td><kbd class="rosewater">l</kbd> <kbd class="rosewater">h</kbd></td><td>Open / close node</td></tr>
+    <tr><td><kbd class="rosewater">s</kbd> <kbd class="rosewater">S</kbd></td><td>Open in vsplit / split</td></tr>
+    <tr><td><kbd class="rosewater">P</kbd></td><td>Toggle floating preview</td></tr>
+    <tr><td><kbd class="rosewater">&lt;C-s&gt;</kbd></td><td>Quick-jump: type a node's label to jump + open/toggle it</td></tr>
+    <tr><td><kbd class="rosewater">&lt;Tab&gt;</kbd> <span class="note">/ <kbd class="rosewater">&lt;C-;&gt;</kbd></span></td><td>Multi-select toggle / clear selection</td></tr>
+    <tr><td><kbd class="rosewater">?</kbd></td><td>Full keymap help</td></tr>
+    <tr><td colspan="2" class="note"><kbd>&lt;C-s&gt;</kbd> quick-jump and <kbd>&lt;Tab&gt;</kbd>/<kbd>&lt;C-;&gt;</kbd> select are neo-tree defaults on its <code>main</code> branch, which <code>explorer.lua</code> tracks (<code>:Lazy sync</code> after changing the branch). <kbd>&lt;C-;&gt;</kbd> also needs a terminal that transmits Ctrl+punctuation.</td></tr>
+    <tr class="divider"><td colspan="2">auto-session</td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;wf</kbd></td><td>Find session (picker) <span class="note"><code>:AutoSession search</code></span></td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;wS</kbd></td><td>Save session <span class="note"><code>:AutoSession save</code></span></td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;wr</kbd></td><td>Restore session <span class="note"><code>:AutoSession restore</code></span></td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;wD</kbd></td><td>Delete session <span class="note"><code>:AutoSession delete</code></span></td></tr>
+    <tr><td><kbd class="rosewater">ZR</kbd></td><td>Restart Neovim <span class="note">runs <code>:restart!</code>: Neovim's own session save/restore is skipped because auto-session saves the session on the way out and restores it on the way back in. Unsaved changes still stop it (it quits with <code>:qall</code>); <kbd>9ZR</kbd> restarts anyway, discarding them</span></td></tr>
+    <tr><td colspan="2" class="note">Saved on exit and restored automatically when you start <code>nvim</code> with no file arguments. Never in <code>~</code>, <code>~/Downloads</code>, the temp dir (<code>$TEMP</code>, <code>$TMP</code>, <code>$TMPDIR</code>) or the drive root (<code>C:\</code> on Windows; <code>/tmp</code> and <code>/</code> elsewhere). <code>nvim foo.c</code> restores nothing and saves only once 2+ files or tabs are open.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ FOLDING (UFO) ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--sapphire)"></div><h2>Folding (ufo)</h2></div>
+  <table>
+    <tr><td><kbd class="sapphire">zR</kbd></td><td>Open all folds</td></tr>
+    <tr><td><kbd class="sapphire">zM</kbd></td><td>Close all folds</td></tr>
+    <tr><td><kbd class="sapphire">zr</kbd></td><td>Open all except certain kinds</td></tr>
+    <tr><td><kbd class="sapphire">za</kbd></td><td>Toggle one fold</td></tr>
+    <tr><td><kbd class="sapphire">zc</kbd> <kbd class="sapphire">zo</kbd></td><td>Close / open one fold</td></tr>
+    <tr><td><kbd class="sapphire">K</kbd></td><td>Peek folded text (if on a closed fold), else LSP hover, else <code>'keywordprg'</code></td></tr>
+    <tr class="divider"><td colspan="2">Providers</td></tr>
+    <tr><td colspan="2" class="note">LSP folding ranges, falling back to treesitter when the language has a <code>folds</code> query and an installed parser, otherwise to indent. Python and Vim script always use indent; git buffers and special buffers get no folds.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ OVERRIDDEN DEFAULTS ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--lavender)"></div><h2>Overridden defaults &amp; other keys</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Built-in keys that do something else here</td></tr>
+    <tr><td><kbd class="lavender">gr</kbd></td><td>References (Trouble) <span class="note">Neovim's <code>grr</code> <code>grn</code> <code>gra</code> <code>gri</code> <code>grt</code> <code>grx</code> are deleted so <kbd>gr</kbd> fires without a timeout; rename / code action are on <kbd>&lt;leader&gt;lr</kbd> / <kbd>&lt;leader&gt;la</kbd>, implementation on <kbd>gI</kbd></span></td></tr>
+    <tr><td><kbd class="lavender">K</kbd></td><td>Fold peek → LSP hover → <code>'keywordprg'</code></td></tr>
+    <tr><td><kbd class="lavender">&lt;C-s&gt;</kbd> <span class="note">(insert)</span></td><td>Save <span class="note">Neovim's insert <kbd>&lt;C-s&gt;</kbd> is signature help; here signatures pop up by themselves, and <kbd>&lt;leader&gt;lk</kbd> opens one in normal mode</span></td></tr>
+    <tr><td><kbd class="lavender">s</kbd> <kbd class="lavender">S</kbd></td><td>Flash jump / treesitter select <span class="note">Vim's substitute-char / -line: use <kbd>cl</kbd> / <kbd>cc</kbd></span></td></tr>
+    <tr><td><kbd class="lavender">ga</kbd></td><td>Align <span class="note">Vim's "print character code": use <code>:ascii</code></span></td></tr>
+    <tr><td><kbd class="lavender">&lt;S-h&gt;</kbd> <kbd class="lavender">&lt;S-l&gt;</kbd></td><td>Prev / next buffer <span class="note">Vim's screen-top / -bottom (<kbd>H</kbd> / <kbd>L</kbd>) are gone</span></td></tr>
+    <tr><td><kbd class="lavender">&lt;C-h/j/k/l&gt;</kbd></td><td>Window navigation <span class="note"><kbd>&lt;C-l&gt;</kbd> no longer redraws: use <code>:redraw!</code></span></td></tr>
+    <tr><td><kbd class="lavender">]q</kbd> <kbd class="lavender">]t</kbd> <kbd class="lavender">]a</kbd> <kbd class="lavender">]B</kbd></td><td>Trouble/quickfix item · TODO · parameter · move buffer <span class="note">(and the <kbd>[</kbd> twins) — Neovim's <code>:cnext</code>, <code>:tnext</code>, <code>:next</code>, <code>:blast</code> pairs; the commands still work</span></td></tr>
+    <tr><td><kbd class="lavender">ZR</kbd></td><td><code>:restart!</code> instead of <code>:restart</code> <span class="note">auto-session handles the session</span></td></tr>
+    <tr class="divider"><td colspan="2">Other keys without a leader</td></tr>
+    <tr><td><kbd class="lavender">&lt;C-f&gt;</kbd> <kbd class="lavender">&lt;C-b&gt;</kbd> <kbd class="lavender">&lt;C-y&gt;</kbd> <kbd class="lavender">&lt;C-e&gt;</kbd> <kbd class="lavender">zt</kbd> <kbd class="lavender">zz</kbd> <kbd class="lavender">zb</kbd></td><td>Animated scrolling (neoscroll), like <kbd>&lt;C-d&gt;</kbd> / <kbd>&lt;C-u&gt;</kbd></td></tr>
+    <tr><td><kbd class="lavender">&lt;M-e&gt;</kbd> <span class="note">(insert)</span></td><td>Fast wrap: after typing an opening bracket or quote, press it and pick where the closing one goes (autopairs)</td></tr>
+    <tr><td><kbd class="lavender">gzn</kbd></td><td>Surround: change how many lines around the cursor are searched</td></tr>
+    <tr><td><kbd class="lavender">q</kbd></td><td>Close help, man, quickfix, <code>:checkhealth</code> and test-popup windows <span class="note">not commit messages — use <code>:q!</code> / <code>:cq</code> to abort a commit</span></td></tr>
+    <tr><td><code>, . ! ? ; :</code> <span class="note">(insert)</span></td><td>Start a new undo step <span class="note">Markdown, text and commit messages only, so one <kbd>u</kbd> doesn't undo a paragraph; code buffers keep Vim's behaviour</span></td></tr>
+    <tr><td><code>:trust</code></td><td>Trust the current file (e.g. a project's <code>.nvim.lua</code>) <span class="note"><code>'exrc'</code> is on, so Neovim offers <code>.nvim.lua</code> from the working directory and its parents once you trust it; <code>:trust ++remove</code> revokes it</span></td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ EXPLICIT NEGATIVES ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--red)"></div><h2>Not Enabled <span class="note">opinionated defaults</span></h2></div>
+  <table>
+    <tr><td>format-on-save</td><td>Use <kbd class="red">&lt;leader&gt;cf</kbd>. To enable it, see "Format on save" in the README</td></tr>
+    <tr><td>netrw</td><td>Disabled. Use <kbd class="red">&lt;leader&gt;e</kbd> (neo-tree)</td></tr>
+  </table>
+</div>
+
+</div>
+<footer>
+  <span>Catppuccin Mocha · JetBrains Mono</span>
+  <span>which-key delay 200 ms · timeoutlen 400 ms · leader = &lt;Space&gt;</span>
+</footer>
+</body>
+</html>

@@ -1,0 +1,188 @@
+# ════════════════════════════════════════════════════════════════════════
+#  .clang-format — pragmatic modern C++ style
+# ════════════════════════════════════════════════════════════════════════
+#
+# HOW TO USE THIS FILE
+# --------------------
+# Copy to your project root as `.clang-format` (leading dot, no
+# extension). Both clang-format and clangd pick it up automatically —
+# no nvim, build-system, or editor configuration required.
+#
+#   * In nvim: <leader>cf formats with conform.nvim, which runs the
+#     clang-format binary Mason installs; <leader>lf asks clangd instead.
+#     Both obey this file. (Format-on-save is off by default; README.md
+#     "Format on save" shows how to turn it on.)
+#   * From the command line: `clang-format -i path/to/file.cpp` (the
+#     -i flag rewrites in place).
+#   * To regenerate from a base style and customize from scratch:
+#       clang-format --style=llvm --dump-config > .clang-format
+#
+# WHAT THE STYLE LOOKS LIKE (the choices below)
+# ---------------------------------------------
+#   * 4-space indent, no tabs, 100-column limit.
+#   * K&R braces: `if (cond) {` on the same line, `}` on its own.
+#   * Pointers/references attach to the type: `int* p`, `Foo& bar`.
+#   * Function args/params unpack onto separate lines when they don't
+#     fit on one — easier to review, less reformatting on small changes.
+#   * #includes are sorted and regrouped into blocks separated by blank
+#     lines: project "" headers, other <...> libraries, C <*.h>, then the
+#     C++ standard library (IncludeBlocks: Regroup, below).
+#   * East/west const is left alone — pick one and be consistent within
+#     a file; this config won't fight you either way.
+#
+# VERSION: needs clang-format 15 or newer (InsertBraces,
+# IndentRequiresClause). Keys keep their original spellings, which newer
+# releases still accept (AlignTrailingComments / AlignConsecutive* as
+# booleans, BinPackArguments / BinPackParameters, SpacesInParentheses,
+# AlwaysBreakTemplateDeclarations, KeepEmptyLinesAtTheStartOfBlocks);
+# `--dump-config` prints the current names. This file must produce the same
+# style as the .clang-format dotfile; scripts/check-docs.sh compares the two
+# `clang-format --dump-config` outputs whenever clang-format is installed.
+#
+# This is YAML. Comments start with #.
+# ════════════════════════════════════════════════════════════════════════
+---
+Language:                                 Cpp
+# Base style — matches the shipped .clang-format dotfile; every override
+# below stacks on top. (clang-format's built-in default is already LLVM,
+# but stating it keeps this reference and the dotfile in sync. This file
+# additionally spells out several LLVM defaults the minimal dotfile omits,
+# for reference — they don't change the resulting style.)
+BasedOnStyle:                             LLVM
+Standard:                                 Latest  # parse the newest C++ syntax. NOTE this controls PARSING only, not the compiler target — that comes from compile flags / .clangd.
+
+# ─── Indentation ────────────────────────────────────────────────────────
+IndentWidth:                              4
+TabWidth:                                 4
+UseTab:                                   Never           # spaces only — predictable across editors
+ContinuationIndentWidth:                  4               # indent when a line wraps to the next
+AccessModifierOffset:                     -4              # public:/private: align with class brace
+NamespaceIndentation:                     None            # don't indent inside `namespace foo { ... }`
+IndentCaseLabels:                         true            # indent `case 1:` one level inside the `switch`
+IndentPPDirectives:                       None            # leave `#if`/`#ifdef` at column 0 (LLVM default; matches the dotfile). Set BeforeHash/AfterHash if you prefer them indented with the code.
+IndentRequiresClause:                     true            # C++20 requires-clauses get their own indent
+
+# ─── Line length ────────────────────────────────────────────────────────
+ColumnLimit:                              100             # 80 is for terminals; 120 sprawls
+
+# ─── Braces ─────────────────────────────────────────────────────────────
+# K&R: same line for if/for/while/function definitions. Other options:
+#   Allman    — every brace on its own line (Windows / Microsoft tradition)
+#   Stroustrup — same as Attach except `else` goes on a new line
+#   Mozilla / GNU / WebKit — various combinations
+BreakBeforeBraces:                        Attach
+InsertBraces:                             true            # add braces to single-statement if/for/while — kills a whole class of goto-fail bugs (clang-format 15+)
+BreakBeforeBinaryOperators:               NonAssignment   # wrap before `+`, `&&`, … but keep `=` at the end of its line
+
+# ─── Pointer / reference alignment ──────────────────────────────────────
+# Left:  `int* p`, `Foo& bar`   (modern; treats `int*` as a type)
+# Right: `int *p`, `Foo &bar`   (K&R-style)
+# Middle: `int * p`             (rare)
+PointerAlignment:                         Left
+ReferenceAlignment:                       Left
+DerivePointerAlignment:                   false           # don't infer from existing code
+
+# ─── Short constructs ───────────────────────────────────────────────────
+# Allow small functions and empty blocks on one line, but FORCE
+# control-flow statements to be multi-line. `if (cond) doThing();` is a
+# classic source of bugs when someone adds a second statement and
+# forgets the braces.
+AllowShortFunctionsOnASingleLine:         Empty           # only empty `{}` bodies collapse; real bodies always expand
+AllowShortIfStatementsOnASingleLine:      Never
+AllowShortLoopsOnASingleLine:             false
+AllowShortBlocksOnASingleLine:            Empty
+AllowShortCaseLabelsOnASingleLine:        false
+AllowShortLambdasOnASingleLine:           All
+AllowShortEnumsOnASingleLine:             true
+
+# ─── Function arguments / parameters ────────────────────────────────────
+# When a call/declaration doesn't fit on one line, put EACH arg on its
+# own line rather than packing as many as fit. Diffs are smaller and
+# review is easier when only one param changed.
+BinPackArguments:                         false
+BinPackParameters:                        false
+AllowAllArgumentsOnNextLine:              true
+AllowAllParametersOfDeclarationOnNextLine: true
+AlignAfterOpenBracket:                    Align           # align continuation under the opening paren
+
+# ─── Templates ──────────────────────────────────────────────────────────
+# Renamed to `BreakTemplateDeclarations` in clang-format 19+. The old
+# name `AlwaysBreakTemplateDeclarations` still works as a legacy alias
+# everywhere; rename here if/when you only need to support 19+.
+AlwaysBreakTemplateDeclarations:          Yes             # `template<...>` always on its own line
+
+# ─── Constructor initializers ───────────────────────────────────────────
+BreakConstructorInitializers:             BeforeColon
+ConstructorInitializerIndentWidth:        4
+PackConstructorInitializers:              NextLine
+
+# ─── Includes ──────────────────────────────────────────────────────────
+SortIncludes:                             CaseSensitive   # sort & de-duplicate #includes (case-sensitive, matching the dotfile)
+IncludeBlocks:                            Regroup         # regroup into the categories below, separated by blank lines
+# Include order: this project's own headers ("") first, then other
+# library headers <...>, then C/system <*.h>, then the C++ stdlib last.
+# Tune the regexes to your layout. (Regroup uses these; with Preserve
+# they'd be ignored.)
+IncludeCategories:
+  - Regex:    '^".*"'        # project headers in quotes
+    Priority: 1
+  - Regex:    '^<[a-z_]+>$'  # C++ stdlib (<vector>, <string>): no slash/extension
+    Priority: 4
+  - Regex:    '^<.*\.h>$'    # C / system headers ending in .h
+    Priority: 3
+  - Regex:    '^<.*>$'       # other library headers in angle brackets
+    Priority: 2
+
+# ─── Spaces ────────────────────────────────────────────────────────────
+SpaceAfterCStyleCast:                     false
+SpaceAfterLogicalNot:                     false
+SpaceAfterTemplateKeyword:                false           # `template<T>`, not `template <T>` (matches the dotfile)
+SpaceBeforeAssignmentOperators:           true
+SpaceBeforeCpp11BracedList:               false
+SpaceBeforeCtorInitializerColon:          true
+SpaceBeforeInheritanceColon:              true
+SpaceBeforeParens:                        ControlStatements   # `if (`, but `foo(`
+SpaceBeforeRangeBasedForLoopColon:        true
+SpaceInEmptyParentheses:                  false
+SpacesBeforeTrailingComments:             1               # `code; // comment` (LLVM default, as in the dotfile)
+SpacesInAngles:                           false
+SpacesInCStyleCastParentheses:            false
+SpacesInContainerLiterals:                true            # LLVM default; affects JS/Proto array literals, not C++ braced lists
+SpacesInParentheses:                      false
+SpacesInSquareBrackets:                   false
+
+# ─── Alignment ─────────────────────────────────────────────────────────
+# Column alignment (e.g. lining up `=` across consecutive lines) creates
+# noise in diffs when one line widens, so the shipped dotfile leaves all
+# of it off (LLVM defaults). If you like tabular #define blocks, flip
+# AlignConsecutiveMacros to AcrossComments/AcrossEmptyLines locally.
+AlignConsecutiveAssignments:              false           # (same as None; dotfile spells it `false`)
+AlignConsecutiveDeclarations:             false
+AlignConsecutiveMacros:                   None            # matches the dotfile; was AcrossEmptyLines here before
+AlignArrayOfStructures:                   None            # matches the dotfile; set Left/Right to tabulate array-of-struct literals
+AlignEscapedNewlines:                     Right
+AlignOperands:                            Align
+AlignTrailingComments:                    true
+
+# ─── Misc ──────────────────────────────────────────────────────────────
+Cpp11BracedListStyle:                     true            # `T{1, 2, 3}`, not `T{ 1, 2, 3 }`
+CompactNamespaces:                        false
+EmptyLineBeforeAccessModifier:            LogicalBlock
+FixNamespaceComments:                     true            # add `// namespace foo` after closing brace
+KeepEmptyLinesAtTheStartOfBlocks:         false
+MaxEmptyLinesToKeep:                      1
+QualifierAlignment:                       Leave           # don't force east-const or west-const
+ReflowComments:                           true            # re-wrap long // comments to ColumnLimit
+SeparateDefinitionBlocks:                 Leave
+
+# ─── Penalty system ────────────────────────────────────────────────────
+# When clang-format has to break a long line, these numbers control
+# which breaks it prefers. Higher penalty = more strongly avoided.
+# Defaults work for most code; tweak only if you don't like its choices.
+PenaltyBreakAssignment:                   2
+PenaltyBreakBeforeFirstCallParameter:     19              # LLVM default, as in the dotfile
+PenaltyBreakComment:                      300
+PenaltyBreakString:                       1000
+PenaltyExcessCharacter:                   1000000
+PenaltyReturnTypeOnItsOwnLine:            60              # discourages breaking before fn name
+...

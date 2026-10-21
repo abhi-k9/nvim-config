@@ -1,0 +1,159 @@
+# clang-tidy.example — the ANNOTATED REFERENCE for clang-tidy.
+#
+# This is the fully-explained companion to the minimal `.clang-tidy` dotfile
+# shipped alongside it (same relationship as clangd.example -> .clangd and
+# clang-format.example -> .clang-format). The two carry the SAME settings; the
+# dotfile is what you copy into a project, this file explains every line so you
+# know what to keep or drop. Change both together: scripts/check-docs.sh fails
+# when their settings differ.
+#
+# PLACEMENT: project root (e.g. <project-root>/.clang-tidy), NOT your
+# Neovim config. clang-tidy / clangd discover it by walking up from the
+# edited file. A subdirectory may contain its own .clang-tidy to override
+# or extend this one (use `InheritParentConfig: true` there to merge
+# rather than replace).
+#
+# HOW IT APPLIES IN THIS SETUP: your clangd runs with `--clang-tidy`, so
+# these checks surface as live diagnostics (and fix-its via code actions)
+# while you edit — no separate `clang-tidy` invocation needed. A few
+# options below only affect the standalone `clang-tidy` CLI and are
+# ignored by clangd; those are called out inline.
+#
+# TUNING PHILOSOPHY: enable the high-signal modern-C++ and bug-catching
+# families, then subtract the checks that are noisy, opinionated, or
+# actively conflict with each other (clang-tidy ships several mutually
+# contradictory checks). Start here and remove a `-check` line if you
+# decide you want that warning back.
+
+# ---------------------------------------------------------------------------
+# Checks. Leading `-*` disables clang-tidy's defaults so the set below is
+# explicit and reproducible (the default set drifts between LLVM versions).
+# Globs enable a family; `-family-check` removes one member.
+# ---------------------------------------------------------------------------
+Checks: >
+  -*,
+  bugprone-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  misc-*,
+
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  -modernize-use-nodiscard,
+
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -readability-named-parameter,
+  -readability-braces-around-statements,
+  -readability-function-cognitive-complexity,
+
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+
+  -bugprone-easily-swappable-parameters,
+
+  -misc-non-private-member-variables-in-classes,
+  -misc-no-recursion,
+
+# Notes on the subtractions above — these are removed because they are
+# either high-noise or stylistic, not because they're wrong; re-enable any
+# you want:
+#   modernize-use-trailing-return-type  -> rewrites `int f()` to
+#       `auto f() -> int` everywhere; large churn, purely stylistic.
+#   modernize-avoid-c-arrays            -> fires on legitimate fixed arrays
+#       and interop; keep off unless you've fully committed to std::array.
+#       cppcoreguidelines-avoid-c-arrays is an alias of the same check, so
+#       it is subtracted too (otherwise the warning comes back under that
+#       name).
+#   modernize-use-nodiscard             -> very chatty on getters.
+#   readability-identifier-length       -> flags `i`, `x`, `id`.
+#   *-magic-numbers                     -> enormous volume in real code.
+#   readability-braces-around-statements / named-parameter -> style.
+#   cppcoreguidelines-pro-bounds-* / pro-type-vararg -> fire constantly on
+#       low-level/interop code; enable per-module if you want them.
+#   non-private-member-variables-in-classes (both copies) -> opinionated;
+#       the two families ship the same check, so disable both.
+#   bugprone-easily-swappable-parameters -> theoretically nice, very noisy.
+#   misc-no-recursion                   -> recursion is not a defect.
+
+# ---------------------------------------------------------------------------
+# Header filtering: which headers report diagnostics. For clangd this
+# governs which headers show tidy diagnostics. The regex below matches every
+# header, so with SystemHeaders:false you get all non-system headers —
+# third-party ones included ("not <vector>", but vendored code still shows).
+# To skip vendored code, narrow it to your own header roots, e.g.
+# '^<project-root>/(include|src)/'.
+# ---------------------------------------------------------------------------
+HeaderFilterRegex: '.*'
+# SystemHeaders defaults to false (don't lint system headers) — keep it.
+
+# ---------------------------------------------------------------------------
+# Treat selected checks as errors. NOTE: clangd does NOT use this for live
+# editor diagnostics (it surfaces everything as warnings/hints); this only
+# affects the standalone `clang-tidy` CLI / CI. Left empty so nothing is
+# force-promoted; set e.g. 'bugprone-*' in CI if you want hard failures.
+# ---------------------------------------------------------------------------
+WarningsAsErrors: ''
+
+# ---------------------------------------------------------------------------
+# Check options. These tune individual checks. The naming/casing block is
+# the part most teams customize — values here: PascalCase types,
+# lower_case functions and members, camelBack locals/parameters, ALL_CAPS
+# macros, and a trailing underscore on private members (so a private
+# member is lower_case ending in `_`, e.g. `frame_count_`). Delete the
+# readability-identifier-naming keys entirely if you don't want naming
+# enforced.
+# ---------------------------------------------------------------------------
+CheckOptions:
+  # Member initialization. There is no single "use universal/brace
+  # initialization everywhere" check — clang-tidy won't blanket-rewrite
+  # `=`/`()` init into `{}`. The closest modern guidance is:
+  #   * modernize-use-default-member-init — moves constant member init
+  #     into the declaration (`int n{1};`). Its IgnoreMacros/UseAssignment
+  #     options control style; UseAssignment=false keeps brace/paren init
+  #     at the declaration rather than `= value`.
+  #   * cppcoreguidelines-prefer-member-initializer — moves body
+  #     assignments into the constructor init list (C.49).
+  # Both are already enabled via the cppcoreguidelines-*/modernize-*
+  # globs above; the option below just pins the default-member-init style
+  # to brace/paren rather than assignment.
+  #
+  # NOTE: the old cppcoreguidelines-prefer-member-initializer.UseAssignment
+  # option was REMOVED in clang-tidy 19 (Mason's clangd is newer), so
+  # configure the surviving one on modernize-use-default-member-init instead.
+  modernize-use-default-member-init.UseAssignment: 'false'
+  modernize-use-default-member-init.IgnoreMacros: 'true'
+
+  # modernize-use-auto: only introduce `auto` where the type is otherwise
+  # repeated (e.g. `auto x = make_unique<T>()`), not everywhere.
+  modernize-use-auto.MinTypeNameLength: '5'
+  modernize-use-auto.RemoveStars: 'false'
+
+  # modernize-loop-convert: allow range-for rewrites at reasonable confidence.
+  modernize-loop-convert.MinConfidence: 'reasonable'
+
+  # modernize-use-emplace / make-unique etc. respect the project standard
+  # from compile_commands.json automatically; no option needed.
+
+  # Naming convention (readability-identifier-naming). Comment out the
+  # whole block to disable naming enforcement.
+  readability-identifier-naming.NamespaceCase: 'lower_case'
+  readability-identifier-naming.ClassCase: 'CamelCase'
+  readability-identifier-naming.StructCase: 'CamelCase'
+  readability-identifier-naming.EnumCase: 'CamelCase'
+  readability-identifier-naming.FunctionCase: 'lower_case'
+  readability-identifier-naming.VariableCase: 'camelBack'
+  readability-identifier-naming.ParameterCase: 'camelBack'
+  readability-identifier-naming.MemberCase: 'lower_case'
+  readability-identifier-naming.PrivateMemberSuffix: '_'
+  readability-identifier-naming.ConstantCase: 'camelBack'
+  readability-identifier-naming.MacroDefinitionCase: 'UPPER_CASE'
+  readability-identifier-naming.EnumConstantCase: 'CamelCase'
+  readability-identifier-naming.GlobalConstantCase: 'CamelCase'

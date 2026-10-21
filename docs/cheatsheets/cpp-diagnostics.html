@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Neovim Config — C++ Diagnostic Suppression</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
+  :root {
+    --bg:#1e1e2e;--surface:#181825;--overlay:#313244;--muted:#6c7086;
+    --subtle:#7f849c;--text:#cdd6f4;--subtext:#a6adc8;
+    --lavender:#b4befe;--blue:#89b4fa;--sky:#89dceb;--teal:#94e2d5;
+    --green:#a6e3a1;--yellow:#f9e2af;--peach:#fab387;--red:#f38ba8;
+    --mauve:#cba6f7;--pink:#f5c2e7;--flamingo:#f2cdcd;--sapphire:#74c7ec;
+    --rosewater:#f5e0dc;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;
+    font-size:12px;line-height:1.5;padding:22px 26px 48px}
+  header{display:flex;align-items:baseline;justify-content:space-between;
+    border-bottom:1px solid var(--overlay);padding-bottom:11px;margin-bottom:18px}
+  header h1{font-size:18px;font-weight:700;color:var(--lavender);letter-spacing:-.3px}
+  header .meta{font-size:10.5px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+  .col-2{grid-column:span 2}.col-full{grid-column:span 3}
+  .card{background:var(--surface);border:1px solid var(--overlay);border-radius:7px;overflow:hidden}
+  .card-header{display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid var(--overlay)}
+  .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .card-header h2{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--subtext)}
+  .card-header .note{font-size:10px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-style:italic}
+  table{width:100%;border-collapse:collapse}
+  tr:not(:last-child) td{border-bottom:1px solid rgba(49,50,68,.5)}
+  td{padding:5px 10px;vertical-align:top}
+  td.code{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--peach);
+    background:rgba(250,179,135,.06);width:46%;white-space:nowrap}
+  td.code-y{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--yellow);
+    background:rgba(249,226,175,.06);width:46%;white-space:nowrap}
+  td.code-s{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--sky);
+    background:rgba(137,220,235,.06);width:46%;white-space:nowrap}
+  td.code-r{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--red);
+    background:rgba(243,139,168,.06);width:46%;white-space:nowrap}
+  td.desc{color:var(--subtext);font-size:11px}
+  .divider td{padding:3px 10px;font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--muted);background:rgba(49,50,68,.4);
+    border-bottom:1px solid var(--overlay)!important}
+  pre{font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.45;
+    color:var(--text);margin:6px 10px;padding:7px 10px;background:rgba(49,50,68,.35);
+    border-radius:5px;border:1px solid rgba(49,50,68,.7);overflow-x:auto}
+  pre .cmt{color:var(--green)}
+  pre .key{color:var(--mauve)}
+  pre .num{color:var(--peach)}
+  pre .str{color:var(--yellow)}
+  pre .ty {color:var(--blue)}
+  pre .id {color:var(--text)}
+  .note{color:var(--muted);font-size:10.5px;font-style:italic;padding:5px 10px}
+  code{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--subtle)}
+  footer{margin-top:16px;padding-top:10px;border-top:1px solid var(--overlay);
+    font-size:10px;color:var(--muted);display:flex;justify-content:space-between}
+  @media print{
+    body{background:#fff;color:#000;padding:5mm;font-size:8px}
+    .card{border-color:#ccc;break-inside:avoid}
+    .card-header{background:#f5f5f5;border-color:#ccc}
+    .divider td{background:#ebebeb;color:#555;border-color:#ccc!important}
+    pre{background:#f7f7f7;border-color:#ddd;color:#000}
+    pre .cmt{color:#070} pre .key{color:#608} pre .num{color:#a40} pre .str{color:#a50} pre .ty{color:#048}
+    td.code,td.code-y,td.code-s,td.code-r{background:#fafafa;color:#000}
+    .note{color:#777} td.desc{color:#333} header h1{color:#000}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>C++ Diagnostic Suppression</h1>
+  <span class="meta">clang-format · clang-tidy · clangd &nbsp;·&nbsp; magic comments &amp; pragmas</span>
+</header>
+<div class="grid">
+
+<!-- ═══════════════════ ORIENTATION ═══════════════════ -->
+<div class="card col-full">
+  <div class="card-header"><div class="dot" style="background:var(--lavender)"></div><h2>Which tool emits which warning? <span class="note">work out where to put the suppression</span></h2></div>
+  <table>
+    <tr><td class="desc">
+      Three independent tools surface diagnostics in your buffer. Suppression syntax differs for each.<br>
+      <strong style="color:var(--peach)">clang-format</strong> · purely formatting (whitespace, line breaks, brace style). It never produces diagnostics — it only rewrites the buffer when you format (<kbd>&lt;leader&gt;cf</kbd>, or on save if you enabled that).<br>
+      <strong style="color:var(--yellow)">clang-tidy</strong> · semantic linting (modernize-*, performance-*, bugprone-*, readability-*, cppcoreguidelines-*). Diagnostics have a check name in brackets.<br>
+      <strong style="color:var(--red)">compiler warnings</strong> · surfaced by clangd from the underlying clang/gcc/cl (-Wunused-variable, -Wmissing-field-initializers, etc.). Diagnostics start with <code>-W</code>.<br>
+      <strong style="color:var(--sky)">clangd itself</strong> · cross-translation-unit checks (unused-includes, missing-includes) that you configure in <code>.clangd</code>.
+    </td></tr>
+    <tr><td class="desc">
+      <strong>How to tell them apart:</strong> put the cursor on the line and press <kbd>&lt;leader&gt;ld</kbd>, or jump to it with <kbd>]d</kbd> / <kbd>[d</kbd> (the float opens on every jump). The float ends with the diagnostic's code in brackets: a <code>[check-name]</code> means clang-tidy; a <code>[-Wflag]</code> means compiler; "unused include" without either means clangd's own check. (<kbd>K</kbd> is fold peek / symbol hover — it doesn't show diagnostics.)
+    </td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ CLANG-FORMAT ═══════════════════ -->
+<div class="card col-2">
+  <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>clang-format <span class="note">disable formatting on a region</span></h2></div>
+  <table>
+    <tr><td class="code">// clang-format off<br>// clang-format on</td>
+        <td class="desc">Skip a region of lines entirely. There is no single-line form: a lone <code>// clang-format off</code> (even at the end of a line) switches formatting off until the next <code>// clang-format on</code> or the end of the file.</td></tr>
+    <tr><td class="code">OneLineFormatOffRegex &nbsp;<span class="note">(clang-format 21+)</span></td>
+        <td class="desc">The one-line alternative: a <code>.clang-format</code> option naming a comment marker (e.g. <code>'^// NOFMT$'</code>). A comment on its own line that matches skips the next line; a matching token elsewhere skips its own line. Empty (off) in this config's templates.</td></tr>
+  </table>
+  <pre><span class="cmt">// clang-format off</span>
+<span class="ty">int</span> matrix[<span class="num">3</span>][<span class="num">3</span>] = {
+    {<span class="num">1</span>,  <span class="num">0</span>,  <span class="num">0</span>},
+    {<span class="num">0</span>,  <span class="num">1</span>,  <span class="num">0</span>},
+    {<span class="num">0</span>,  <span class="num">0</span>,  <span class="num">1</span>},
+};
+<span class="cmt">// clang-format on</span></pre>
+  <div class="note">Used when the formatter's choices destroy intentional alignment (matrices, ASCII art, columnar data). Don't use for "I prefer my style here" — that's what <code>.clang-format</code> is for. Compare with the <code>ga=</code> alignment operator from mini.align (docs/cheatsheets/keymaps.html) for on-demand alignment that doesn't fight the formatter.</div>
+</div>
+
+<!-- ═══════════════════ NOLINT FORMS ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--yellow)"></div><h2>clang-tidy NOLINT <span class="note">forms</span></h2></div>
+  <table>
+    <tr><td class="code-y">// NOLINT</td>
+        <td class="desc">All checks, this line only. <strong style="color:var(--red)">Avoid</strong> — silences future warnings too.</td></tr>
+    <tr><td class="code-y">// NOLINT(check)</td>
+        <td class="desc">Specific check, this line. <strong style="color:var(--green)">Preferred form.</strong></td></tr>
+    <tr><td class="code-y">// NOLINT(a, b)</td>
+        <td class="desc">Multiple checks, comma-separated.</td></tr>
+    <tr><td class="code-y">// NOLINTNEXTLINE(check)</td>
+        <td class="desc">Affects the next code line. Use when the target line itself can't take a trailing comment.</td></tr>
+    <tr><td class="code-y">// NOLINTBEGIN(check)<br>// NOLINTEND(check)</td>
+        <td class="desc">Region. Both ends need the same check list.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ NOLINT EXAMPLES ═══════════════════ -->
+<div class="card col-full">
+  <div class="card-header"><div class="dot" style="background:var(--yellow)"></div><h2>NOLINT examples</h2></div>
+  <pre><span class="cmt">// Specific check on this line</span>
+<span class="ty">int</span> retries = <span class="num">42</span>; <span class="cmt">// NOLINT(readability-magic-numbers)</span>
+
+<span class="cmt">// Multiple checks on this line</span>
+<span class="ty">int</span> mask = <span class="num">0xFF</span>; <span class="cmt">// NOLINT(readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers)</span>
+
+<span class="cmt">// Suppress on the next line — useful for declarations the line can't accept a trailing comment</span>
+<span class="cmt">// NOLINTNEXTLINE(readability-identifier-length)</span>
+<span class="ty">auto</span> e = compute_eigenvalues(<span class="id">m</span>);
+
+<span class="cmt">// Region — both ends MUST list the same checks</span>
+<span class="cmt">// NOLINTBEGIN(readability-magic-numbers, modernize-use-auto)</span>
+<span class="ty">int</span>   a = <span class="num">1</span>;
+<span class="ty">int</span>   b = <span class="num">2</span>;
+Foo* c = <span class="key">new</span> Foo();
+<span class="cmt">// NOLINTEND(readability-magic-numbers, modernize-use-auto)</span></pre>
+  <div class="note">The check name in <code>NOLINT(...)</code> must match what clang-tidy printed — copy from the diagnostic. Globs work too since LLVM 15 (<code>// NOLINT(readability-*)</code>), but an exact name documents the intent and can't hide other checks.</div>
+</div>
+
+<!-- ═══════════════════ COMPILER PRAGMAS ═══════════════════ -->
+<div class="card col-2">
+  <div class="card-header"><div class="dot" style="background:var(--red)"></div><h2>Compiler warnings <span class="note">-Wxxx flags — pragma push/pop</span></h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Clang &nbsp;·&nbsp; clangd uses this on every platform</td></tr>
+    <tr><td colspan="2"><pre><span class="key">#pragma</span> clang diagnostic push
+<span class="key">#pragma</span> clang diagnostic ignored <span class="str">"-Wunused-variable"</span>
+<span class="ty">int</span> debug_seed = <span class="num">42</span>;
+<span class="key">#pragma</span> clang diagnostic pop</pre></td></tr>
+    <tr class="divider"><td colspan="2">GCC &nbsp;·&nbsp; same shape, different keyword</td></tr>
+    <tr><td colspan="2"><pre><span class="key">#pragma</span> GCC diagnostic push
+<span class="key">#pragma</span> GCC diagnostic ignored <span class="str">"-Wmissing-field-initializers"</span>
+<span class="ty">MyStruct</span> s = {};
+<span class="key">#pragma</span> GCC diagnostic pop</pre></td></tr>
+    <tr class="divider"><td colspan="2">MSVC &nbsp;·&nbsp; numeric warning codes</td></tr>
+    <tr><td colspan="2"><pre><span class="key">#pragma</span> warning(push)
+<span class="key">#pragma</span> warning(disable: <span class="num">4100</span>) <span class="cmt">// unreferenced formal param</span>
+<span class="ty">void</span> handler(<span class="ty">int</span> arg) {}
+<span class="key">#pragma</span> warning(pop)</pre></td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ PROJECT-LEVEL ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--sky)"></div><h2>Project-level <span class="note">.clangd</span></h2></div>
+  <div class="note">Suppress consistently-wrong diagnostics everywhere rather than littering source with comments.</div>
+  <pre><span class="ty">Diagnostics</span>:
+  <span class="cmt"># silence specific clangd-level diags</span>
+  <span class="ty">Suppress</span>:
+    - <span class="str">unused-includes</span>
+    - <span class="str">missing-includes</span>
+  <span class="cmt"># drop specific clang-tidy checks (same Diagnostics key —</span>
+  <span class="cmt"># a second "Diagnostics:" in one document is invalid YAML)</span>
+  <span class="ty">ClangTidy</span>:
+    <span class="ty">Remove</span>:
+      - <span class="str">readability-magic-numbers</span>
+      - <span class="str">modernize-use-trailing-*</span>
+
+<span class="cmt"># conditional — only for tests/</span>
+---
+<span class="ty">If</span>:
+  <span class="ty">PathMatch</span>: <span class="str">tests/.*</span>
+<span class="ty">Diagnostics</span>:
+  <span class="ty">ClangTidy</span>:
+    <span class="ty">Remove</span>:
+      - <span class="str">misc-no-recursion</span></pre>
+  <div class="note">Full template &amp; conditional patterns in <code>docs/templates/cpp/clangd.example</code>.</div>
+</div>
+
+<!-- ═══════════════════ DECISION TREE ═══════════════════ -->
+<div class="card col-2">
+  <div class="card-header"><div class="dot" style="background:var(--green)"></div><h2>Decision tree <span class="note">"where should this suppression live?"</span></h2></div>
+  <table>
+    <tr><td class="desc"><span style="color:var(--green)">▸</span> The diagnostic is correct in general, but wrong for <strong>this one line</strong></td>
+        <td class="code-y" style="white-space:normal">Trailing <code>// NOLINT(check)</code>, or a <code>// clang-format off</code> / <code>// clang-format on</code> pair around the line</td></tr>
+    <tr><td class="desc"><span style="color:var(--green)">▸</span> Wrong for a <strong>small region</strong> (e.g. matrix literal, generated table)</td>
+        <td class="code-y" style="white-space:normal"><code>// NOLINTBEGIN/END</code> or <code>// clang-format off/on</code></td></tr>
+    <tr><td class="desc"><span style="color:var(--green)">▸</span> Wrong for <strong>this entire file</strong> (e.g. generated header, vendored code)</td>
+        <td class="code-s" style="white-space:normal">A conditional <code>If: PathMatch</code> block in <code>.clangd</code></td></tr>
+    <tr><td class="desc"><span style="color:var(--green)">▸</span> Wrong <strong>project-wide</strong> (you've decided you don't care)</td>
+        <td class="code-s" style="white-space:normal"><code>Diagnostics.Suppress</code> or <code>ClangTidy.Remove</code> in <code>.clangd</code></td></tr>
+    <tr><td class="desc"><span style="color:var(--green)">▸</span> Compiler warning (<code>-Wxxx</code>) wrong here only</td>
+        <td class="code-r" style="white-space:normal">Clang/GCC <code>#pragma diagnostic push/ignored/pop</code></td></tr>
+    <tr><td class="desc"><span style="color:var(--green)">▸</span> Compiler warning wrong project-wide</td>
+        <td class="code-s" style="white-space:normal">Drop the flag from your build, or strip via <code>CompileFlags.Remove</code> in <code>.clangd</code></td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ PITFALLS ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--red)"></div><h2>Pitfalls</h2></div>
+  <table>
+    <tr><td class="desc"><strong>Bare <code>// NOLINT</code> hides future bugs.</strong> Always name the check.</td></tr>
+    <tr><td class="desc"><strong>Check name typos are silent.</strong> <code>// NOLINT(readibility-foo)</code> suppresses nothing — clang-tidy doesn't warn about unknown names. Copy from the diagnostic verbatim.</td></tr>
+    <tr><td class="desc"><strong>NOLINTNEXTLINE counts only the very next code line.</strong> A blank line or comment between the marker and the target line breaks the suppression silently.</td></tr>
+    <tr><td class="desc"><strong>An unmatched NOLINTBEGIN / NOLINTEND suppresses nothing.</strong> Each BEGIN needs an END with the same check list; otherwise the whole region stays active and clang-tidy reports the stray marker instead.</td></tr>
+    <tr><td class="desc"><strong>NOLINT globs need LLVM 15+.</strong> Mason's clangd and clang-tidy are far newer; an old system clang-tidy (e.g. in CI) may ignore <code>// NOLINT(readability-*)</code>.</td></tr>
+    <tr><td class="desc"><strong><code>// NOLINT</code> is the canonical spelling.</strong> Capitalised. <code>/* NOLINT */</code> also works. Trailing position required.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ NVIM-SIDE ═══════════════════ -->
+<div class="card col-full">
+  <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>Diagnosing from inside nvim <span class="note">find the right check name without leaving the file</span></h2></div>
+  <table>
+    <tr><td class="code-s" style="width:24%"><kbd>&lt;leader&gt;ld</kbd></td>
+        <td class="desc">Open the line's diagnostics in a float. Each message ends with its code in brackets — the clang-tidy check name or the compiler's <code>-W</code> flag; the source (clangd / clang-tidy) is added when several sources report in the buffer.</td></tr>
+    <tr><td class="code-s"><kbd>]d</kbd> &nbsp;·&nbsp; <kbd>[d</kbd></td>
+        <td class="desc">Jump to next / prev diagnostic in the buffer; the same float opens on every jump.</td></tr>
+    <tr><td class="code-s"><kbd>&lt;leader&gt;la</kbd></td>
+        <td class="desc">Code action menu — clang-tidy fix-its (for checks that have one) and clangd's quick fixes. There is no "suppress" action: type the <code>// NOLINT(check)</code> yourself.</td></tr>
+    <tr><td class="code-s"><kbd>&lt;leader&gt;xx</kbd></td>
+        <td class="desc">Trouble — full list of diagnostics with sources, jump to any.</td></tr>
+    <tr><td class="code-s"><code>:lua print(vim.lsp.log.get_filename())</code></td>
+        <td class="desc">Path to the LSP log — useful when you need to see what flags clangd received vs what your build emitted.</td></tr>
+  </table>
+</div>
+
+</div>
+<footer>
+  <span>Tested against clang-format / clang-tidy / clangd 18+ &nbsp;·&nbsp; NOLINTBEGIN / NOLINTEND require clang-tidy 14+</span>
+  <span>Companion: <code>docs/templates/cpp/clang-format.example</code> &nbsp;·&nbsp; <code>docs/templates/cpp/clangd.example</code></span>
+</footer>
+</body>
+</html>

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Neovim Config — Workflows</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
+  :root {
+    --bg:#1e1e2e;--surface:#181825;--overlay:#313244;--muted:#6c7086;
+    --subtle:#7f849c;--text:#cdd6f4;--subtext:#a6adc8;
+    --lavender:#b4befe;--blue:#89b4fa;--sky:#89dceb;--teal:#94e2d5;
+    --green:#a6e3a1;--yellow:#f9e2af;--peach:#fab387;--red:#f38ba8;
+    --mauve:#cba6f7;--pink:#f5c2e7;--flamingo:#f2cdcd;--sapphire:#74c7ec;
+    --rosewater:#f5e0dc;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;
+    font-size:12px;line-height:1.5;padding:22px 26px 48px}
+  header{display:flex;align-items:baseline;justify-content:space-between;
+    border-bottom:1px solid var(--overlay);padding-bottom:11px;margin-bottom:18px}
+  header h1{font-size:18px;font-weight:700;color:var(--lavender);letter-spacing:-.3px}
+  header .meta{font-size:10.5px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+  .col-2{grid-column:span 2}.col-full{grid-column:span 3}
+  .card{background:var(--surface);border:1px solid var(--overlay);border-radius:7px;overflow:hidden}
+  .card-header{display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid var(--overlay)}
+  .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .card-header h2{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--subtext)}
+  .card-header .note{font-size:10px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;font-style:italic}
+  table{width:100%;border-collapse:collapse}
+  tr:not(:last-child) td{border-bottom:1px solid rgba(49,50,68,.5)}
+  td{padding:3.5px 10px;vertical-align:middle}
+  td:first-child{width:1%;white-space:nowrap}
+  td:last-child{color:var(--subtext);font-size:11px}
+  .divider td{padding:3px 10px;font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--muted);background:rgba(49,50,68,.4);
+    border-bottom:1px solid var(--overlay)!important}
+  kbd{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:10.5px;
+    font-weight:600;padding:1px 5px;border-radius:4px;background:var(--overlay);
+    color:var(--text);white-space:nowrap}
+  kbd.blue    {background:rgba(137,180,250,.13);color:var(--blue);    border:1px solid rgba(137,180,250,.26)}
+  kbd.mauve   {background:rgba(203,166,247,.13);color:var(--mauve);   border:1px solid rgba(203,166,247,.26)}
+  kbd.green   {background:rgba(166,227,161,.13);color:var(--green);   border:1px solid rgba(166,227,161,.26)}
+  kbd.yellow  {background:rgba(249,226,175,.13);color:var(--yellow);  border:1px solid rgba(249,226,175,.26)}
+  kbd.peach   {background:rgba(250,179,135,.13);color:var(--peach);   border:1px solid rgba(250,179,135,.26)}
+  kbd.teal    {background:rgba(148,226,213,.13);color:var(--teal);    border:1px solid rgba(148,226,213,.26)}
+  kbd.red     {background:rgba(243,139,168,.13);color:var(--red);     border:1px solid rgba(243,139,168,.26)}
+  kbd.sky     {background:rgba(137,220,235,.13);color:var(--sky);     border:1px solid rgba(137,220,235,.26)}
+  kbd.pink    {background:rgba(245,194,231,.13);color:var(--pink);    border:1px solid rgba(245,194,231,.26)}
+  kbd.lavender{background:rgba(180,190,254,.13);color:var(--lavender);border:1px solid rgba(180,190,254,.26)}
+  kbd.flamingo{background:rgba(242,205,205,.13);color:var(--flamingo);border:1px solid rgba(242,205,205,.26)}
+  kbd.rosewater{background:rgba(245,224,220,.13);color:var(--rosewater);border:1px solid rgba(245,224,220,.26)}
+  .note{color:var(--muted);font-size:10.5px;font-style:italic}
+  code{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--subtle)}
+  .step{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;
+    width:14px;height:14px;line-height:14px;text-align:center;border-radius:50%;
+    background:var(--overlay);color:var(--subtext);margin-right:6px;flex-shrink:0}
+  .file{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--green);background:rgba(166,227,161,.08);
+    padding:1px 5px;border-radius:3px;border:1px solid rgba(166,227,161,.15)}
+  footer{margin-top:16px;padding-top:10px;border-top:1px solid var(--overlay);
+    font-size:10px;color:var(--muted);display:flex;justify-content:space-between}
+  @media print{
+    body{background:#fff;color:#000;padding:5mm;font-size:8px}
+    .card{border-color:#ccc;break-inside:avoid}
+    .card-header{background:#f5f5f5;border-color:#ccc}
+    .divider td{background:#ebebeb;color:#555;border-color:#ccc!important}
+    kbd,kbd.blue,kbd.mauve,kbd.green,kbd.yellow,kbd.peach,kbd.teal,kbd.red,
+    kbd.sky,kbd.pink,kbd.lavender,kbd.flamingo,kbd.rosewater{
+      background:#eee;color:#000;border:1px solid #bbb}
+    .note{color:#777} td:last-child{color:#333} header h1{color:#000}
+    .step{background:#ddd;color:#333} .file{background:#f0f0f0;color:#080;border-color:#bcb}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>My Neovim Config — Workflows &amp; Recipes</h1>
+  <span class="meta">"I want to do X" → step-by-step &nbsp;·&nbsp; tailored to this config</span>
+</header>
+<div class="grid">
+
+<!-- ═══════════════════ NAVIGATION ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--blue)"></div><h2>Navigate code</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Open a file</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;ff</kbd></td><td>Fuzzy-find by name (Telescope)</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fg</kbd></td><td>Search inside files (live grep)</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fr</kbd></td><td>Recent files</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;e</kbd></td><td>Open neo-tree, browse</td></tr>
+    <tr class="divider"><td colspan="2">Jump to a symbol</td></tr>
+    <tr><td><kbd class="blue">gd</kbd></td><td>Definition under cursor</td></tr>
+    <tr><td><kbd class="blue">gr</kbd></td><td>List references</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fs</kbd></td><td>Pick symbol in current file</td></tr>
+    <tr><td><kbd class="blue">&lt;leader&gt;fS</kbd></td><td>Pick symbol in workspace</td></tr>
+    <tr class="divider"><td colspan="2">Jump on screen</td></tr>
+    <tr><td><kbd class="blue">s</kbd><span class="note">{c…}</span></td><td>Type a char (more to narrow) → labels appear → press one</td></tr>
+    <tr><td><kbd class="blue">S</kbd></td><td>Pick a treesitter node</td></tr>
+    <tr class="divider"><td colspan="2">Back &amp; forth</td></tr>
+    <tr><td><kbd class="blue">&lt;C-o&gt;</kbd> <kbd class="blue">&lt;C-i&gt;</kbd></td><td>Jump list back / forward</td></tr>
+    <tr><td><kbd class="blue">``</kbd></td><td>Back to position before last jump</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ EDITING ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--green)"></div><h2>Edit code</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Refactor across project</td></tr>
+    <tr><td><span class="step">1</span><kbd class="green">&lt;leader&gt;lr</kbd></td><td>LSP rename (all references at once)</td></tr>
+    <tr><td colspan="2" class="note">For non-symbol text use grug-far below.</td></tr>
+    <tr class="divider"><td colspan="2">Find/replace across project</td></tr>
+    <tr><td><span class="step">1</span><kbd class="green">&lt;leader&gt;sr</kbd></td><td>Open grug-far buffer <span class="note">from Visual mode the selection prefills <code>Search</code></span></td></tr>
+    <tr><td><span class="step">2</span></td><td>Fill <code>Search</code> &amp; <code>Replace</code> fields <span class="note"><kbd>&lt;Tab&gt;</kbd> moves to the next field</span></td></tr>
+    <tr><td><span class="step">3</span><kbd class="green">\r</kbd></td><td>Apply across all matches</td></tr>
+    <tr class="divider"><td colspan="2">Wrap with brackets / quotes</td></tr>
+    <tr><td><kbd class="green">gzaiw)</kbd></td><td>Surround word → parens. <code>i</code>=inner, <code>w</code>=word, <code>)</code>=()</td></tr>
+    <tr><td><kbd class="green">gzaip"</kbd></td><td>Surround paragraph with quotes</td></tr>
+    <tr><td><kbd class="green">gzr"'</kbd></td><td>Replace " with ' around current text</td></tr>
+    <tr><td><kbd class="green">gzd"</kbd></td><td>Delete surrounding quotes</td></tr>
+    <tr class="divider"><td colspan="2">Comment <span class="note">Neovim built-in</span></td></tr>
+    <tr><td><kbd class="green">gcc</kbd></td><td>Toggle current line</td></tr>
+    <tr><td><kbd class="green">gcap</kbd></td><td>Toggle around paragraph <span class="note">includes the blank line after it (commented as a bare <code>--</code>); <kbd>gcip</kbd> stops at the paragraph</span></td></tr>
+    <tr><td><kbd class="green">gc</kbd><span class="note">(visual)</span></td><td>Toggle selection</td></tr>
+    <tr class="divider"><td colspan="2">Format</td></tr>
+    <tr><td><kbd class="green">&lt;leader&gt;cf</kbd></td><td>Run external formatter (conform)</td></tr>
+    <tr><td><kbd class="green">&lt;leader&gt;lf</kbd></td><td>LSP format (fallback)</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ GIT WORKFLOW ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--red)"></div><h2>Review &amp; commit</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Inspect a hunk</td></tr>
+    <tr><td><span class="step">1</span><kbd class="red">]h</kbd></td><td>Jump to next changed hunk</td></tr>
+    <tr><td><span class="step">2</span><kbd class="red">&lt;leader&gt;gp</kbd></td><td>Preview inline</td></tr>
+    <tr><td><span class="step">3</span><kbd class="red">&lt;leader&gt;gs</kbd></td><td>Stage it (or <kbd class="red">&lt;leader&gt;gr</kbd> to reset)</td></tr>
+    <tr class="divider"><td colspan="2">See all changes</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gd</kbd></td><td>Toggle diffview: working tree vs the index (unstaged changes)</td></tr>
+    <tr><td colspan="2" class="note"><code>:DiffviewOpen HEAD</code> includes the staged changes too. Use <kbd class="red">]c</kbd>/<kbd class="red">[c</kbd> to walk diffs, <kbd class="red">do</kbd>/<kbd class="red">dp</kbd> to "obtain"/"put".
+      In the file panel, <kbd class="red">w</kbd> marks a file reviewed and <kbd class="red">H</kbd> hides the reviewed ones.</td></tr>
+    <tr class="divider"><td colspan="2">Who wrote this?</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gb</kbd></td><td>Blame current line (full)</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;gh</kbd></td><td>File history of current file <span class="note">select lines first for the history of just those</span></td></tr>
+    <tr class="divider"><td colspan="2">Commit / push</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;tg</kbd></td><td>Lazygit float — commit / push / fetch from there</td></tr>
+    <tr class="divider"><td colspan="2">Resolve merge conflicts</td></tr>
+    <tr><td><span class="step">1</span><code>git merge ...</code></td><td>Triggers conflict</td></tr>
+    <tr><td><span class="step">2</span><kbd class="red">&lt;leader&gt;gd</kbd></td><td>diffview opens; conflicted files listed</td></tr>
+    <tr><td><span class="step">3</span></td><td>Open a conflicted file → OURS | THEIRS side by side, above the result you edit (no BASE pane)</td></tr>
+    <tr><td><span class="step">4</span></td><td>Walk conflict regions with <kbd class="red">]x</kbd>/<kbd class="red">[x</kbd></td></tr>
+    <tr><td><span class="step">5</span></td><td>Pick a side per region with diffview's defaults: <kbd class="red">&lt;leader&gt;co</kbd> ours · <kbd class="red">&lt;leader&gt;ct</kbd> theirs · <kbd class="red">&lt;leader&gt;cb</kbd> base · <kbd class="red">&lt;leader&gt;ca</kbd> all · <kbd class="red">dx</kbd> none <span class="note">capital letters (<kbd>&lt;leader&gt;cO</kbd> … <kbd>dX</kbd>) do the whole file; <kbd>&lt;leader&gt;cso</kbd>/<kbd>cst</kbd>/<kbd>csb</kbd> replace the whole result with one side</span></td></tr>
+    <tr><td><span class="step">6</span></td><td>Save the file. Then either <code>git add</code> in a terminal or use lazygit (<kbd class="red">&lt;leader&gt;tg</kbd>) to mark resolved &amp; commit.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ DEBUG WORKFLOW ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>Debug a program</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">First time only — per project</td></tr>
+    <tr><td><span class="step">1</span><code>:Mason</code></td><td>Confirm the adapter is installed for your language</td></tr>
+    <tr><td colspan="2" class="note">Configured: Python → debugpy · C/C++/Rust → codelldb or cppdbg · Bash → bashdb. Any other language (JS, Go, …) also needs its adapter defined: install it (add its Mason package to mason-tool-installer's list in <span class="file">lua/plugins/formatting.lua</span>), then add <code>dap.adapters.&lt;name&gt;</code> and <code>dap.configurations.&lt;filetype&gt;</code> in <span class="file">lua/config/dap.lua</span>.</td></tr>
+    <tr><td><span class="step">2</span></td><td>Drop a <code>.vscode/launch.json</code> in your project root. See <code>docs/templates/dap/launch.json.example</code> in this config for a template.</td></tr>
+    <tr><td colspan="2" class="note">Set <code>program</code> (binary), <code>args</code>, <code>cwd</code>, and the environment (<code>env</code> for codelldb and debugpy, <code>environment</code> for cppdbg) — same schema as VS Code. nvim-dap re-reads the file on every <kbd class="mauve">&lt;leader&gt;dc</kbd>, so edits take effect immediately. Use <kbd class="mauve">&lt;leader&gt;dL</kbd> to sanity-check the file (validates JSON, lists configs) without launching anything.</td></tr>
+    <tr class="divider"><td colspan="2">Start a session</td></tr>
+    <tr><td><span class="step">1</span><kbd class="mauve">&lt;leader&gt;db</kbd></td><td>Toggle breakpoint on current line</td></tr>
+    <tr><td><span class="step">2</span><kbd class="mauve">&lt;leader&gt;dc</kbd></td><td>Continue — picks a launch config from launch.json (falls back to "Pick executable" prompt)</td></tr>
+    <tr><td><span class="step">3</span></td><td>DAP UI opens automatically; stops at breakpoint</td></tr>
+    <tr class="divider"><td colspan="2">While stopped</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dc</kbd></td><td>Continue to next breakpoint</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;do</kbd></td><td>Step over</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;di</kbd></td><td>Step into</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dO</kbd></td><td>Step out</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;de</kbd></td><td>Evaluate expression under cursor</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dr</kbd></td><td>Toggle interactive REPL</td></tr>
+    <tr class="divider"><td colspan="2">Conditional &amp; logpoint</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dB</kbd></td><td>Prompt for a condition and/or hit count (e.g. <code>&gt;= 5</code>); both empty cancels</td></tr>
+    <tr class="divider"><td colspan="2">Done</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dt</kbd></td><td>Terminate — UI closes</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dl</kbd></td><td>Re-run last config (handy)</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ LSP WORKFLOW ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--teal)"></div><h2>Use the language server</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Add a new language</td></tr>
+    <tr><td><span class="step">1</span></td><td>Edit <span class="file">lua/plugins/lsp.lua</span></td></tr>
+    <tr><td><span class="step">2</span></td><td>Add server name to <code>ensure_installed</code></td></tr>
+    <tr><td><span class="step">3</span><code>:restart</code></td><td>Mason installs it on the next start — mason-lspconfig reads <code>ensure_installed</code> only at startup. Or <code>:MasonInstall &lt;pkg&gt;</code> right away.</td></tr>
+    <tr><td colspan="2" class="note">Treesitter parser: add it to the list in <span class="file">treesitter.lua</span>, then <code>:TSInstall &lt;lang&gt;</code> (or restart).</td></tr>
+    <tr class="divider"><td colspan="2">Daily ops</td></tr>
+    <tr><td><kbd class="teal">K</kbd></td><td>Hover docs</td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;lk</kbd></td><td>Function signature</td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;la</kbd></td><td>Code action — quick fixes, imports</td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;lr</kbd></td><td>Rename symbol everywhere</td></tr>
+    <tr class="divider"><td colspan="2">Inlay hints (param names, types)</td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;lh</kbd></td><td>Toggle for current buffer</td></tr>
+    <tr class="divider"><td colspan="2">Diagnostics</td></tr>
+    <tr><td><kbd class="teal">]d</kbd> <kbd class="teal">[d</kbd></td><td>Walk through errors / warnings</td></tr>
+    <tr><td><kbd class="teal">&lt;leader&gt;xx</kbd></td><td>List all in Trouble</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ SESSION / EXPLORER ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--rosewater)"></div><h2>Files &amp; sessions</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Create / rename / delete</td></tr>
+    <tr><td><span class="step">1</span><kbd class="rosewater">&lt;leader&gt;e</kbd></td><td>Open neo-tree</td></tr>
+    <tr><td><span class="step">2</span><kbd class="rosewater">a</kbd></td><td>Add — type name; end with <code>/</code> for a directory</td></tr>
+    <tr><td colspan="2" class="note">Other in-tree keys: <kbd class="rosewater">r</kbd> rename · <kbd class="rosewater">d</kbd> delete · <kbd class="rosewater">y/x/p</kbd> copy/cut/paste <em>files</em> (neo-tree's own clipboard, not the system one) · <kbd class="rosewater">Y</kbd> copy path to system clipboard as text · <kbd class="rosewater">/</kbd> fuzzy filter · <kbd class="rosewater">H</kbd> toggle hidden</td></tr>
+    <tr class="divider"><td colspan="2">Find a buffer fast</td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;1</kbd>…<kbd class="rosewater">&lt;leader&gt;9</kbd></td><td>Jump by tab number (superscript on each tab)</td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;bj</kbd></td><td>Bufferline pick — press letter</td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;fb</kbd></td><td>Or fuzzy-pick</td></tr>
+    <tr><td colspan="2" class="note">Right-click a bufferline tab for context-menu actions (copy path, pin, close others, etc.).</td></tr>
+    <tr class="divider"><td colspan="2">Temporarily full-screen a window</td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;wm</kbd></td><td>Focus a window, then this — fills the screen with that window. Second press restores the exact layout.</td></tr>
+    <tr><td colspan="2" class="note">Implementation: saves the current window sizes via <code>winrestcmd()</code>, clears <code>winfixwidth</code>/<code>winfixheight</code> on the zoomed window (so neo-tree and other fixed-size panes can grow), then maximizes via <code>:wincmd _</code> / <code>:wincmd |</code>. Restore replays the saved sizes and re-enables the winfix flags.</td></tr>
+    <tr class="divider"><td colspan="2">Sessions per directory</td></tr>
+    <tr><td colspan="2" class="note">Open <code>nvim</code> (no file arguments) from a project dir → auto-restores last layout.<br>
+      Saved when Neovim exits. <code>nvim foo.c</code> restores nothing and saves only once 2+ files or tabs are open.
+      Never in <code>~</code>, <code>~/Downloads</code>, the temp dir or the drive root.
+      Browse other sessions with <kbd class="rosewater">&lt;leader&gt;wf</kbd>.</td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;wD</kbd></td><td>Delete current session</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ SEARCH OPERATORS ═══════════════════ -->
+<div class="card col-2">
+  <div class="card-header"><div class="dot" style="background:var(--sky)"></div><h2>Refine a search <span class="note">AND · OR · exclude · by directory</span></h2></div>
+  <table class="wide">
+    <tr><td colspan="4" class="note">
+      Two different query languages, depending on what you're searching. <b>Finding files</b>
+      (<kbd class="sky">&lt;leader&gt;ff</kbd>, <kbd class="sky">&lt;leader&gt;Ff</kbd>, <code>:ScoperFind</code>)
+      matches <b>paths</b> with the fuzzy matcher, so operators go straight in the prompt.
+      <b>Grepping contents</b> (<kbd class="sky">&lt;leader&gt;fg</kbd>, <kbd class="sky">&lt;leader&gt;Fg</kbd>, <code>:ScoperGrep</code>)
+      matches <b>line text</b> with ripgrep, so the prompt is a regex. Only fzf-lua's grep
+      (<kbd class="sky">&lt;leader&gt;Fg</kbd>) also takes file <b>globs</b> after a <code>&nbsp;--&nbsp;</code> separator;
+      telescope's live grep sends the whole prompt to ripgrep as the regex.
+    </td></tr>
+
+    <tr class="divider"><td colspan="4">File finders — type operators directly (fzf syntax)</td></tr>
+    <tr>
+      <td><code>hbr cpp</code></td><td>AND — both terms (fuzzy)</td>
+      <td><code>'hbr_request</code></td><td>exact substring, not fuzzy</td>
+    </tr>
+    <tr>
+      <td><code>hbr .cpp$</code></td><td>contains <code>hbr</code> AND ends <code>.cpp</code></td>
+      <td><code>^src</code> · <code>.cpp$</code></td><td>starts-with · ends-with</td>
+    </tr>
+    <tr>
+      <td><code>hbr !compiled</code></td><td>has <code>hbr</code>, NOT <code>compiled</code></td>
+      <td><code>!^build</code></td><td>NOT starting with <code>build</code> (drops a dir)</td>
+    </tr>
+    <tr>
+      <td><code>hbr .cpp$ | .h$</code></td><td><code>hbr</code> AND (ends <code>.cpp</code> OR <code>.h</code>)</td>
+      <td><code>hbr .cpp$ !compiled</code></td><td>chain them: cpp <code>hbr</code> files, no compiled</td>
+    </tr>
+    <tr><td colspan="4" class="note">
+      Space = AND. <code>|</code> = OR (needs spaces around it: <code>a$ | b$</code>). <code>!</code> = exclude (exact substring).
+      Matching is against the whole displayed path, so <code>!compiled</code> / <code>!^build/</code> drop directories.
+      Identical syntax on all three file finders (telescope gets it from fzf-native, fzf-lua from fzf).
+    </td></tr>
+
+    <tr class="divider"><td colspan="4">Live grep — regex first; in fzf-lua (<kbd class="sky">&lt;leader&gt;Fg</kbd>) file globs after <code>&nbsp;--&nbsp;</code></td></tr>
+    <tr>
+      <td><code>HBRRequest</code></td><td>ripgrep regex over line content</td>
+      <td><code>foo|bar</code></td><td>regex alternation (a OR b) — no spaces</td>
+    </tr>
+    <tr>
+      <td><code>HBRRequest -- *.cpp</code></td><td>grep <code>HBRRequest</code> in <code>.cpp</code> files only</td>
+      <td><code>HBRRequest -- !*test*</code></td><td>…in every file whose path doesn't contain <code>test</code></td>
+    </tr>
+    <tr>
+      <td colspan="2"><code>compute -- src/** *.h</code></td>
+      <td colspan="2">grep <code>compute</code> under <code>src/</code> and in <code>.h</code> files — each space-separated glob becomes an <code>rg --iglob</code> (a file passes if it matches any of them)</td>
+    </tr>
+    <tr>
+      <td colspan="2"><code>(?=.*foo)(?=.*bar)</code></td>
+      <td colspan="2">both words, any order, on one line — needs <code>--pcre2</code> in <code>rg_opts</code></td>
+    </tr>
+    <tr><td colspan="4" class="note">
+      In grep the prompt is a regex: a space is a literal space (<code>hello world</code> matches the phrase, no quotes needed),
+      and <code>!</code> / <code>.cpp$</code> are regex characters. After fzf-lua's <code>&nbsp;--&nbsp;</code> come ripgrep globs, not fzf operators:
+      <code>*.cpp</code>, not <code>.cpp</code> (which only matches a file literally named <code>.cpp</code>).
+    </td></tr>
+
+    <tr class="divider"><td colspan="4">Restrict to / exclude a directory</td></tr>
+    <tr>
+      <td colspan="2"><b>In-query (no setup)</b></td>
+      <td colspan="2">Add a path token to the file-finder prompt: <code>hbr ^src/</code> (only under <code>src/</code>), or <code>hbr !vendor/</code> (everything but <code>vendor/</code>). For fzf-lua's grep, add a glob after <code>&nbsp;--&nbsp;</code>: <code>foo -- src/**</code> or <code>foo -- !vendor/**</code>.</td>
+    </tr>
+    <tr>
+      <td colspan="2"><b>Telescope, as a command</b></td>
+      <td colspan="2"><code>:Telescope find_files search_dirs=src,lib</code> (comma-separated). Same key works for <code>live_grep</code>.</td>
+    </tr>
+    <tr>
+      <td colspan="2"><b>fzf-lua, as a command</b></td>
+      <td colspan="2"><code>:FzfLua files cwd=src</code> (one root). For excludes: <code>:FzfLua files fd_opts="--exclude build"</code> (or <code>rg_opts="--glob=!build"</code>).</td>
+    </tr>
+    <tr>
+      <td colspan="2"><b>Scope-wide</b></td>
+      <td colspan="2"><code>:ScoperFind</code> / <code>:ScoperGrep</code> already restrict to the active scope's directories — set those once with <code>:ScoperAdd</code> and every search is pre-filtered. Per-scope excludes (<code>:ScoperExclude</code>) are applied automatically.</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ CUSTOMIZE ═══════════════════ -->
+<div class="card col-2">
+  <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>Customize this config <span class="note">where do I edit X?</span></h2></div>
+  <table class="wide">
+    <tr>
+      <td>Add / change keymap</td><td><span class="file">lua/config/keymaps.lua</span></td>
+      <td>Add / change option</td><td><span class="file">lua/config/options.lua</span></td>
+    </tr>
+    <tr>
+      <td>Add autocmd</td><td><span class="file">lua/config/autocmds/&lt;topic&gt;.lua</span></td>
+      <td>Change leader key</td><td><span class="file">lua/config/options.lua</span> (top)</td>
+    </tr>
+    <tr>
+      <td>Add a plugin</td><td>New file in <span class="file">lua/plugins/</span></td>
+      <td>Disable a plugin</td><td>Add <code>enabled = false</code> to its spec, then <code>:Lazy clean</code> <span class="note">a file usually holds several plugins, so deleting it disables them all</span></td>
+    </tr>
+    <tr>
+      <td>Change colorscheme</td><td><span class="file">plugins/colorscheme.lua</span> — set <code>flavour</code> &amp; <code>vim.cmd.colorscheme(...)</code></td>
+      <td>Lualine theme</td><td>auto-synced via <code>theme = "auto"</code> in <span class="file">plugins/ui.lua</span> — no manual change needed</td>
+    </tr>
+    <tr>
+      <td>Add an LSP</td><td><span class="file">plugins/lsp.lua</span> — append to <code>ensure_installed</code></td>
+      <td>Add a treesitter lang</td><td><span class="file">plugins/treesitter.lua</span> — same idea</td>
+    </tr>
+    <tr>
+      <td>Add a formatter</td><td><span class="file">plugins/formatting.lua</span> — add to <code>formatters_by_ft</code></td>
+      <td>Enable format-on-save</td><td><span class="file">plugins/formatting.lua</span> — uncomment <code>format_on_save</code> and add <code>event = { "BufWritePre" }</code> to the conform spec</td>
+    </tr>
+    <tr>
+      <td>Add DAP adapter</td><td><span class="file">plugins/formatting.lua</span> — add the Mason package to mason-tool-installer's <code>ensure_installed</code>; then define <code>dap.adapters.&lt;name&gt;</code> and <code>dap.configurations.&lt;ft&gt;</code> in <span class="file">config/dap.lua</span></td>
+      <td>Tweak diagnostics UI</td><td><span class="file">plugins/lsp.lua</span> — <code>vim.diagnostic.config({...})</code></td>
+    </tr>
+    <tr>
+      <td>Disable smear cursor</td><td><span class="file">plugins/editor.lua</span> — <code>enabled = false</code> in the smear-cursor spec</td>
+      <td>Disable indent guides</td><td><span class="file">plugins/editor.lua</span> — <code>enabled = false</code> in the blink.indent spec</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ INITIAL SETUP ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--lavender)"></div><h2>Initial setup</h2></div>
+  <table>
+    <tr><td><span class="step">0</span></td><td>Have Neovim ≥ 0.12.0, git, a C compiler, <code>tar</code> and <code>curl</code>, and the tree-sitter CLI ≥ 0.26.1 (not from npm) — see the README</td></tr>
+    <tr><td><span class="step">1</span></td><td>Extract the zip (it holds <code>nvim/</code>) into the parent folder: <code>Expand-Archive x.zip $env:LOCALAPPDATA</code> (Windows) · <code>unzip -q x.zip -d ~/.config</code> (Linux/macOS, any shell). Move an existing config aside first</td></tr>
+    <tr><td><span class="step">2</span></td><td>Launch <code>nvim</code> — lazy.nvim auto-installs everything</td></tr>
+    <tr><td><span class="step">3</span></td><td>Quit, relaunch (some plugins need a second pass)</td></tr>
+    <tr><td><span class="step">4</span><code>:checkhealth config</code></td><td>Install any flagged externals: tree-sitter CLI (required), Nerd Font, ripgrep, fd, fzf ≥ 0.45, node</td></tr>
+    <tr><td><span class="step">5</span><code>:Mason</code></td><td>Confirm LSPs / formatters / adapters arrived</td></tr>
+    <tr><td><span class="step">6</span><code>:TSInstall &lt;lang&gt;</code></td><td>Retry any parser that failed to build (<code>:TSUpdate</code> only updates the installed ones)</td></tr>
+    <tr><td colspan="2" class="note">No internet on the machine? Install an offline seed instead of steps 2–6: <code>docs/workflows/offline-install.md</code>.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ UPDATE / UNINSTALL ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--lavender)"></div><h2>Update / uninstall</h2></div>
+  <table>
+    <tr class="divider"><td colspan="2">Update to a new zip (sessions, undo, scopes are kept)</td></tr>
+    <tr><td><span class="step">1</span></td><td>Quit every nvim; rename the config folder to <code>nvim.bak</code></td></tr>
+    <tr><td><span class="step">2</span></td><td>Extract the new zip as in Initial setup; carry over your edits (<code>git diff --no-index nvim.bak nvim</code>)</td></tr>
+    <tr><td><span class="step">3</span><code>:Lazy restore</code></td><td>Plugins to the new lockfile's tested commits, then <code>:Lazy clean</code> · or <code>:Lazy sync</code> for the latest</td></tr>
+    <tr><td><span class="step">4</span><code>:checkhealth config</code></td><td>Then skim <code>CHANGES.md</code>; delete <code>nvim.bak</code> when happy</td></tr>
+    <tr><td colspan="2" class="note">Roll back: swap the folders back, then <code>:Lazy restore</code>.</td></tr>
+    <tr class="divider"><td colspan="2">Uninstall (quit nvim first)</td></tr>
+    <tr><td>Windows</td><td><code>%LOCALAPPDATA%\nvim</code>, <code>%LOCALAPPDATA%\nvim-data</code>, <code>%TEMP%\nvim</code></td></tr>
+    <tr><td>Linux / macOS</td><td><code>~/.config/nvim</code>, <code>~/.local/share/nvim</code>, <code>~/.local/state/nvim</code>, <code>~/.cache/nvim</code></td></tr>
+    <tr><td colspan="2" class="note">Commands, side-by-side installs (<code>NVIM_APPNAME</code>) and what's left outside these folders: <code>docs/workflows/install-update-uninstall.md</code>.</td></tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ TROUBLESHOOTING ═══════════════════ -->
+<div class="card col-2">
+  <div class="card-header"><div class="dot" style="background:var(--red)"></div><h2>Troubleshoot</h2></div>
+  <table class="wide">
+    <tr>
+      <td>LSP not attaching</td>
+      <td><code>:checkhealth vim.lsp</code> → check filetype match · open <code>vim.lsp.log.get_filename()</code> · <code>:Mason</code> → is server installed?</td>
+      <td>Completion silent</td>
+      <td><code>:Lazy</code> → is blink.cmp loaded? · is an LSP attached? · check <code>InsertEnter</code> autocmd fired</td>
+    </tr>
+    <tr>
+      <td>Wrong colors</td>
+      <td>Terminal must support true colour · check <code>:set termguicolors?</code></td>
+      <td>Icons are boxes</td>
+      <td>Install a Nerd Font and set it as your terminal font (not just shell)</td>
+    </tr>
+    <tr>
+      <td>Format doesn't run</td>
+      <td><code>:ConformInfo</code> → is the formatter installed? · check <code>formatters_by_ft</code> covers your filetype</td>
+      <td>Treesitter errors</td>
+      <td><code>:TSInstall &lt;lang&gt;</code> rebuilds a parser · <code>:checkhealth config</code> checks the tree-sitter CLI (≥ 0.26.1, not npm) and the C compiler (MSVC, gcc or clang)</td>
+    </tr>
+    <tr>
+      <td>which-key won't pop up</td>
+      <td><code>:WhichKey</code> manually · the popup waits which-key's <code>delay</code> (200 ms, in <span class="file">which-key.lua</span>), not <code>'timeoutlen'</code> · plugin loaded on VeryLazy</td>
+      <td>Plugin build fails on Win</td>
+      <td>Often a make/CC issue. Skip optional native builds (e.g. jsregexp); pure-Lua usually works</td>
+    </tr>
+    <tr>
+      <td>Auto-session restores wrong dir</td>
+      <td>Sessions are keyed by the directory you start in, and never saved or restored in <code>~</code>, <code>~/Downloads</code>, the temp dir (<code>$TEMP</code>/<code>$TMP</code>/<code>$TMPDIR</code>) or the drive root (<code>C:\</code>; <code>/tmp</code> and <code>/</code> on Unix) — open from inside the project root, not its parent</td>
+      <td>Slow startup</td>
+      <td><code>:Lazy profile</code> → sort by time, find the culprit, lazy-load it</td>
+    </tr>
+    <tr>
+      <td>nvim hangs / sluggish</td>
+      <td><code>:DiagnosticDump</code> writes a snapshot (version, messages, LSPs, buffers, plugin list, lsp.log tail) to <code>stdpath('log')</code> — attach the file when reporting</td>
+      <td>Hang is total</td>
+      <td>Force-kill, restart in the same project, <code>:DiagnosticDump</code> — the LSP log persists across kills and is the high-yield artefact</td>
+    </tr>
+    <tr>
+      <td><code>:bd</code> wrecks the layout</td>
+      <td>Plain <code>:bd</code> closes <em>every</em> window showing the buffer. Use <kbd class="sky">&lt;leader&gt;bd</kbd> instead — it re-points each window to another buffer first, so the splits stay. (Neo-tree's <code>close_if_last_window</code> is deliberately off in this config: its upstream WinClosed handler races with incline's float teardown and can leave a broken triple-split when quitting with a modified buffer — see explorer.lua. So <code>:q</code> on the last file window leaves the tree open; quit with <code>:q</code> again or <code>:qa</code>.)</td>
+      <td><code>:bd</code> with the last buffer behaves differently</td>
+      <td>Expected — Vim replaces the buffer with <code>[No Name]</code> instead of closing the window. Same idea as the smart wrapper, just built in.</td>
+    </tr>
+    <tr>
+      <td>Picker paths truncated</td>
+      <td>Telescope buffers/git_files/git_status ignore <code>path_display</code> (telescope issue #3157). In any Telescope picker press <kbd>&lt;C-y&gt;</kbd> to yank the highlighted entry's full path + show via notify — non-closing.</td>
+      <td>Same problem in fzf-lua pickers</td>
+      <td>fzf-lua already shows filenames first via <code>formatter = "path.filename_first"</code> in <code>finder.lua</code> — the leftmost column is always the readable part.</td>
+    </tr>
+    <tr>
+      <td>Swap-file prompt every time you open a file</td>
+      <td>A previous session left a swap on disk. At the prompt pick <kbd>R</kbd>ecover or <kbd>D</kbd>elete (the default already fits: Delete when the swap holds no unsaved changes, Open read-only when the file is newer than the swap); to clear a leftover afterwards run <code>:SwapDelete</code> — it shows the path, confirms, then removes it (no digging in the state dir). Many leftovers: <code>:SwapClean</code> reviews them all and deletes those without unsaved work. After a Recover, save, then <code>:SwapDelete</code>, or the prompt returns. <code>:SwapGuardToggle</code> flips between the concise prompt and stock Neovim behaviour. Full guide: <code>docs/workflows/swap-files.md</code>.</td>
+      <td>File opened read-only out of nowhere</td>
+      <td>The swap guard found the file already open in another running Nvim and opened it read-only here. Close it there and <code>:e!</code> to take over, or <code>:SwapGuardToggle</code> to turn the guard off. If the notice says the swap can't be read, it's a damaged leftover: <code>:SwapDelete</code>, then <code>:e!</code>. (More: plugins.html &rarr; Swap files.)</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ TERMINAL ═══════════════════ -->
+<div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--green)"></div><h2>Run commands inside</h2></div>
+  <table>
+    <tr><td><kbd class="green">&lt;C-\&gt;</kbd></td><td>Toggle floating terminal</td></tr>
+    <tr><td><kbd class="green">&lt;leader&gt;th</kbd></td><td>Horizontal split term</td></tr>
+    <tr><td><kbd class="green">&lt;leader&gt;tv</kbd></td><td>Vertical split term</td></tr>
+    <tr><td><kbd class="green">&lt;Esc&gt;&lt;Esc&gt;</kbd></td><td>Leave term mode <span class="note">a single <kbd>&lt;Esc&gt;</kbd> goes to the program</span></td></tr>
+    <tr class="divider"><td colspan="2">Run an ad-hoc command</td></tr>
+    <tr><td><code>:TermExec cmd="npm test"</code></td><td>Opens a terminal and runs it</td></tr>
+    <tr class="divider"><td colspan="2">Persistent named terminals</td></tr>
+    <tr><td><code>:1ToggleTerm</code></td><td>Terminal #1 (separate buffer per number)</td></tr>
+    <tr><td><code>:2ToggleTerm</code></td><td>Terminal #2</td></tr>
+  </table>
+</div>
+
+</div>
+<footer>
+  <span>Catppuccin Mocha · JetBrains Mono</span>
+  <span>Reference: keymaps.html · Inventory: plugins.html · Recipes: this file · Long guides: docs/workflows/</span>
+</footer>
+</body>
+</html>

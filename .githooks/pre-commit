@@ -1,0 +1,79 @@
+#!/usr/bin/env sh
+# .githooks/pre-commit
+#
+# Three fast, local gates that mirror CI, run before a commit lands:
+#
+#   1. luacheck on the staged *.lua files — accidental globals, typos in
+#      vim.* names, and unused locals caught before they land.
+#   2. `stylua --check` on the staged *.lua files. Aligned blocks are
+#      protected with `-- stylua: ignore start/end`; see the Makefile header.
+#   3. the doc-sync guards (scripts/check-docs.sh) — the docs must still
+#      match the code. Pure POSIX shell, no Neovim, runs in a blink.
+#
+# This hook is version-controlled (git's real hooks live in .git/hooks/,
+# which isn't tracked). Enable it once per clone by pointing git at this
+# directory:
+#
+#     git config core.hooksPath .githooks     # or: make hooks
+#
+# Design choices, matching this repo's "degrade gracefully" philosophy:
+#   * Gates 1 and 2 check the STAGED content (`git show :path`), not the
+#     working-tree file, so an edit you haven't `git add`ed can neither hide
+#     nor cause a failure. Each tool reads the blob on stdin and is told the
+#     real path, so the nearest .luacheckrc / stylua.toml (scoper.nvim/ has
+#     its own) and per-path overrides still apply.
+#   * Gate 3 checks the working tree as a whole — it's cheap, and doc drift
+#     can come from staging a *.html/README/template with no *.lua change.
+#   * If luacheck or stylua isn't installed, the hook WARNS and skips that
+#     gate rather than blocking work on a missing tool. CI still enforces it.
+#   * Any gate failing BLOCKS the commit (exit non-zero). Bypass a specific
+#     commit with `git commit --no-verify` if you really mean to.
+
+set -eu
+
+cd "$(git rev-parse --show-toplevel)"
+
+status=0
+
+# Added / Copied / Modified / Renamed -- not Deleted. One path per line.
+staged=$(git diff --cached --name-only --diff-filter=ACMR -- '*.lua')
+
+# check_staged TOOL PATH: run TOOL on the staged content of PATH, from the
+# root of the tree PATH belongs to (the repo, or scoper.nvim/).
+check_staged() {
+  case "$2" in
+    scoper.nvim/*) dir=scoper.nvim rel=${2#scoper.nvim/} ;;
+    *)             dir=. rel=$2 ;;
+  esac
+  case "$1" in
+    luacheck) git show ":$2" | (cd "$dir" && luacheck --filename "$rel" -) ;;
+    stylua)   git show ":$2" | (cd "$dir" && stylua --check --stdin-filepath "$rel" -) ;;
+  esac
+}
+
+# -- 1 + 2. luacheck, then stylua --check, on the staged Lua ------------------
+if [ -n "$staged" ]; then
+  for tool in luacheck stylua; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      printf 'pre-commit: %s not found -- skipping it. CI will still run it.\n' "$tool" >&2
+      continue
+    fi
+    while IFS= read -r f; do
+      check_staged "$tool" "$f" || status=1
+    done <<EOF
+$staged
+EOF
+  done
+fi
+
+# -- 3. doc-sync guards (always; fast, no Neovim) ----------------------------
+if [ -f scripts/check-docs.sh ]; then
+  sh scripts/check-docs.sh || status=1
+fi
+
+if [ "$status" -ne 0 ]; then
+  printf '%s\n' "pre-commit: a check failed -- commit aborted." \
+                "           Fix the reports above, or bypass with 'git commit --no-verify'." >&2
+fi
+
+exit "$status"

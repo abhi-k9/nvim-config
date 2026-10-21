@@ -1,0 +1,11 @@
+# .gitattributes — LF in the repository AND in every checkout.
+#
+# stylua.toml sets line_endings = "Unix", so a CRLF checkout fails
+# `stylua --check`, and sh can't run scripts/check-docs.sh or
+# .githooks/pre-commit when their shebang line ends in CR. Git for Windows
+# defaults to core.autocrlf=true, which converts to CRLF on checkout;
+# `eol=lf` overrides that per path. `text=auto` still leaves binaries alone.
+#
+# A fresh clone is LF from the start. A clone made before this file existed
+# keeps its CRLF copies until git rewrites them, e.g. on the next checkout.
+* text=auto eol=lf

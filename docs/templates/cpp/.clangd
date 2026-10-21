@@ -1,0 +1,43 @@
+# .clangd — project-level clangd configuration.
+#
+# PLACEMENT: put this at your PROJECT ROOT (e.g. <project-root>/.clangd),
+# NOT in your Neovim config. clangd discovers it by walking up from the
+# file being edited; it has nothing to do with the editor.
+#
+# WHY THIS EXISTS: header files (.h/.hpp) are never listed in
+# compile_commands.json — only source TUs (.cpp) are. To parse a header,
+# clangd has to borrow compile flags from a source file that #includes it.
+# When it can't find one (the sibling .cpp isn't in the database, isn't
+# indexed yet, or — with scoper's LSP filtering on — was filtered out of
+# the scoped compile_commands.json), clangd falls back to a DEFAULT
+# standard, which is old enough that modern C++ features report errors
+# like "... is a C++NN extension" or "no member named ... (C++98)".
+#
+# WHAT IT DOES: the Add flag below is appended to the compile command of
+# EVERY C++ file clangd parses — sources with a database entry, and those
+# orphan-header fallback parses alike. clangd appends Add flags after the
+# database flags and the last -std on the command line wins, so this pins
+# the standard everywhere, overriding the database's own -std. That is
+# what fixes header diagnostics even across an include/ vs src/ split and
+# regardless of what's currently in scope, and it is right for a
+# single-standard project. The PathMatch keeps it off C files, which would
+# otherwise be parsed as C++20 (.h counts as C++ here; drop it from the
+# list if your .h files are C).
+
+If:
+  PathMatch: .*\.(cc|cpp|cxx|c\+\+|h|hh|hpp|hxx|ipp|inl|tpp)
+CompileFlags:
+  # >>> Set this to YOUR project's standard: c++17 / c++20 / c++23. <<<
+  # If you genuinely mix standards per target, use the headers-only block
+  # at the bottom instead (and delete this one).
+  Add: [-std=c++20]
+
+# Optional: only apply the standard to headers, leaving real source TUs
+# entirely on their database flags. Use this instead of the block above
+# if your project mixes C++ standards across targets. Delete the block
+# above if you enable this one.
+#
+# If:
+#   PathMatch: .*/include/.*
+# CompileFlags:
+#   Add: [-std=c++20]
