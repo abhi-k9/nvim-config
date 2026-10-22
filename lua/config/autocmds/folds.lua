@@ -61,8 +61,17 @@ end
 -- written (e.g. `git checkout`): stale manual fold ranges would land on
 -- the wrong lines.
 local function load_fold_view(buf)
-  local view_time = vim.fn.getftime(view_file(buf))
-  if view_time < 0 or vim.fn.getftime(vim.api.nvim_buf_get_name(buf)) > view_time then return end
+  local saved = vim.uv.fs_stat(view_file(buf))
+  local source = vim.uv.fs_stat(vim.api.nvim_buf_get_name(buf))
+  if not saved or not source then return end
+  -- getftime() loses subsecond precision: a rapid external rewrite in
+  -- the same second can otherwise replay fold ranges from old contents.
+  if
+    source.mtime.sec > saved.mtime.sec
+    or (source.mtime.sec == saved.mtime.sec and source.mtime.nsec > saved.mtime.nsec)
+  then
+    return
+  end
   -- Apply only the folds; loadview can otherwise move the cursor (see the
   -- header note), so bracket it with a view save/restore.
   local view = vim.fn.winsaveview()
