@@ -235,6 +235,7 @@ nvim/
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager
+│   ├── prose_undo_spec.lua  prose mapping cleanup after filetype changes
 │   ├── buffer_lifecycle_spec.lua  buffer deletion under reentrant autocmds
 │   ├── buffer_menu_split_spec.lua  buffer menu splits from file windows
 │   ├── session_ui_visibility_spec.lua  preserve visible debugger layouts on save

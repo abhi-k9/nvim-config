@@ -356,13 +356,27 @@ map("n", "<leader>Q", "<cmd>qa!<cr>",       { desc = "Force quit all" })
 -- `A;<Esc>j.` would lose most of the insert. Trade-off: a mapped char no
 -- longer triggers an :iabbrev expansion (none are defined here).
 local UNDO_BREAK_CHARS = { ",", ".", "!", "?", ";", ":" }
+local PROSE_FILETYPES = { markdown = true, text = true, gitcommit = true }
 vim.api.nvim_create_autocmd("FileType", {
   group = vim.api.nvim_create_augroup("user_undo_break", { clear = true }),
-  pattern = { "markdown", "text", "gitcommit" },
   desc = "Undo break after punctuation in prose buffers",
   callback = function(ev)
-    for _, ch in ipairs(UNDO_BREAK_CHARS) do
-      map("i", ch, ch .. "<C-g>u", { buffer = ev.buf, desc = "Undo break after " .. ch })
+    if PROSE_FILETYPES[vim.bo[ev.buf].filetype] then
+      for _, ch in ipairs(UNDO_BREAK_CHARS) do
+        map("i", ch, ch .. "<C-g>u", { buffer = ev.buf, desc = "Undo break after " .. ch })
+      end
+    else
+      -- FileType can change without replacing the buffer. Remove only our
+      -- own mappings, preserving any replacements installed by the user.
+      for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(ev.buf, "i")) do
+        if
+          vim.tbl_contains(UNDO_BREAK_CHARS, mapping.lhs)
+          and mapping.rhs == mapping.lhs .. "<C-G>u"
+          and mapping.desc == "Undo break after " .. mapping.lhs
+        then
+          vim.keymap.del("i", mapping.lhs, { buffer = ev.buf })
+        end
+      end
     end
   end,
 })
