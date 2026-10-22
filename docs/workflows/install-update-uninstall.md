@@ -15,8 +15,8 @@ see [offline-install.md](offline-install.md).
 | What | Windows | Linux and macOS |
 |------|---------|-----------------|
 | Config (`stdpath('config')`) | `%LOCALAPPDATA%\nvim\` | `~/.config/nvim/` |
-| Data: plugins, Mason, parsers, sessions, undo, swap (`stdpath('data')`) | `%LOCALAPPDATA%\nvim-data\` | `~/.local/share/nvim/` |
-| State: ShaDa, logs (`stdpath('state')`) | same folder as data | `~/.local/state/nvim/` |
+| Data: plugins, Mason, parsers, sessions, breakpoints, scopes (`stdpath('data')`) | `%LOCALAPPDATA%\nvim-data\` | `~/.local/share/nvim/` |
+| State: undo, swap, views, ShaDa, logs (`stdpath('state')`) | same folder as data | `~/.local/state/nvim/` |
 | Cache: Lua bytecode, scoper's compile_commands copies (`stdpath('cache')`) | `%TEMP%\nvim\` | `~/.cache/nvim/` |
 
 `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME` and `XDG_CACHE_HOME`
