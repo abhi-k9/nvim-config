@@ -168,7 +168,14 @@ vim.api.nvim_create_autocmd("VimLeavePre", {
     while true do
       local name, t = vim.uv.fs_scandir_next(handle)
       if not name then break end
-      if t == "file" then
+      -- This directory is configurable and may contain unrelated files.
+      -- Native view names encode a path separator as =+ and finish with
+      -- = (the default view) or =[1-9].vim (a numbered view).
+      if
+        t == "file"
+        and name:find("=+", 1, true)
+        and (name:sub(-1) == "=" or name:match("=[1-9]%.vim$"))
+      then
         local path = dir .. "/" .. name
         local st = vim.uv.fs_stat(path)
         if st and st.mtime and st.mtime.sec < cutoff then pcall(vim.uv.fs_unlink, path) end
