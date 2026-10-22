@@ -258,21 +258,7 @@ do
   -- backslashes before a comma still quote that comma, retaining one slash.
   -- :set's own escaping has already happened before we read vim.o.directory.
   local function directory_entries()
-    local value, entries, pos = vim.o.directory, {}, 1
-    while pos <= #value do
-      local chars = {}
-      while pos <= #value and value:sub(pos, pos) ~= "," do
-        if value:sub(pos, pos + 1) == "\\," then pos = pos + 1 end
-        chars[#chars + 1] = value:sub(pos, pos)
-        pos = pos + 1
-      end
-      entries[#entries + 1] = table.concat(chars)
-      pos = pos + 1 -- separating comma, if any
-      while value:sub(pos, pos) == " " do
-        pos = pos + 1
-      end
-    end
-    return entries
+    return require("config.util").option_paths(vim.o.directory)
   end
 
   -- Swap files record a path under your home folder as `~user/…`

@@ -127,11 +127,14 @@ end
 -- made" is the real problem. `path` may carry a trailing // (as 'directory'
 -- does) and may be a comma list; callers pass a single entry.
 local function check_state_dir(label, path, why)
-  path = (path or ""):gsub("[/\\]+$", "")
-  if path == "" then
+  if not path or path == "" then
     h.warn(label .. " is not set", why)
     return
   end
+  -- Normalize the trailing // filename-encoding marker without losing
+  -- filesystem roots. Expand environment variables without interpreting
+  -- filename wildcards or Vim's %/# placeholders.
+  path = vim.fs.normalize(path)
   if vim.fn.isdirectory(path) == 1 then
     if vim.fn.filewritable(path) == 2 then
       h.ok(("%s — writable (%s)"):format(label, path))
@@ -140,9 +143,14 @@ local function check_state_dir(label, path, why)
     end
     return
   end
-  -- Doesn't exist yet: walk up to the nearest existing ancestor and test it.
-  local anc = vim.fn.fnamemodify(path, ":h")
+  -- Walk upward only through missing paths. A regular file or dangling
+  -- symlink in the way prevents mkdir even if its own parent is writable.
+  local anc = path
   while anc ~= "" and vim.fn.isdirectory(anc) == 0 do
+    if vim.uv.fs_lstat(anc) then
+      h.error(("%s cannot be created — path is not a directory (%s)"):format(label, anc), why)
+      return
+    end
     local up = vim.fn.fnamemodify(anc, ":h")
     if up == anc then break end
     anc = up
@@ -254,13 +262,14 @@ function M.check()
 
   -- ── Runtime state directories (persistence must be writable) ──────────────
   h.start("Runtime state directories")
-  check_state_dir("Swap directory ('directory')", vim.o.directory:match("^[^,]*"), {
+  local option_paths = require("config.util").option_paths
+  check_state_dir("Swap directory ('directory')", option_paths(vim.o.directory)[1], {
     "Holds .swp files; the swap guard and :SwapDelete operate on this dir.",
     "If it isn't writable, Neovim opens files without a swap file (E303),",
     "so there is nothing to recover after a crash.",
   })
   if vim.o.undofile then
-    check_state_dir("Undo directory ('undodir')", vim.o.undodir:match("^[^,]*"), {
+    check_state_dir("Undo directory ('undodir')", option_paths(vim.o.undodir)[1], {
       "undofile is on, so persistent undo history is written here.",
     })
   else
@@ -337,7 +346,7 @@ function M.check()
   check("luacheck", "luacheck", "warn", { "`make lint` / the pre-commit hook and CI use it." })
   check("stylua", "stylua", "warn", {
     "Lua formatter (conform). `make check` and CI also run `stylua --check`;",
-    "CI pins its stylua version, so a different local version can disagree.",
+    "CI and Mason use the latest release; align your local version if formatting differs.",
   })
 
   -- ── Mason-managed tooling (delegated) ─────────────────────────────────────

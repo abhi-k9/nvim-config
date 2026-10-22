@@ -266,6 +266,27 @@ function M.augroup(name)
   return vim.api.nvim_create_augroup("user_" .. name, { clear = true })
 end
 
+-- Decode a stored comma-separated path option like copy_option_part().
+-- Only a backslash before a comma is removed; Windows/UNC separators
+-- remain literal. :set's own escaping has already happened at this point.
+function M.option_paths(value)
+  local entries, pos = {}, 1
+  while pos <= #value do
+    local chars = {}
+    while pos <= #value and value:sub(pos, pos) ~= "," do
+      if value:sub(pos, pos + 1) == "\\," then pos = pos + 1 end
+      chars[#chars + 1] = value:sub(pos, pos)
+      pos = pos + 1
+    end
+    entries[#entries + 1] = table.concat(chars)
+    pos = pos + 1
+    while value:sub(pos, pos) == " " do
+      pos = pos + 1
+    end
+  end
+  return entries
+end
+
 -- Is `buf` an ordinary file buffer: buftype "", a name, and that name not
 -- a URI ("diffview://…", "fugitive://…", "oil://…"; file:// counts as a
 -- file)? The single definition of "real file" for fold views, the LSP
