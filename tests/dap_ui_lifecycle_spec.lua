@@ -58,8 +58,54 @@ describe("DAP UI session ownership", function()
 
   it("preserves parent and child controls when only one child ends", function()
     local child = {}
-    roots = { { children = { child } } }
+    local parent = { children = { child } }
+    roots = { parent }
     dap.listeners.before.event_terminated.dapui_config(child)
+    assert.equals(0, closed)
+    dap.listeners.before.event_terminated.dapui_config(parent)
+    assert.equals(0, closed)
+  end)
+
+  it("closes after an adapter crash without protocol exit events", function()
+    local session = { on_close = {} }
+    roots = { session }
+    dap.listeners.before.launch.dapui_config(session)
+    assert.is_function(session.on_close.dapui_config)
+    session.closed, roots = true, {}
+    session.on_close.dapui_config()
+    assert.is_true(vim.wait(1000, function()
+      return closed == 1
+    end, 10))
+  end)
+
+  it("keeps another session's UI after an adapter crash", function()
+    local active, failed = {}, { on_close = {} }
+    roots = { active, failed }
+    dap.listeners.before.attach.dapui_config(failed)
+    failed.closed = true
+    failed.on_close.dapui_config()
+    vim.wait(20, function()
+      return false
+    end, 1)
+    assert.equals(0, closed)
+  end)
+
+  it("checks new sessions and auto-close preferences after scheduling cleanup", function()
+    local failed = { on_close = {} }
+    dap.listeners.before.launch.dapui_config(failed)
+    failed.closed = true
+    failed.on_close.dapui_config()
+    roots = { {} }
+    vim.wait(20, function()
+      return false
+    end, 1)
+    assert.equals(0, closed)
+    roots = {}
+    failed.on_close.dapui_config()
+    vim.g.dap_autoclose_ui = false
+    vim.wait(20, function()
+      return false
+    end, 1)
     assert.equals(0, closed)
   end)
 

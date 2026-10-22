@@ -327,13 +327,19 @@ return {
       -- pre-set preference is never clobbered.
       if vim.g.dap_autoclose_ui == nil then vim.g.dap_autoclose_ui = true end
 
-      -- Open the UI automatically when a session starts.
-      dap.listeners.before.attach.dapui_config = function()
+      -- Adapter crashes and transport disconnects can close a session
+      -- without an exited/terminated event. on_close may run inside a libuv
+      -- callback, so defer UI work and recheck all sessions at that point.
+      local function open_ui(session)
+        session.on_close.dapui_config = function()
+          vim.schedule(function()
+            close_ui_if_idle(dap)
+          end)
+        end
         dapui.open()
       end
-      dap.listeners.before.launch.dapui_config = function()
-        dapui.open()
-      end
+      dap.listeners.before.attach.dapui_config = open_ui
+      dap.listeners.before.launch.dapui_config = open_ui
       -- A launch/attach that FAILS (bad program path, adapter error) ends
       -- the session without any terminated/exited event, so the panels
       -- opened above would stay up, empty. Close them on the error reply.
