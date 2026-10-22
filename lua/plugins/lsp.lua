@@ -165,9 +165,9 @@ return {
           -- allowed from inside LspAttach) and skip the setup below.
           if
             vim.b[buf].big_file
+            or vim.bo[buf].buftype ~= ""
             or (
-              vim.bo[buf].buftype == ""
-              and vim.api.nvim_buf_get_name(buf) ~= ""
+              vim.api.nvim_buf_get_name(buf) ~= ""
               and not require("config.util").is_file_buffer(buf)
             )
           then
@@ -255,7 +255,7 @@ return {
           -- Both the keymap and the auto-enable are gated on the client
           -- actually supporting inlay hints; for non-supporting servers,
           -- there's no point binding the toggle.
-          if client and client:supports_method("textDocument/inlayHint") then
+          if client and client:supports_method("textDocument/inlayHint", buf) then
             if vim.g.user_inlay_hints_enabled == nil then vim.g.user_inlay_hints_enabled = true end
             vim.lsp.inlay_hint.enable(vim.g.user_inlay_hints_enabled, { bufnr = buf })
             k("n", "<leader>lh", function()
@@ -272,7 +272,7 @@ return {
           -- it, and new ones attach in the chosen state — Neovim has no
           -- per-buffer switch for this, and no is_enabled(), hence
           -- vim.g.user_linked_editing).
-          if client and client:supports_method("textDocument/linkedEditingRange") then
+          if client and client:supports_method("textDocument/linkedEditingRange", buf) then
             if vim.g.user_linked_editing == nil then vim.g.user_linked_editing = true end
             vim.lsp.linked_editing_range.enable(
               vim.g.user_linked_editing,
@@ -282,8 +282,14 @@ return {
               local on = not vim.g.user_linked_editing
               vim.g.user_linked_editing = on
               for _, c in ipairs(vim.lsp.get_clients()) do
-                if c:supports_method("textDocument/linkedEditingRange") then
-                  vim.lsp.linked_editing_range.enable(on, { client_id = c.id })
+                -- A dynamic registration may match a different buffer
+                -- from the one containing this keymap. Toggle each
+                -- supporting client once using its own attached buffers.
+                for attached_buf in pairs(c.attached_buffers) do
+                  if c:supports_method("textDocument/linkedEditingRange", attached_buf) then
+                    vim.lsp.linked_editing_range.enable(on, { client_id = c.id })
+                    break
+                  end
                 end
               end
               vim.notify("Linked tag editing " .. (on and "ON" or "OFF"))
@@ -293,7 +299,7 @@ return {
           -- Document colors: servers such as cssls report color values and
           -- Neovim highlights them (on by default). <leader>lc toggles it
           -- for this buffer.
-          if client and client:supports_method("textDocument/documentColor") then
+          if client and client:supports_method("textDocument/documentColor", buf) then
             k("n", "<leader>lc", function()
               local on = vim.lsp.document_color.is_enabled({ bufnr = buf })
               vim.lsp.document_color.enable(not on, { bufnr = buf })
@@ -302,7 +308,7 @@ return {
 
           -- Document highlight on CursorHold: subtly underlines other
           -- occurrences of the symbol under the cursor.
-          if client and client:supports_method("textDocument/documentHighlight") then
+          if client and client:supports_method("textDocument/documentHighlight", buf) then
             local hl_group_name = "user_lsp_highlight_" .. buf
             local hl_group = vim.api.nvim_create_augroup(hl_group_name, { clear = true })
             vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
@@ -332,7 +338,7 @@ return {
                 for _, c in ipairs(vim.lsp.get_clients({ bufnr = dev.buf })) do
                   if
                     c.id ~= dev.data.client_id
-                    and c:supports_method("textDocument/documentHighlight")
+                    and c:supports_method("textDocument/documentHighlight", dev.buf)
                   then
                     return
                   end
