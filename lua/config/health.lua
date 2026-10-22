@@ -81,23 +81,7 @@ end
 -- cl.exe doesn't have to be on PATH (no Developer Prompt needed). Returns
 -- the installation path, or nil when there is no MSVC C++ toolset.
 local function msvc_install_path()
-  if vim.fn.has("win32") == 0 then return nil end
-  local vswhere = (vim.env["ProgramFiles(x86)"] or "C:\\Program Files (x86)")
-    .. "\\Microsoft Visual Studio\\Installer\\vswhere.exe"
-  if not have(vswhere) then return nil end
-  local ok, out = pcall(vim.fn.systemlist, {
-    vswhere,
-    "-latest",
-    "-products",
-    "*",
-    "-requires",
-    "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-    "-property",
-    "installationPath",
-  })
-  if not ok or vim.v.shell_error ~= 0 or type(out) ~= "table" then return nil end
-  local path = (out[1] or ""):gsub("%s+$", "")
-  return path ~= "" and path or nil
+  return require("config.tooling").msvc_install_path()
 end
 
 -- Python 3 for Mason's PyPI packages. On Windows, python3/python under
@@ -362,6 +346,21 @@ function M.check()
     )
   else
     h.warn("mason.nvim not loaded", { "Run once after startup so lazy.nvim can install it." })
+  end
+
+  h.start("Optional tooling skipped on this machine")
+  local skipped = require("config.tooling").skipped()
+  if next(skipped) == nil then
+    h.ok("No optional tooling was skipped by prerequisite checks.")
+  else
+    local names = vim.tbl_keys(skipped)
+    table.sort(names)
+    for _, name in ipairs(names) do
+      h.warn(name .. ": missing " .. skipped[name])
+    end
+    h.info(
+      "Install the prerequisites and restart. Explicit :MasonInstall / :TSInstall commands remain available."
+    )
   end
 end
 
