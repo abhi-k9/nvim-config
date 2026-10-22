@@ -235,6 +235,7 @@ nvim/
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager
+│   ├── dap_ui_lifecycle_spec.lua  shared debugger UI across sessions
 │   ├── search_literal_paths_spec.lua  literal environment-like file names
 │   ├── navigation_paths_spec.lua  Telescope picker-relative clipboard paths
 │   ├── lsp_lifecycle_spec.lua  LSP attachment and per-buffer capabilities

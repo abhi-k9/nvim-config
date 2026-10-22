@@ -10,6 +10,29 @@
 -- lua/config/dap.lua registers the adapters; Mason installs them
 -- (mason-tool-installer's list in lua/plugins/formatting.lua).
 
+-- UI panels are shared by every DAP session, including child sessions.
+-- Finishing one debuggee must not hide another live debuggee's controls.
+local function other_live_session(dap, ending)
+  local function live(session)
+    if session ~= ending and not session.closed then return true end
+    for _, child in pairs(session.children or {}) do
+      if live(child) then return true end
+    end
+    return false
+  end
+  for _, session in pairs(dap.sessions()) do
+    if live(session) then return true end
+  end
+  return false
+end
+
+local function close_ui_if_idle(dap)
+  if vim.g.dap_autoclose_ui == false or other_live_session(dap) then return end
+  pcall(function()
+    require("dapui").close()
+  end)
+end
+
 return {
   -- -------------------------------------------------------------------------
   -- nvim-dap — core
@@ -103,19 +126,25 @@ return {
       {
         "<leader>dt",
         function()
-          require("dap").terminate()
+          local dap = require("dap")
           -- Some adapters (notably cppdbg / OpenDebugAD7) don't emit a
           -- `terminated`/`exited` event on a client-initiated terminate, so the
           -- event_terminated listener that normally closes dap-ui never fires
           -- and the panels linger after an explicit Terminate. Honor the same
           -- vim.g.dap_autoclose_ui flag here so Terminate always leaves a clean
           -- layout. dapui.close() is idempotent, so adapters that DO emit the
-          -- event (e.g. codelldb) simply close once.
-          if vim.g.dap_autoclose_ui ~= false then
-            pcall(function()
-              require("dapui").close()
-            end)
+          -- event (e.g. codelldb) simply close once. Wait for completion:
+          -- another root/child session may still own the shared UI, or a
+          -- new session may start while the termination request is pending.
+          if not dap.session() and not next(dap.sessions()) then
+            close_ui_if_idle(dap)
+            return
           end
+          dap.terminate({
+            on_done = function()
+              close_ui_if_idle(dap)
+            end,
+          })
         end,
         desc = "Terminate",
       },
@@ -310,18 +339,22 @@ return {
       -- opened above would stay up, empty. Close them on the error reply.
       -- (Not gated on dap_autoclose_ui: there is nothing to inspect.)
       for _, req in ipairs({ "launch", "attach" }) do
-        dap.listeners.after[req].dapui_config = function(_, err)
-          if err then dapui.close() end
+        dap.listeners.after[req].dapui_config = function(session, err)
+          if err and not other_live_session(dap, session) then dapui.close() end
         end
       end
       -- Close on exit only when auto-close is enabled. The flag is read here,
       -- at event time (not captured above), so <leader>dU applies to the
       -- session already running.
-      dap.listeners.before.event_terminated.dapui_config = function()
-        if vim.g.dap_autoclose_ui ~= false then dapui.close() end
+      dap.listeners.before.event_terminated.dapui_config = function(session)
+        if vim.g.dap_autoclose_ui ~= false and not other_live_session(dap, session) then
+          dapui.close()
+        end
       end
-      dap.listeners.before.event_exited.dapui_config = function()
-        if vim.g.dap_autoclose_ui ~= false then dapui.close() end
+      dap.listeners.before.event_exited.dapui_config = function(session)
+        if vim.g.dap_autoclose_ui ~= false and not other_live_session(dap, session) then
+          dapui.close()
+        end
       end
     end,
   },
