@@ -140,6 +140,22 @@ class Base(unittest.TestCase):
 
 
 class RoundTrip(Base):
+    def test_symlinked_config_keeps_its_installed_app_name(self):
+        if not can_symlink(str(self.tmp)):
+            self.skipTest("no symlink privilege")
+        config = self.tmp / "config" / "nvim"
+        config.parent.mkdir()
+        config.symlink_to(ROOT, target_is_directory=True)
+        spec = importlib.util.spec_from_file_location("seed_alias", config / "scripts" / "offline-seed.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(module.app_name(), "nvim")
+        data = self.tmp / module.data_dir_name()
+        env = module.nvim_env(data)
+        self.assertIsNotNone(env)
+        self.assertEqual(env["XDG_CONFIG_HOME"], str(config.parent))
+        self.assertEqual(module.read_lock(), S.read_lock())
+
     def test_zip_installs_and_verifies_sidecar(self):
         seed = make_zip(self.tmp / "seed.zip")
         self.assertEqual(self.install(seed), 0)

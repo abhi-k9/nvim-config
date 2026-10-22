@@ -43,7 +43,9 @@ import time
 import zipfile
 from pathlib import Path
 
-CONFIG_DIR = Path(__file__).resolve().parent.parent
+# Preserve a symlinked config's installed name (for example ~/.config/nvim
+# -> a checkout named nvim-config); that name selects Neovim's data paths.
+CONFIG_DIR = Path(__file__).absolute().parent.parent
 CHECK_LUA = CONFIG_DIR / "scripts" / "offline-seed-check.lua"
 MANIFEST = "offline-seed-manifest.json"
 PARTS = ("lazy", "mason", "site")
