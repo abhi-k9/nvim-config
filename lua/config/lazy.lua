@@ -154,6 +154,10 @@ require("lazy").setup({
   },
   performance = {
     rtp = {
+      -- lazy resets runtimepath to stdpath("config") on setup. A source
+      -- checkout loaded with -u may live elsewhere; keep its specs visible
+      -- when a cold install resets the module cache and reloads them.
+      paths = { config_root },
       -- Disable some default rtp plugins we don't use; tiny startup win.
       -- We deliberately KEEP `matchparen` (highlights the bracket under the
       -- cursor — the thing you actually look at most of the time) and

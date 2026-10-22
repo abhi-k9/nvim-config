@@ -236,6 +236,7 @@ nvim/
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager
+│   ├── config_runtime_spec.lua  checkout discovery after a cold plugin install
 │   ├── lsp_initialization_spec.lua  first-client settings and capabilities
 │   ├── fixtures/
 │   │   └── lsp_initialization.lua  real Lazy startup with controlled Mason boundary
