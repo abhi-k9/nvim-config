@@ -38,7 +38,9 @@ local ESC_CLOSE_WIN_VARS = { "lsp_floating_bufnr", "gitsigns_preview" }
 map("n", "<Esc>", function()
   vim.cmd("nohlsearch")
   for _, win in ipairs(vim.api.nvim_list_wins()) do
-    if vim.api.nvim_win_get_config(win).relative ~= "" then
+    -- Closing a popup can fire WinClosed hooks that close its companions,
+    -- invalidating later entries in this snapshot.
+    if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_config(win).relative ~= "" then
       for _, var in ipairs(ESC_CLOSE_WIN_VARS) do
         if vim.w[win][var] ~= nil then
           pcall(vim.api.nvim_win_close, win, false)
