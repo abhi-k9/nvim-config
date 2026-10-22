@@ -641,8 +641,8 @@ describe("scoper.pickers plain-vim find", function()
     local file, found = pickers._find_in_scope(pickers._context(), "dup.h")
     assert.are.equal(2, found)
     assert.are.equal(
-      Path.normalize(p.root .. "/src/inc/dup.h"),
-      Path.normalize(file),
+      Path.key(Path.expand_short(Path.normalize(p.root .. "/src/inc/dup.h"), {})),
+      Path.key(Path.expand_short(Path.normalize(file), {})),
       scope_details()
     )
     assert.is_nil((pickers._find_in_scope(pickers._context(), "only.h")))
