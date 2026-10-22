@@ -73,12 +73,17 @@ end
 local function detach_set_from_windows(excluded)
   local cache = {}
   for _, win in ipairs(vim.api.nvim_list_wins()) do
-    if excluded[vim.api.nvim_win_get_buf(win)] then
+    -- A replacement's BufWinEnter hooks may close other windows in this
+    -- snapshot. Revalidate before inspecting each one and after a switch.
+    if vim.api.nvim_win_is_valid(win) and excluded[vim.api.nvim_win_get_buf(win)] then
       local alt = pick_replacement(win, excluded, cache)
       -- Switching to an UNLOADED replacement reads its file, which can
       -- raise (a swap-file prompt answered with Abort → E325, a read
       -- error); fall back to [No Name] then.
-      if not (alt and pcall(vim.api.nvim_win_set_buf, win, alt)) then
+      if
+        not (alt and pcall(vim.api.nvim_win_set_buf, win, alt))
+        and vim.api.nvim_win_is_valid(win)
+      then
         if vim.wo[win].winfixbuf then
           -- 'winfixbuf' refuses every buffer switch (E1513), [No Name]
           -- included, so the window closes with its buffer.
@@ -143,6 +148,7 @@ function M.delete_buffer_keep_windows(bufnr, force)
   force = force or vim.bo[bufnr].buftype == "terminal"
   if not force and vim.bo[bufnr].modified then return "skipped" end
   detach_buffer_from_windows(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then return "deleted" end
   local ok = delete_buf_quietly(bufnr, { force = force })
   return ok and "deleted" or "failed"
 end
@@ -182,7 +188,7 @@ end
 -- Returns { deleted = n, skipped = {names}, failed = {names} }.
 function M.delete_buffers_keep_windows(bufs)
   local res = { deleted = 0, skipped = {}, failed = {} }
-  local doomed = {}
+  local doomed, names = {}, {}
   local function shortname(b)
     local n = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(b), ":t")
     return n ~= "" and n or ("[buf %d]"):format(b)
@@ -193,21 +199,24 @@ function M.delete_buffers_keep_windows(bufs)
         table.insert(res.skipped, shortname(b))
       else
         doomed[b] = true
+        names[b] = shortname(b)
       end
     end
   end
   detach_set_from_windows(doomed)
   for b in pairs(doomed) do
-    -- Names must be captured before deletion; a wiped buffer has none.
-    local name = shortname(b)
-    -- Terminals take force, exactly as in delete_buffer_keep_windows: a
-    -- running job's buffer is never 'modified', but a non-forced delete
-    -- still refuses with E89 (after its windows were already repointed).
-    local force = vim.bo[b].buftype == "terminal"
-    if delete_buf_quietly(b, { force = force }) then
+    -- Hooks fired while detaching may already have wiped another target.
+    if not vim.api.nvim_buf_is_valid(b) then
       res.deleted = res.deleted + 1
     else
-      table.insert(res.failed, name)
+      -- Terminals take force, exactly as in delete_buffer_keep_windows:
+      -- a running job's buffer is never 'modified', but needs force.
+      local force = vim.bo[b].buftype == "terminal"
+      if delete_buf_quietly(b, { force = force }) then
+        res.deleted = res.deleted + 1
+      else
+        table.insert(res.failed, names[b])
+      end
     end
   end
   return res
