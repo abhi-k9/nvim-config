@@ -277,6 +277,7 @@ nvim/
 ├── docs/                     Human-facing docs (not loaded by nvim)
 │   ├── audit-2026-10-21.md     findings, regressions, sources, and limits
 │   ├── audit-followup-2026-10-22.md  expanded audit and complete file coverage
+│   ├── ci-troubleshooting.md  cold-start hangs, platform paths, execution limits
 │   ├── CHANGES-archive.md    older changelog entries
 │   ├── cheatsheets/          Open these in any browser
 │   │   ├── keymaps.html              All bindings, grouped by prefix
@@ -635,7 +636,9 @@ against the cwd); any checkout location works.
 Both suites enter through a Lua `-l` script so initialization and harness errors
 exit nonzero instead of leaving a headless editor waiting indefinitely.
 Spec files run sequentially to avoid simultaneous full-config startups contending
-for plugin caches and short asynchronous UI deadlines.
+for plugin caches and short asynchronous UI deadlines. The test initializer
+disables automatic parser/tool provisioning in child processes; installer specs
+exercise controlled tasks instead of competing for shared build directories.
 
 What the suite covers:
 

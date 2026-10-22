@@ -132,12 +132,11 @@ jobs:
         with:
           persist-credentials: false
 
-      # tree-sitter CLI + a C compiler so the treesitter parser build during
-      # the real-config boot (make test) doesn't fail. nvim-treesitter `main`
-      # wants tree-sitter-cli >= 0.26.1 and NOT the npm package, so install
-      # the official release binary (the action's default is the latest
-      # release). build-essential ships cc/make; tar and curl are on the
-      # runner image already.
+      # Keep the real-config toolchain available for plugin setup and health
+      # checks. Specs disable automatic parser provisioning and exercise the
+      # installer through controlled tasks. nvim-treesitter `main` expects
+      # the official CLI >= 0.26.1 rather than the npm package. Search
+      # integration tests need ripgrep explicitly; it is not on every image.
       - name: Set up tree-sitter CLI
         uses: tree-sitter/setup-action/cli@v2
 
