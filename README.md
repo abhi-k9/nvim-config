@@ -21,9 +21,12 @@ and install every plugin. Give it ~30–60 seconds, then quit and relaunch.
 
 ## Prerequisites
 
-This config doesn't replace external tools — it orchestrates them.
-Install these **before** the first `nvim` launch; otherwise plugins
-will fail in confusing ways during their initial build/install step.
+The editor works with a partial development environment. Optional installs and
+native builds are skipped when their prerequisites are missing; details stay in
+`:checkhealth config`. Existing parsers, editing, snippets, and Lua completion
+remain usable. Install missing prerequisites and restart to enable automatic
+installation again. You do **not** need a separate Lua, LuaRocks, or Rust
+installation to run the config or edit Lua.
 
 ### Required
 
@@ -31,10 +34,17 @@ will fail in confusing ways during their initial build/install step.
 |-----------------------|----------------------------------------------------------------------|
 | **Neovim ≥ 0.12.0**   | nvim-treesitter's `main` branch requires it, and the config uses 0.12 features (`:restart`, `:lsp`, `'winborder'`). Checked at startup by the guard at the top of `init.lua`. |
 | **git**               | Plugin install + auto-update.                                        |
+
+### For automatic parser builds
+
+Existing and Neovim-bundled parsers work without these. Missing parsers use Vim's
+basic syntax highlighting until their build prerequisites are installed.
+
+| Tool | Why |
+| --- | --- |
 | **tree-sitter CLI ≥ 0.26.1** | nvim-treesitter (`main`) builds every parser with it. See [Installing the tree-sitter CLI](#installing-the-tree-sitter-cli) below. Without it only Neovim's bundled parsers highlight. |
 | **`tar` and `curl`**  | nvim-treesitter downloads parser sources with them. Both ship with Windows 10+ and every Linux/macOS. |
 | **A C compiler**      | Each parser is compiled to a `.so`/`.dll`. On Windows the MSVC Build Tools are found automatically (they don't need to be on `PATH`); to use LLVM instead, install it and set `CC=clang`. Compiler errors during `:TSInstall` / `:TSUpdate` always trace back here. |
-| **A Nerd Font**       | Icons in bufferline / lualine / telescope / neo-tree. Grab one from <https://www.nerdfonts.com>; set it as your terminal font (not just shell). |
 
 ### Installing the tree-sitter CLI
 
@@ -72,12 +82,13 @@ Use the first option that works on your machine:
 | Tool        | Used by                                                                 |
 |-------------|-------------------------------------------------------------------------|
 | `ripgrep`   | `<leader>fg` (live grep), grug-far, scoper                              |
+| A Nerd Font | Icons in bufferline / lualine / telescope / neo-tree. Get one from <https://www.nerdfonts.com> and set it as your terminal font. |
 | `fd`        | First choice of the file finders (`<leader>ff`, `<leader>Ff`); without it they list files with `rg --files` |
-| `node`      | Many LSP servers (`ts_ls`, `pyright`, `bashls`, `jsonls`, `yamlls`, `html`/`cssls`) and `prettierd` are JS-based |
-| `python` / `python3` | Mason installs `clang-format` and `debugpy` from PyPI, and `pyright`/`debugpy` work against your real Python |
+| `node` + `npm` | Many LSP servers (`ts_ls`, `pyright`, `bashls`, `jsonls`, `yamlls`, `html`/`cssls`) and `prettierd` are JS-based. Automatic installs need both; existing servers only need Node. |
+| `python` / `python3` with `venv`/`ensurepip` | Mason installs `clang-format` and `debugpy` from PyPI. On Debian/Ubuntu, also install `python3-venv`. Store aliases on Windows are skipped. |
 | `cargo` / `rustup`   | Rust toolchain itself — `rust_analyzer` ships via Mason, but `rustfmt` and `cargo` come from rustup. (blink.cmp needs no cargo: it downloads a prebuilt fuzzy matcher, else falls back to its Lua matcher with a warning.) |
 | `lazygit`   | `<leader>tg` floating lazygit terminal                                  |
-| `make` or `cmake` | Builds `telescope-fzf-native` (native C sorter). The spec auto-detects which is on PATH: it prefers `make`, whose Makefile calls **`gcc`** (on Windows that means MinGW — `scoop install mingw`), else falls back to `cmake` (needs CMake + a C toolchain — e.g. the MSVC Build Tools). If the build fails, telescope still works with its Lua sorter. `make` also runs the test suite (`make test`). |
+| `make` or `cmake` | Builds `telescope-fzf-native` with a C toolchain. The Makefile uses `cc` on Unix, **`gcc`** on Windows (MinGW); CMake also supports MSVC. With no suitable build chain the build is skipped and Telescope uses its Lua sorter. `make` also runs the test suite. |
 | `gdb` or `lldb` | DAP debugging of native code (C / C++ / Rust). gdb on Linux/Windows, lldb on macOS. codelldb is auto-installed by Mason as a third option. |
 
 #### Per-language quick guide
@@ -205,6 +216,7 @@ nvim/
 │   │   ├── diagnostics.lua   :DiagnosticDump (hang triage)
 │   │   ├── lsp_format.lua    asynchronous LSP formatting with buffer lifecycle guards
 │   │   ├── health.lua        :checkhealth config (external toolchain check)
+│   │   ├── tooling.lua       optional tool prerequisites and quiet fallbacks
 │   │   ├── util.lua          Shared helpers (buffer delete, file-buffer test, augroup)
 │   │   ├── icons.lua         Shared diagnostic glyphs
 │   │   └── lazy.lua          Bootstrap lazy.nvim
@@ -250,6 +262,7 @@ nvim/
 │   ├── lsp_format_race_spec.lua  delayed formatting and buffer lifecycle races
 │   ├── search_file_navigation_spec.lua  Grug result header navigation
 │   ├── health_paths_spec.lua  state path types and native option decoding
+│   ├── tooling_spec.lua       missing runtimes, native builds, and supported installs
 │   ├── diagnostic_tail_spec.lua  bounded regular-file log reads and I/O failures
 │   ├── explorer_directory_spec.lua  directory startup and reload behavior
 │   ├── treesitter_context_bigfile_spec.lua  large-file context parser exclusion
@@ -278,6 +291,7 @@ nvim/
 │   ├── audit-2026-10-21.md     findings, regressions, sources, and limits
 │   ├── audit-followup-2026-10-22.md  expanded audit and complete file coverage
 │   ├── ci-troubleshooting.md  cold-start hangs, platform paths, execution limits
+│   ├── limited-environments.md  optional tool policy and minimal-machine verification
 │   ├── CHANGES-archive.md    older changelog entries
 │   ├── cheatsheets/          Open these in any browser
 │   │   ├── keymaps.html              All bindings, grouped by prefix
@@ -482,7 +496,7 @@ In order — each step assumes the previous succeeded.
   Set it in your own config or live: `:let g:big_file_size = 5000000`.
 - **Treesitter parsers on demand**: opening a filetype whose parser isn't
   installed builds it in the background (needs the tree-sitter CLI; once
-  you install the CLI, the next buffer of that filetype starts the build).
+  you install its CLI, compiler, curl, and tar, the next buffer starts the build).
   A failed build is retried after 5 minutes at the earliest.
   `vim.g.treesitter_auto_install = false` turns that off.
 - **Plugin versions**: `lazy-lock.json` pins every plugin to the commit
@@ -536,7 +550,9 @@ Run `:checkhealth` for a top-down view. Start with this config's own check:
   Python 3 as `python3` or `python`, `cargo`; fzf older than 0.45 is flagged because some fzf-lua
   pickers need newer), **Dev & test tooling**, and **Mason-managed servers /
   formatters / debug adapters** (deferred to `:checkhealth mason` rather
-  than duplicated here). It flags what's missing or the wrong version, and
+  than duplicated here), and **Optional tooling skipped on this machine**
+  (automatic installs/builds and server runtimes skipped by prerequisite checks).
+  It flags what's missing or the wrong version, and
   notes when `'exrc'` is on (project `.nvim.lua` files run once `:trust`ed).
   (Implemented in `lua/config/health.lua`.)
 
