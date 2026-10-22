@@ -601,8 +601,22 @@ end
 -- silent when no clangd of this project runs. :ScoperLspReload always
 -- restarts and reports.
 -- ---------------------------------------------------------------------------
+local function stale_auto(opts)
+  return opts.auto and opts._generation ~= (M._auto_generation or 0)
+end
+
+local function queue_reload(opts)
+  -- A forced request must not be downgraded by a later automatic one.
+  local auto = opts.auto and (not M._pending or M._pending.auto)
+  M._pending = { auto = auto, _generation = auto and opts._generation or nil }
+end
+
 function M.reload_clangd(opts)
-  opts = opts or {}
+  opts = vim.tbl_extend("force", {}, opts or {})
+  if opts.auto then
+    opts._generation = opts._generation or (M._auto_generation or 0)
+    if stale_auto(opts) then return end
+  end
   -- Re-entrancy guard + pending flag. The reload below is ASYNCHRONOUS
   -- (a libuv timer polls for the old clients to exit instead of
   -- blocking), so a ScoperChanged debounce can absolutely fire while a
@@ -611,8 +625,7 @@ function M.reload_clangd(opts)
   -- reload is remembered and replayed exactly once when the in-flight one
   -- finishes.
   if M._reloading then
-    -- A forced request must not be downgraded by a later automatic one.
-    M._pending = { auto = opts.auto and (not M._pending or M._pending.auto) }
+    queue_reload(opts)
     return
   end
   M._reloading = true
@@ -667,8 +680,12 @@ M._timing = { poll = 50, grace = 2000, kill = 1500 }
 function M._start_reload(done, opts)
   local root = Path.key(State.root())
   M._filter_async(function(dir, info, changed)
+    if stale_auto(opts) then
+      done()
+      return
+    end
     if Path.key(State.root()) ~= root then
-      M._pending = { auto = opts.auto and (not M._pending or M._pending.auto) }
+      queue_reload(opts)
       done()
       return
     end
@@ -721,6 +738,7 @@ function restart(done, opts, cmd, info, changed)
   -- Returns true once the restart is over (re-attached, or given up).
   local waited = 0
   local function tick()
+    if stale_auto(opts) then return true end
     waited = waited + t.poll
     local remaining = 0
     for _, id in ipairs(ids) do
@@ -784,15 +802,31 @@ function M.apply_initial()
   M._apply(cmd)
   M._applied_cmd = table.concat(cmd, "\0")
   if not stale then return end
+  local generation = M._auto_generation
   vim.schedule(function()
-    M.reload_clangd({ auto = true })
+    if generation == M._auto_generation then M.reload_clangd({ auto = true }) end
   end)
 end
 
 -- ---------------------------------------------------------------------------
 -- Auto-hook: re-run on every ScoperChanged event. Opt-in from setup().
 -- ---------------------------------------------------------------------------
+function M.detach_auto()
+  -- Closing a timer does not cancel a callback already queued on the main
+  -- loop. A generation also invalidates that callback and initial refreshes.
+  M._auto_generation = (M._auto_generation or 0) + 1
+  if M._pending and M._pending.auto then M._pending = false end
+  pcall(vim.api.nvim_del_augroup_by_name, "scoper_lsp_auto")
+  if M._timer and not M._timer:is_closing() then
+    M._timer:stop()
+    M._timer:close()
+  end
+  M._timer = nil
+end
+
 function M.attach_auto()
+  M.detach_auto()
+  local generation = M._auto_generation
   vim.api.nvim_create_autocmd("User", {
     pattern = "ScoperChanged",
     group = vim.api.nvim_create_augroup("scoper_lsp_auto", { clear = true }),
@@ -807,9 +841,13 @@ function M.attach_auto()
         M._timer:stop()
         M._timer:close()
       end
-      M._timer = vim.defer_fn(function()
+      local timer
+      timer = vim.defer_fn(function()
+        if M._timer ~= timer or generation ~= M._auto_generation then return end
+        M._timer = nil
         M.reload_clangd({ auto = true })
       end, 500)
+      M._timer = timer
     end,
   })
 end

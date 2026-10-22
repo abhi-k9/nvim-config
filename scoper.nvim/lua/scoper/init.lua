@@ -65,6 +65,11 @@ function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", M.config, opts or {})
   State().default_excludes = vim.deepcopy(M.config.default_excludes or {})
 
+  -- setup() may be called again to disable or reconfigure integration.
+  -- Stop the old listener and pending refresh before load() fires a change.
+  local previous_lsp = package.loaded["scoper.lsp"]
+  if previous_lsp then previous_lsp.detach_auto() end
+
   -- Load saved state for the current cwd. (load() fires ScoperChanged,
   -- but nothing is listening yet — attach_auto below registers the
   -- listener — so this is a plain load with no restart side effects.)
