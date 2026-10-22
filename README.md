@@ -236,6 +236,7 @@ nvim/
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager
+│   ├── test_runner_spec.lua   prompt failure exits from the Lua test runner
 │   ├── config_runtime_spec.lua  checkout discovery after a cold plugin install
 │   ├── lsp_initialization_spec.lua  first-client settings and capabilities
 │   ├── fixtures/
@@ -627,6 +628,8 @@ These checks are now *enforced*, not just available:
 
 Run `make test` from the repository root (the harness resolves paths
 against the cwd); any checkout location works.
+Both suites enter through a Lua `-l` script so initialization and harness errors
+exit nonzero instead of leaving a headless editor waiting indefinitely.
 
 What the suite covers:
 
@@ -683,8 +686,8 @@ Without make (e.g. Windows), run the underlying commands from the repo
 root. In a POSIX shell, cmd.exe or PowerShell 7+:
 
 ```sh
-nvim --headless --noplugin -u tests/minimal_init.lua -c "PlenaryBustedDirectory tests/ { minimal_init = 'tests/minimal_init.lua' }"
-cd scoper.nvim && nvim --headless --noplugin -u tests/minimal_init.lua -c "PlenaryBustedDirectory tests/ { minimal_init = 'tests/minimal_init.lua' }" && cd ..
+nvim --headless --noplugin -u NONE -l scoper.nvim/tests/run.lua
+cd scoper.nvim && nvim --headless --noplugin -u NONE -l tests/run.lua && cd ..
 luacheck init.lua lua tests
 stylua --check init.lua lua tests
 ```
@@ -692,7 +695,7 @@ stylua --check init.lua lua tests
 Windows PowerShell 5.1 has no `&&`, so the scoper line becomes:
 
 ```powershell
-Push-Location scoper.nvim; nvim --headless --noplugin -u tests/minimal_init.lua -c "PlenaryBustedDirectory tests/ { minimal_init = 'tests/minimal_init.lua' }"; Pop-Location
+Push-Location scoper.nvim; nvim --headless --noplugin -u NONE -l tests/run.lua; Pop-Location
 ```
 
 (`sh scripts/check-docs.sh` needs a POSIX shell such as Git Bash.)

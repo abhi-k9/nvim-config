@@ -571,8 +571,7 @@ make clean     # delete the cloned test dependencies
 Or, without make, the raw command for running tests:
 
 ```bash
-nvim --headless --noplugin -u tests/minimal_init.lua \
-  -c "PlenaryBustedDirectory tests/ { minimal_init = 'tests/minimal_init.lua' }"
+nvim --headless --noplugin -u NONE -l tests/run.lua
 ```
 
 Static-analysis tools:

@@ -49,8 +49,7 @@ hooks:
 	@echo "pre-commit hook enabled (core.hooksPath = .githooks)"
 
 test:
-	$(NVIM) --headless --noplugin -u tests/minimal_init.lua \
-		-c "PlenaryBustedDirectory tests/ { minimal_init = 'tests/minimal_init.lua' }"
+	$(NVIM) --headless --noplugin -u NONE -l scoper.nvim/tests/run.lua
 
 test-scoper:
 	$(MAKE) -C scoper.nvim test

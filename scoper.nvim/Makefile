@@ -21,8 +21,7 @@ STYLUA    ?= stylua
 all: lint test
 
 test:
-	$(NVIM) --headless --noplugin -u tests/minimal_init.lua \
-		-c "PlenaryBustedDirectory tests/ { minimal_init = 'tests/minimal_init.lua' }"
+	$(NVIM) --headless --noplugin -u NONE -l tests/run.lua
 
 lint:
 	$(LUACHECK) lua/ plugin/ tests/
