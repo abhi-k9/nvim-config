@@ -84,20 +84,24 @@ return {
       group = vim.api.nvim_create_augroup("user_neotree_dir", { clear = true }),
       desc = "Open neo-tree when nvim is launched on a directory",
       once = true, -- ← only fires once: at startup, or after a reload
-      callback = function()
+      callback = function(ev)
         -- The `isdirectory(f) == 1` guard makes this reload-safe. On
         -- `:Lazy reload neo-tree.nvim` the augroup is cleared and this
         -- autocmd re-registers, then fires on the NEXT BufEnter — which
         -- is almost always a regular file, not a directory. The guard
         -- turns that into a no-op instead of accidentally popping
-        -- neo-tree open mid-session.
-        local f = vim.fn.argv(0)
+        -- neo-tree open mid-session. Inspect the entered buffer: argv(0)
+        -- can still name a startup directory long after it was opened.
+        local f = vim.api.nvim_buf_get_name(ev.buf)
         if f ~= "" and vim.fn.isdirectory(f) == 1 then
+          -- Buffer names are absolute. Capture this directory before
+          -- deferring: cwd may change while the scheduled open is pending.
           vim.schedule(function() -- ← defer until the event loop is idle
             require("neo-tree.command").execute({
               action = "show",
               source = "filesystem",
               position = "left",
+              dir = f,
             })
           end)
         end
