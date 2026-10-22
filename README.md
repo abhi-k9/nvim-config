@@ -236,6 +236,7 @@ nvim/
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager
+│   ├── dap_python_adapter_spec.lua  Python launch and socket attach transports
 │   ├── lsp_format_race_spec.lua  delayed formatting and buffer lifecycle races
 │   ├── search_file_navigation_spec.lua  Grug result header navigation
 │   ├── health_paths_spec.lua  state path types and native option decoding

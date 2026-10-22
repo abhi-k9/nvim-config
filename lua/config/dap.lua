@@ -165,12 +165,26 @@ function M.setup()
     },
   }
 
-  -- debugpy — Python. Mason's debugpy package ships a
-  -- `debugpy-adapter` shim in bin/, which speaks DAP over stdio.
-  dap.adapters.python = {
-    type = "executable",
-    command = mason_exe("debugpy-adapter"),
-  }
+  -- debugpy.listen() already starts an adapter in the target process's
+  -- environment. Socket attach must connect to that adapter directly;
+  -- spawning an unrelated stdio adapter leaves it waiting for a debug
+  -- server that will never connect. Launch, PID attach and reverse-listen
+  -- attach still need their own stdio adapter.
+  dap.adapters.python = function(callback, config)
+    local connect = config.request == "attach" and (config.connect or config)
+    if connect and connect.port then
+      callback({
+        type = "server",
+        host = connect.host or "127.0.0.1",
+        port = connect.port,
+      })
+    else
+      callback({
+        type = "executable",
+        command = mason_exe("debugpy-adapter"),
+      })
+    end
+  end
 
   -- bashdb — Bash. Mason package "bash-debug-adapter"; the sh
   -- configuration below must point at the bashdb copy VENDORED
