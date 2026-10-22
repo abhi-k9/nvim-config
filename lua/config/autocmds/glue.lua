@@ -21,6 +21,7 @@ vim.api.nvim_create_autocmd("SessionLoadPost", {
         if
           vim.api.nvim_buf_is_valid(buf)
           and vim.api.nvim_buf_is_loaded(buf)
+          and require("config.util").is_file_buffer(buf)
           and vim.bo[buf].filetype == ""
         then
           vim.api.nvim_buf_call(buf, function()

@@ -236,6 +236,7 @@ nvim/
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager
+│   ├── session_filetype_rescue_spec.lua  session filetype rescue on ordinary files
 │   ├── bigfile_reread_spec.lua  large-to-small reread callback invalidation
 │   ├── view_janitor_spec.lua  preserve unrelated files during view cleanup
 │   ├── fold_view_freshness_spec.lua  subsecond saved-view freshness
