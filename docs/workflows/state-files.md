@@ -1,8 +1,8 @@
 # State files: undo history, ShaDa, sessions, logs
 
 Besides swap files ([swap-files.md](swap-files.md)), Neovim and this
-config keep a few things between runs. They grow without limit and are
-never cleaned automatically. This page says what each one holds, where it
+config keep a few things between runs. Most remain until you remove them;
+the LSP log has startup rotation as described below. This page says what each one holds, where it
 lives on each OS, and how to trim it without losing what you want to keep.
 For "something is stale, reset it", see README → Clearing caches instead.
 
@@ -93,10 +93,12 @@ persistent-breakpoints.nvim keeps one JSON file per project in
 
 ## Logs
 
-- `lsp.log` is appended to by every language server and can reach
-  hundreds of MB. Its path: `:lua =vim.lsp.log.get_filename()`. Delete or
-  empty it while no Neovim runs (on Windows a running Neovim holds it
-  open).
+- `lsp.log` is appended to by every language server. At startup this config
+  attempts to rotate logs larger than 20 MiB to `lsp.log.old`, replacing the
+  previous generation. It can still grow during a long running session;
+  rotation may also fail if another process holds the file open. Its path:
+  `:lua =vim.lsp.log.get_filename()`. Delete or empty it, and remove
+  `lsp.log.old` if unwanted, while no Neovim runs.
 - `mason.log` and others: same treatment.
 - `diagnostic_*.txt` files are `:DiagnosticDump` snapshots in
   `stdpath('log')`. Keep the ones you attached to a report; the rest can
@@ -104,12 +106,12 @@ persistent-breakpoints.nvim keeps one JSON file per project in
 
 ```powershell
 # Windows: quit every Neovim first
-Remove-Item "$env:LOCALAPPDATA\nvim-data\*.log", "$env:LOCALAPPDATA\nvim-data\diagnostic_*.txt"
+Remove-Item "$env:LOCALAPPDATA\nvim-data\*.log", "$env:LOCALAPPDATA\nvim-data\lsp.log.old", "$env:LOCALAPPDATA\nvim-data\diagnostic_*.txt" -ErrorAction SilentlyContinue
 ```
 
 ```sh
 # Linux / macOS: quit every Neovim first
-rm -f "${XDG_STATE_HOME:-$HOME/.local/state}"/nvim/*.log "${XDG_STATE_HOME:-$HOME/.local/state}"/nvim/diagnostic_*.txt
+rm -f "${XDG_STATE_HOME:-$HOME/.local/state}"/nvim/*.log "${XDG_STATE_HOME:-$HOME/.local/state}"/nvim/lsp.log.old "${XDG_STATE_HOME:-$HOME/.local/state}"/nvim/diagnostic_*.txt
 ```
 
 ## A periodic tidy-up
