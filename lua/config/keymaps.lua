@@ -256,17 +256,16 @@ map("n", "<leader>wo", "<cmd>only<cr>",   { desc = "Close other windows" })
 --     we don't error; the saved winfix options are skipped via win_is_valid.
 --   * State variable is cleared FIRST on un-zoom so a partial failure
 --     doesn't strand us in "zoomed" forever.
---   * The window SET changed while zoomed (a split opened or closed):
+--   * The ordered layout changed while zoomed (splits opened, closed or
+--     exchanged):
 --     winrestcmd() replays sizes by window NUMBER, so it would hand the old
 --     sizes to the wrong windows. In that case equalize (`wincmd =`)
 --     instead of replaying a stale snapshot.
 local function zoom_layout_key()
-  local ids = {}
-  for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    if vim.api.nvim_win_get_config(w).relative == "" then ids[#ids + 1] = w end
-  end
-  table.sort(ids)
-  return table.concat(ids, ",")
+  -- winrestcmd addresses window numbers, so order and split orientation
+  -- matter even when the set of window IDs has not changed. winlayout()
+  -- includes both while excluding floating windows and transient sizes.
+  return vim.json.encode(vim.fn.winlayout())
 end
 
 local function toggle_window_zoom()
