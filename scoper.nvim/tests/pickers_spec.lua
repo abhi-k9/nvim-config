@@ -233,6 +233,24 @@ local function teardown_project(p)
   vim.fn.delete(p.data, "rf")
 end
 
+-- Retain enough native path identity to diagnose platform-only scope failures.
+local function scope_details()
+  local files, matcher = {}, State.matcher()
+  local buffers = vim.api.nvim_list_bufs()
+  for i = math.max(1, #buffers - 7), #buffers do
+    local name = vim.api.nvim_buf_get_name(buffers[i])
+    if name ~= "" then
+      files[#files + 1] = { name = name, real = vim.uv.fs_realpath(name), included = matcher(name) }
+    end
+  end
+  return vim.json.encode({
+    root = State.root(),
+    real_root = vim.uv.fs_realpath(State.root()),
+    scope = State.active_scope(),
+    files = files,
+  })
+end
+
 describe("scoper.pickers scope context", function()
   local p
 
@@ -577,7 +595,7 @@ describe("scoper.pickers plain-vim grep", function()
   it("drops matches in excluded files from the quickfix list", function()
     State.set_enabled(true)
     pickers.grep("needle")
-    assert.are.same({ "a.c" }, hits())
+    assert.are.same({ "a.c" }, hits(), scope_details())
   end)
 
   it("takes slashes, escaped slashes, bars and quotes as part of the pattern", function()
@@ -586,7 +604,7 @@ describe("scoper.pickers plain-vim grep", function()
     for _, pat in ipairs({ "abc/def", [[abc\/def]], "x|y", '"q"' }) do
       vim.fn.setqflist({}, "r")
       pickers.grep(pat)
-      assert.are.same({ "s.c" }, hits(), pat)
+      assert.are.same({ "s.c" }, hits(), pat .. " " .. scope_details())
     end
   end)
 
@@ -622,7 +640,11 @@ describe("scoper.pickers plain-vim find", function()
     State.set_enabled(true)
     local file, found = pickers._find_in_scope(pickers._context(), "dup.h")
     assert.are.equal(2, found)
-    assert.are.equal(Path.normalize(p.root .. "/src/inc/dup.h"), Path.normalize(file))
+    assert.are.equal(
+      Path.normalize(p.root .. "/src/inc/dup.h"),
+      Path.normalize(file),
+      scope_details()
+    )
     assert.is_nil((pickers._find_in_scope(pickers._context(), "only.h")))
   end)
 

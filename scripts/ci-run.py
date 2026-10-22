@@ -24,7 +24,12 @@ def main(command):
                 print(line, end="", flush=True)
                 clean = ansi.sub("", line).rstrip("\r\n")
                 tail.append(clean)
-                if re.search(r"\b(?:fail|failed|error|traceback)\b|check-docs:", clean, re.I):
+                routine = clean.lstrip().startswith("Success") or re.match(
+                    r"^\s*(?:Failed|Errors)\s*:\s*0(?:\s|$)", clean
+                )
+                if not routine and re.search(
+                    r"\b(?:fail|failed|error|traceback)\b|check-docs:", clean, re.I
+                ):
                     remaining = 8
                 if remaining:
                     details.append(clean)
@@ -37,10 +42,17 @@ def main(command):
     if status and os.environ.get("GITHUB_ACTIONS") == "true":
         message = "Command failed: " + subprocess.list2cmdline(command)
         message += "\n" + "\n".join([*details, "--- final output ---", *tail])
-        message = message[-18000:]
-        message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+        payload = message.encode("utf-8")[:18000].decode("utf-8", errors="ignore").encode("utf-8")
         print()  # Commands need not finish their last output line with a newline.
-        print("::error title=CI command failed::" + message, flush=True)
+        # Actions truncates annotation messages at 4096 bytes. Keep each part
+        # below that limit, without splitting a UTF-8 character.
+        part = 1
+        while payload:
+            message = payload[:3000].decode("utf-8", errors="ignore")
+            payload = payload[len(message.encode("utf-8")):]
+            message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+            print(f"::error title=CI command failed ({part})::" + message, flush=True)
+            part += 1
     return status if status >= 0 else 128 - status
 
 
