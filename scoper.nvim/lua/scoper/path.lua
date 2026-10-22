@@ -81,7 +81,7 @@ end
 -- Native buffers can expand Windows 8.3 names while getcwd() retains them.
 -- Expand only the literal prefix through the last short-name component;
 -- this also handles globs and not-yet-created descendants. Unlike realpath,
--- fnamemodify(:p) keeps symbolic links logical. The caller owns the cache.
+-- GetLongPathName keeps symbolic links logical. The caller owns the cache.
 function M.expand_short(path, cache)
   if not M.is_windows or not path:find("~", 1, true) or vim.fn.has("win32") == 0 then
     return path
@@ -98,7 +98,7 @@ function M.expand_short(path, cache)
   local prefix = path:sub(1, last)
   local expanded = cache and cache[prefix]
   if not expanded then
-    expanded = M.normalize(vim.fn.fnamemodify(prefix, ":p"))
+    expanded = M.normalize(require("scoper.windows").expand(prefix) or prefix)
     if cache then cache[prefix] = expanded end
   end
   return expanded .. path:sub(last + 1)
