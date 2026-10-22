@@ -21,6 +21,18 @@ local function LSP()   return require("scoper.lsp") end
 local function Pick()  return require("scoper.pickers") end
 -- stylua: ignore end
 
+local function same_context(context, scope_sensitive)
+  local current = State().context()
+  if current.root == context.root and (not scope_sensitive or current.scope == context.scope) then
+    return true
+  end
+  vim.notify(
+    "Scoper: project or scope changed while selecting; operation cancelled",
+    vim.log.levels.WARN
+  )
+  return false
+end
+
 -- ---------------------------------------------------------------------------
 -- Configuration
 -- ---------------------------------------------------------------------------
@@ -90,8 +102,9 @@ end
 
 function M.add(paths)
   if not paths or (type(paths) == "table" and #paths == 0) then
+    local context = State().context()
     UI().pick_dirs(function(picked)
-      if #picked > 0 then M.add(picked) end
+      if #picked > 0 and same_context(context, true) then M.add(picked) end
     end)
     return
   end
@@ -107,13 +120,14 @@ end
 
 function M.remove(paths)
   if not paths or (type(paths) == "table" and #paths == 0) then
+    local context = State().context()
     local scope = State().active_scope()
     if not scope or #scope.include == 0 then
       vim.notify("Scoper: active scope is empty", vim.log.levels.WARN)
       return
     end
     UI().pick_many(scope.include, { prompt = "Remove from scope" }, function(picked)
-      if #picked > 0 then M.remove(picked) end
+      if #picked > 0 and same_context(context, true) then M.remove(picked) end
     end)
     return
   end
@@ -123,8 +137,9 @@ end
 
 function M.exclude(patterns)
   if not patterns or (type(patterns) == "table" and #patterns == 0) then
+    local context = State().context()
     UI().input("Exclude glob (e.g. **/node_modules/**): ", "", function(p)
-      M.exclude({ p })
+      if same_context(context, true) then M.exclude({ p }) end
     end)
     return
   end
@@ -142,13 +157,14 @@ end
 -- active scope's excludes.
 function M.remove_exclude(patterns)
   if not patterns or (type(patterns) == "table" and #patterns == 0) then
+    local context = State().context()
     local scope = State().active_scope()
     if not scope or #scope.exclude == 0 then
       vim.notify("Scoper: active scope has no excludes", vim.log.levels.WARN)
       return
     end
     UI().pick_many(scope.exclude, { prompt = "Remove exclude(s)" }, function(picked)
-      if #picked > 0 then M.remove_exclude(picked) end
+      if #picked > 0 and same_context(context, true) then M.remove_exclude(picked) end
     end)
     return
   end
@@ -195,8 +211,9 @@ end
 
 function M.new(name)
   if not name or name == "" then
+    local context = State().context()
     UI().input("New scope name: ", "", function(n)
-      M.new(n)
+      if same_context(context, false) then M.new(n) end
     end)
     return
   end
@@ -210,8 +227,9 @@ end
 
 function M.use(name)
   if not name or name == "" then
+    local context = State().context()
     UI().pick_one(State().scope_names(), { prompt = "Switch to scope:" }, function(choice)
-      M.use(choice)
+      if same_context(context, false) then M.use(choice) end
     end)
     return
   end
@@ -229,8 +247,9 @@ function M.delete(names)
   -- the no-arg case to nil, so an empty-string slipping through here
   -- would be a programming error; we don't special-case it).
   if not names or (type(names) == "table" and #names == 0) then
+    local context = State().context()
     UI().pick_many(State().scope_names(), { prompt = "Delete scope(s)" }, function(picked)
-      if #picked > 0 then M.delete(picked) end
+      if #picked > 0 and same_context(context, false) then M.delete(picked) end
     end)
     return
   end

@@ -304,7 +304,21 @@ end
 -- No event: the mutation that follows fires ScoperChanged itself.
 local function sync()
   local now = stat_mtime(store_path())
-  if now ~= nil and now ~= file_mtime then M.state = read_state() end
+  if now ~= nil and now ~= file_mtime then
+    local refreshed = read_state()
+    if refreshed then
+      M.state = refreshed
+      return true
+    end
+  end
+end
+
+-- A picker can outlive a project/scope switch. Refresh before capturing or
+-- checking its target, including changes saved by another editor meanwhile.
+function M.context()
+  -- A canceled picker has no subsequent mutator to announce a refresh.
+  if sync() then fire_change() end
+  return { root = Path.key(M.root()), scope = M.active_name() }
 end
 
 -- Add directory/path entries to the active scope's include list. Duplicates
