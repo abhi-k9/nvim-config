@@ -52,8 +52,8 @@ do
   end
 end
 
--- Set by pre_save when a mid-session save closed dap-ui; post_save reopens it.
-local reopen_dapui_after_save = false
+-- Only layouts that a mid-session save actually closed are reopened.
+local reopen_dapui_after_save
 
 -- Filetypes the post-restore rescue pass never re-lists (see post_restore).
 local RESCUE_SKIP_FT = { gitcommit = true, gitrebase = true, gittag = true }
@@ -132,9 +132,39 @@ return {
         if package.loaded["neo-tree"] then pcall(vim.cmd, "Neotree close") end
       end,
       function()
-        local ok_ui, dapui = pcall(require, "dapui")
-        local ok_dap, dap = pcall(require, "dap")
-        local debugging = ok_dap and dap.session() ~= nil
+        -- An unused debugger must stay unloaded during save/quit.
+        local dapui, dap = package.loaded.dapui, package.loaded.dap
+        local ok_ui = type(dapui) == "table" and type(dapui.close) == "function"
+        local debugging = type(dap) == "table"
+          and type(dap.session) == "function"
+          and dap.session() ~= nil
+        local quitting = vim.v.exiting ~= vim.NIL
+        reopen_dapui_after_save = nil
+        if ok_ui and not quitting then
+          -- There is no public visibility getter. Guard the pinned layout
+          -- state and use public open({layout=...}) to restore the exact
+          -- subset, including post-mortem panels with no active session.
+          local windows = package.loaded["dapui.windows"]
+          local layouts = type(windows) == "table" and windows.layouts
+          local opened = {}
+          for i, layout in ipairs(type(layouts) == "table" and layouts or {}) do
+            local ok, visible = pcall(function()
+              return layout:is_open()
+            end)
+            if ok and visible then
+              local tab = vim.api.nvim_get_current_tabpage()
+              local wins = type(layout.opened_wins) == "table" and layout.opened_wins or {}
+              for _, win in ipairs(wins) do
+                if vim.api.nvim_win_is_valid(win) then
+                  tab = vim.api.nvim_win_get_tabpage(win)
+                  break
+                end
+              end
+              opened[#opened + 1] = { layout = i, tab = tab }
+            end
+          end
+          reopen_dapui_after_save = { layouts = opened, debugging = debugging }
+        end
         local function is_dap_buf(buf)
           -- A regular file can legitimately contain "[dap-" in its path.
           -- Only runtime buffers may be closed/wiped as debugger state.
@@ -144,7 +174,7 @@ return {
         end
         -- Close DAP UI panels (watches, stacks, breakpoints, scopes, console).
         if ok_ui then pcall(dapui.close) end
-        if vim.v.exiting ~= vim.NIL then
+        if quitting then
           -- Quitting: terminate the debuggee (tears down [dap-terminal];
           -- asynchronous, hence the wipe below), then force-wipe every
           -- [dap-*] buffer so the session script can't try to recreate one.
@@ -164,7 +194,6 @@ return {
               pcall(vim.api.nvim_win_close, win, true)
             end
           end
-          reopen_dapui_after_save = debugging and ok_ui
         end
       end,
       -- Serialize scope.nvim's per-tab buffer map into a global so it lands
@@ -203,11 +232,34 @@ return {
     -- and correctly left hidden — this only rescues the ones scope actually lost.
     post_save_cmds = {
       function()
-        if not reopen_dapui_after_save then return end
-        reopen_dapui_after_save = false
-        pcall(function()
-          require("dapui").open()
-        end)
+        local saved = reopen_dapui_after_save
+        reopen_dapui_after_save = nil
+        if not saved then return end
+        local dapui, dap = package.loaded.dapui, package.loaded.dap
+        if type(dapui) ~= "table" or type(dapui.open) ~= "function" then return end
+        -- A debuggee may have exited during save; do not reopen panels that
+        -- its termination handler just closed.
+        if
+          saved.debugging
+          and (type(dap) ~= "table" or type(dap.session) ~= "function" or not dap.session())
+        then
+          return
+        end
+        local previous_win = vim.api.nvim_get_current_win()
+        -- Opening a higher-index layout makes dapui rebuild lower ones in
+        -- the current tab. Restore in reverse order to preserve their tabs.
+        for i = #saved.layouts, 1, -1 do
+          local entry = saved.layouts[i]
+          if vim.api.nvim_tabpage_is_valid(entry.tab) then
+            pcall(function()
+              vim.api.nvim_set_current_tabpage(entry.tab)
+              dapui.open({ layout = entry.layout })
+            end)
+          end
+        end
+        if vim.api.nvim_win_is_valid(previous_win) then
+          vim.api.nvim_set_current_win(previous_win)
+        end
       end,
     },
     post_restore_cmds = {
