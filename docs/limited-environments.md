@@ -49,6 +49,28 @@ working; the health report identifies those tools. This policy avoids predictabl
 automatic failures rather than promising that every external feature works
 without its dependencies.
 
+## Periodic reminder
+
+The config prompts you to review `:checkhealth config` on first interactive use,
+then every **30 days** by default. It checks the interval on startup and when
+focus returns, including in an editor kept open for more than a month. The
+prompt appears even when no startup prerequisite check recorded a missing tool,
+so it does not imply that a full health review has passed.
+
+Customize the interval in `lua/config/options.lua`:
+
+```lua
+vim.g.tooling_reminder_days = 7 -- weekly; default is 30
+-- vim.g.tooling_reminder_days = 0 -- disable reminders
+```
+
+The last reminder time is saved as `tooling-reminder` under `stdpath('state')`,
+so restarting the editor does not reset the interval. Headless tests and scripts
+do not notify or consume that timestamp. Concurrent starts use a short filesystem
+lease; an interrupted lease is cleared after a minute and retried on the next
+focus/start. If state cannot be saved, the prompt explains that and still avoids
+repeating within the current session.
+
 ## Verification
 
 A disposable Linux environment used Neovim 0.12.6 with only `git` and `sh` on
@@ -62,6 +84,8 @@ The same startup after the change produced **zero notifications and zero
 messages**. A second environment with no cached Mason registry also started
 quietly. Explicit health checks retained the skipped-install, runtime, parser,
 sorter, and completion-fallback reasons.
+These integration probes were headless; interactive use also gets the periodic
+informational reminder described above.
 
 Regression specs cover missing and complete toolsets, already-installed Node
 servers without npm, Windows Store Python aliases, incomplete Python installs,
@@ -73,6 +97,9 @@ the reduced-PATH integration runs were on Linux.
 `make ci` passed **521 tests** locally: 216 configuration, 261 portable Scoper,
 and 44 Python tests. One additional Windows API test is skipped on Linux.
 Lint, formatting, and documentation checks passed as well.
+Ten further reminder regressions cover default/custom cadence, restart
+persistence, disabling, headless runs, corrupt/future state, interrupted or
+concurrent leases, write failures, and focus checks in long-running sessions.
 
 ## Upstream implementation references
 

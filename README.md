@@ -216,6 +216,7 @@ nvim/
 │   │   ├── diagnostics.lua   :DiagnosticDump (hang triage)
 │   │   ├── lsp_format.lua    asynchronous LSP formatting with buffer lifecycle guards
 │   │   ├── health.lua        :checkhealth config (external toolchain check)
+│   │   ├── health_reminder.lua  persisted, configurable monthly tooling review prompt
 │   │   ├── tooling.lua       optional tool prerequisites and quiet fallbacks
 │   │   ├── util.lua          Shared helpers (buffer delete, file-buffer test, augroup)
 │   │   ├── icons.lua         Shared diagnostic glyphs
@@ -262,6 +263,7 @@ nvim/
 │   ├── lsp_format_race_spec.lua  delayed formatting and buffer lifecycle races
 │   ├── search_file_navigation_spec.lua  Grug result header navigation
 │   ├── health_paths_spec.lua  state path types and native option decoding
+│   ├── health_reminder_spec.lua  reminder cadence, persistence, and recovery
 │   ├── tooling_spec.lua       missing runtimes, native builds, and supported installs
 │   ├── diagnostic_tail_spec.lua  bounded regular-file log reads and I/O failures
 │   ├── explorer_directory_spec.lua  directory startup and reload behavior
@@ -503,6 +505,12 @@ In order — each step assumes the previous succeeded.
   this config was last tested against. Commit it; `:Lazy restore` returns
   to those pins after an update goes wrong, and `:Lazy update` moves them
   forward (and rewrites the file). CI's plugin cache is keyed on it.
+- **Tooling health reminder**: an informational prompt appears on first
+  interactive use, then every 30 days when you start or refocus Neovim.
+  Set `vim.g.tooling_reminder_days = 7` in `lua/config/options.lua` for weekly
+  reminders, or `0` to disable them. The timestamp persists in Neovim's state
+  directory across restarts. The reminder always points to `:checkhealth config`,
+  including when no skipped tooling was recorded during startup.
 - **Add an LSP**: append the server name to `ensure_installed` in
   `lua/plugins/lsp.lua`. Mason picks it up next launch.
 - **Add a treesitter parser**: same idea, in `lua/plugins/treesitter.lua`;
