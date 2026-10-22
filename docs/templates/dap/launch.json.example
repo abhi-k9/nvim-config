@@ -363,13 +363,15 @@
       ]
     },
 
-    // codelldb equivalent uses initCommands to load the core:
+    // codelldb uses a custom target and skips process creation for a core.
+    // initCommands alone is insufficient: a normal launch would replace
+    // that target and start a fresh process instead of inspecting the core.
+    // https://github.com/vadimcn/codelldb/blob/v1.12.3/MANUAL.md#inspecting-a-core-dump
     // {
     //   "name": "Debug core dump (codelldb)",
-    //   "type": "codelldb", "request": "launch",
-    //   "program": "${workspaceFolder}/build/Debug/app",
-    //   "initCommands": ["target create ${workspaceFolder}/build/Debug/app --core ${workspaceFolder}/core"],
-    //   "terminal": "console"
+    //   "type": "codelldb", "request": "attach",
+    //   "targetCreateCommands": ["target create \"${workspaceFolder}/build/Debug/app\" --core \"${workspaceFolder}/core\""],
+    //   "processCreateCommands": []
     // },
 
     // ════════════════════════════════════════════════════════════════════
