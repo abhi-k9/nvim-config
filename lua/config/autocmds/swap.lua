@@ -22,7 +22,21 @@ local function same_swap_file(before, after)
     and before.mtime.nsec == after.mtime.nsec
 end
 
+-- Neovim stores at most 39 hostname bytes in the swap header and compares
+-- them case-insensitively. A PID is meaningful only on that same host;
+-- a shared state directory may contain a swap from a running remote editor.
+local function local_swap_host(info)
+  return type(info.host) == "string"
+    and info.host ~= ""
+    and info.host:lower() == vim.fn.hostname():sub(1, 39):lower()
+end
+
+local function swap_host(info)
+  return type(info.host) == "string" and info.host ~= "" and info.host or "unknown host"
+end
+
 local function live_owner(info)
+  if not local_swap_host(info) then return nil end
   local pid = type(info.pid) == "number" and info.pid or 0
   return pid > 0 and vim.uv.kill(pid, 0) == 0 and pid or nil
 end
@@ -95,6 +109,21 @@ vim.api.nvim_create_autocmd("SwapExists", {
             file,
             info.error,
             swap
+          ),
+          vim.log.levels.WARN
+        )
+      end)
+      return
+    end
+
+    if not local_swap_host(info) then
+      if vim.g.swap_guard == false then return end
+      vim.v.swapchoice = "o"
+      local host = swap_host(info)
+      vim.schedule(function()
+        vim.notify(
+          ("Swap owner is on %s; its process cannot be checked here — opened READ-ONLY.\nVerify that editor is closed before taking over or deleting its swap."):format(
+            host
           ),
           vim.log.levels.WARN
         )
@@ -325,14 +354,20 @@ do
           info.error,
           swap
         )
+      elseif not info.error and not local_swap_host(info) and not (explicit and cmd.bang) then
+        refuse = ("owner on %s cannot be checked here; verify that editor is closed, then use :SwapDelete! %s"):format(
+          swap_host(info),
+          swap
+        )
       end
       if refuse then
         vim.notify(("SwapDelete: refusing\n  %s\n%s"):format(swap, refuse), vim.log.levels.WARN)
       elseif st then
         stats[swap] = st
         local pid = (type(info.pid) == "number") and info.pid or 0
-        local own = pid > 0 and pid == mypid
-        local live_other = pid > 0 and not own and vim.uv.kill(pid, 0) == 0
+        local local_host = local_swap_host(info)
+        local own = local_host and pid > 0 and pid == mypid
+        local live_other = local_host and pid > 0 and not own and vim.uv.kill(pid, 0) == 0
         if live_other then
           vim.notify(
             ("SwapDelete: skipping — in use by another running Neovim (pid %d):\n  %s\nClose that instance first."):format(
@@ -348,7 +383,8 @@ do
           lines[#lines + 1] = info.error and ("  %s\n    (unreadable: %s)"):format(swap, info.error)
             or ("  %s\n    (%s; %s)"):format(
               swap,
-              own and "owned by THIS Neovim session" or "crash leftover / no live owner",
+              not local_host and ("owner on " .. swap_host(info) .. "; liveness UNKNOWN")
+                or (own and "owned by THIS Neovim session" or "crash leftover / no live owner"),
               info.dirty == 1 and "HAS unsaved changes (will be lost)" or "no unsaved changes"
             )
         end
@@ -396,7 +432,9 @@ do
         -- vim.uv.fs_unlink reports failure by RETURNING nil, err (it does
         -- not throw), so the return value is checked — a pcall would see
         -- every failure as success.
-        if owner and owner ~= mypid then
+        if not info.error and not local_swap_host(info) and not (explicit and cmd.bang) then
+          err = "owner is on another or unknown host; not deleted"
+        elseif owner and owner ~= mypid then
           err = "now in use by another running Neovim; not deleted"
         else
           ok, err = vim.uv.fs_unlink(swap)
@@ -447,7 +485,8 @@ do
 
   -- Every swap in the scannable 'directory' dirs, classified:
   --   { swap, fname, pid, kind, error }, kind one of
-  --   own · live (another running Nvim) · empty (unreadable, 0 bytes, over a
+  --   own · live (another running local Nvim) · remote (unknown host owner)
+  --   · empty (unreadable, 0 bytes, over a
   --   minute old) · unreadable · dirty (unsaved changes) · clean.
   -- Returns the list and the dirs scanned. Also used by :DiagnosticDump.
   function M.inventory()
@@ -465,7 +504,9 @@ do
           local pid = type(info.pid) == "number" and info.pid or 0
           local st = vim.uv.fs_stat(swap)
           local kind
-          if pid > 0 and pid == mypid then
+          if not info.error and not local_swap_host(info) then
+            kind = "remote"
+          elseif pid > 0 and pid == mypid then
             kind = "own"
           elseif pid > 0 and vim.uv.kill(pid, 0) == 0 then
             kind = "live"
@@ -474,8 +515,14 @@ do
           else
             kind = info.dirty == 1 and "dirty" or "clean"
           end
-          list[#list + 1] =
-            { swap = swap, fname = info.fname, pid = pid, kind = kind, error = info.error }
+          list[#list + 1] = {
+            swap = swap,
+            fname = info.fname,
+            pid = pid,
+            host = info.host,
+            kind = kind,
+            error = info.error,
+          }
         end
       end
     end
@@ -487,7 +534,12 @@ do
     local delete, keep = {}, {}
     local stats = {}
     for _, s in ipairs(list) do
-      if s.kind == "live" then
+      if s.kind == "remote" then
+        keep[#keep + 1] = ("  %s\n    owner on %s; liveness unknown here"):format(
+          s.fname or s.swap,
+          swap_host(s)
+        )
+      elseif s.kind == "live" then
         keep[#keep + 1] = ("  %s\n    in use by a running Neovim (pid %d)"):format(
           s.fname or s.swap,
           s.pid
@@ -551,7 +603,10 @@ do
         -- Unknown/corrupt headers are safe to remove only for the original
         -- empty-and-old case, never after a formerly clean swap changed.
         local empty = info.error and st.size == 0 and os.time() - st.mtime.sec > 60
-        if not live_owner(info) and (empty or (not info.error and info.dirty == 0)) then
+        if
+          not live_owner(info)
+          and (empty or (not info.error and local_swap_host(info) and info.dirty == 0))
+        then
           ok, err = vim.uv.fs_unlink(path)
         else
           err = "now active, dirty or unreadable; not deleted"

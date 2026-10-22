@@ -193,7 +193,7 @@ function M.dump(opts)
       counts[s.kind] = (counts[s.kind] or 0) + 1
     end
     local summary = {}
-    for _, kind in ipairs({ "own", "live", "dirty", "clean", "empty", "unreadable" }) do
+    for _, kind in ipairs({ "own", "live", "remote", "dirty", "clean", "empty", "unreadable" }) do
       if counts[kind] then table.insert(summary, ("%s=%d"):format(kind, counts[kind])) end
     end
     table.insert(

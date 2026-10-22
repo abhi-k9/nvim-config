@@ -371,7 +371,9 @@ describe(":SwapClean", function()
     end
     assert.are.equal(0, vim.uv.fs_stat(dir .. "/empty.swp").size)
     vim.fn.swapinfo = function(path)
-      return infos[vim.fs.basename(path)]
+      local info = infos[vim.fs.basename(path)]
+      if info and not info.error then info.host = vim.fn.hostname():sub(1, 39) end
+      return info
     end
     local msg
     vim.fn.confirm = function(m)
@@ -396,7 +398,7 @@ describe(":SwapClean", function()
     vim.o.directory = dir .. "//"
     write(dir .. "/a.swp", { "x" })
     vim.fn.swapinfo = function()
-      return { fname = "/p/a.c", pid = 0, dirty = 0 }
+      return { fname = "/p/a.c", pid = 0, dirty = 0, host = vim.fn.hostname():sub(1, 39) }
     end
     vim.fn.confirm = function()
       return 2
@@ -489,7 +491,7 @@ describe(":SwapDelete <path>", function()
   it("deletes a readable swap after confirmation, and nothing when cancelled", function()
     local swap = write(vim.fs.normalize(tmpdir()) .. "/a.c.swp", { "x" })
     vim.fn.swapinfo = function()
-      return { fname = "/p/a.c", pid = 0, dirty = 0 }
+      return { fname = "/p/a.c", pid = 0, dirty = 0, host = vim.fn.hostname():sub(1, 39) }
     end
     vim.fn.confirm = function()
       return 2

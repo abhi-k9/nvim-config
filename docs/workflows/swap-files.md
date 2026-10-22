@@ -51,6 +51,10 @@ long E325 prompt. What happens depends on who owns the swap:
   read-only here, with a notice naming the other process. Finish there,
   quit that Neovim, then `:e!` here to take over. Don't force the write:
   two editors saving the same file overwrite each other's changes.
+- **Another or unknown host.** The file opens read-only. A local process
+  check cannot establish whether an editor is running on a different
+  machine sharing the swap directory. Verify that editor is closed before
+  taking over or deleting its swap.
 - **No running owner: a leftover.** A one-line prompt offers
   Recover / Open read-only / Edit anyway / Delete swap / Quit, and the
   default button is picked for you:
@@ -104,12 +108,16 @@ two groups:
 
 - **Delete:** no running owner and no unsaved changes, or empty and more
   than a minute old.
-- **Kept, with the reason:** in use by a running Neovim, has unsaved
+- **Kept, with the reason:** in use by a running Neovim, owned by another
+  or unknown host, has unsaved
   changes (open the file and recover first), or unreadable but not empty
   (check it, then `:SwapDelete! <path>`). A change you undid before the
   crash still counts as unsaved: the swap keeps that flag.
 
 It then shows both lists and asks once, with Cancel as the default.
+Targets are rechecked after confirmation; a replaced or updated swap is
+kept. This reduces accidental cleanup races, but is not an atomic lock
+against an editor changing the path immediately before deletion.
 Swaps of the Neovim you run it from are never listed. A swap whose
 recorded process ID now belongs to an unrelated running program is kept
 as "in use"; that errs on the safe side.
@@ -120,7 +128,10 @@ completion is off for this command, because it would turn the `%` in swap
 names into the current file's name. It only takes a swap: a regular file
 (not a link or folder) named `*.swp`, `*.swo`, … whose header Neovim can
 read, so a mistyped path can't delete an ordinary file. For an unreadable
-swap, use `:SwapDelete! <path>`.
+swap, use `:SwapDelete! <path>`. An explicit bang also permits deleting a
+swap from another or unknown host, after confirmation that its owner's
+liveness cannot be checked here. Use it only after verifying that editor
+is closed; `:SwapClean` never forces deletion of these swaps.
 
 ### From a shell, without the config
 
