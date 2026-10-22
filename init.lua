@@ -18,6 +18,7 @@
 --                     registration itself is just nvim_create_user_command
 --                     and doesn't need any plugin loaded.
 --   5. lazy         – bootstraps lazy.nvim and imports `lua/plugins/*.lua`.
+--   6. health reminder – periodic, persisted prompt to review optional tools.
 --
 -- Each file under lua/config/ and lua/plugins/ is heavily commented; start
 -- there if you want to tweak something.
@@ -51,3 +52,4 @@ require("config.keymaps")
 require("config.autocmds")
 require("config.diagnostics")
 require("config.lazy")
+require("config.health_reminder").setup()

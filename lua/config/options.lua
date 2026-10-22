@@ -146,6 +146,10 @@ opt.mouse = "a"               -- mouse in all modes (resize splits, etc.)
 opt.confirm = true            -- ask to save instead of failing on :q with changes
 -- stylua: ignore end
 
+-- Remind on the first interactive start/focus, then every 30 days. Set 0 to
+-- disable, or any positive number of days; keep values supplied before init.
+if vim.g.tooling_reminder_days == nil then vim.g.tooling_reminder_days = 30 end
+
 -- Jumplist as a browser-style back/forward stack: a new jump after <C-o>
 -- discards the forward entries. :append keeps Neovim's default "clean" flag.
 opt.jumpoptions:append("stack")
