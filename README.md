@@ -235,6 +235,7 @@ nvim/
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager
+│   ├── treesitter_install_alias_spec.lua  shared-parser filetype aliases
 │   ├── test_dependency_spec.lua  isolated concurrent test dependency installs
 │   ├── zoom_layout_spec.lua  ordered window layout changes while zoomed
 │   ├── prose_undo_spec.lua  prose mapping cleanup after filetype changes

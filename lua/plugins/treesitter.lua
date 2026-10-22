@@ -137,7 +137,8 @@ return {
       -- Install a missing parser on first use: opening a filetype that
       -- nvim-treesitter supports but PARSERS doesn't list builds its parser
       -- in the background (needs the tree-sitter CLI), then attaches every
-      -- open buffer of that filetype. One install per language at a time;
+      -- open buffer using that language, including filetype aliases. One
+      -- install per language at a time;
       -- without the CLI nothing is recorded, so it starts once the CLI is
       -- on PATH, and a failed install is retried 5 minutes later at the
       -- earliest. Opt out with `vim.g.treesitter_auto_install = false`.
@@ -177,7 +178,12 @@ return {
             end
             state[lang] = nil
             for _, b in ipairs(vim.api.nvim_list_bufs()) do
-              if vim.api.nvim_buf_is_loaded(b) and vim.bo[b].filetype == ft then attach(b) end
+              if
+                vim.api.nvim_buf_is_loaded(b)
+                and vim.treesitter.language.get_lang(vim.bo[b].filetype) == lang
+              then
+                attach(b)
+              end
             end
           end)
         end)
