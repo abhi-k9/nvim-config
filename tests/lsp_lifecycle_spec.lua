@@ -40,7 +40,7 @@ describe("LSP buffer and capability lifecycle", function()
   end
 
   before_each(function()
-    require("lazy.core.loader").load("nvim-lspconfig", { cmd = "spec" })
+    require("lazy.core.loader").load("mason-lspconfig.nvim", { cmd = "spec" })
     -- The full-config harness normally enables real installed servers.
     -- These lifecycle cases supply controlled clients, so do not race
     -- asynchronous server attachment against the event under examination.

@@ -55,11 +55,11 @@ return {
     -- lazy.nvim replays the triggering FileType after loading, which is
     -- what vim.lsp.enable() attaches on.
     event = { "BufReadPre", "BufNewFile", "FileType" },
-    -- Dependency order is one-way: nvim-lspconfig depends on us. We do
-    -- NOT list nvim-lspconfig here too — that creates a cycle that lazy
-    -- tolerates but warns about, and the load order is determined by
-    -- the one-way edge anyway.
-    dependencies = { "mason-org/mason.nvim" },
+    -- Configure overrides and completion capabilities BEFORE setup() can
+    -- automatically enable installed servers. vim.lsp.enable() immediately
+    -- activates existing buffers, so configuring after it is too late for
+    -- the first client. Keep the dependency one-way to avoid a cycle.
+    dependencies = { "mason-org/mason.nvim", "neovim/nvim-lspconfig" },
     opts = {
       -- stylua is installed by Mason for conform (formatting.lua), but it
       -- ALSO has an lspconfig server definition, so automatic_enable was
@@ -109,7 +109,6 @@ return {
     event = { "BufReadPre", "BufNewFile", "FileType" },
     dependencies = {
       "mason-org/mason.nvim",
-      "mason-org/mason-lspconfig.nvim",
       "saghen/blink.cmp", -- so completion capabilities are advertised to servers
     },
     config = function()

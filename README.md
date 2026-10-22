@@ -236,6 +236,9 @@ nvim/
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager
+│   ├── lsp_initialization_spec.lua  first-client settings and capabilities
+│   ├── fixtures/
+│   │   └── lsp_initialization.lua  real Lazy startup with controlled Mason boundary
 │   ├── escape_float_lifecycle_spec.lua  popup closure under reentrant window hooks
 │   ├── session_filetype_rescue_spec.lua  session filetype rescue on ordinary files
 │   ├── bigfile_reread_spec.lua  large-to-small reread callback invalidation

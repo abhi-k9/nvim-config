@@ -3,7 +3,7 @@ describe("asynchronous LSP formatting", function()
   local client, cancelled, messages, request_count, other_buffers
 
   before_each(function()
-    require("lazy.core.loader").load("nvim-lspconfig", { cmd = "spec" })
+    require("lazy.core.loader").load("mason-lspconfig.nvim", { cmd = "spec" })
     for name in pairs(vim.lsp._enabled_configs) do
       vim.lsp.enable(name, false)
     end
