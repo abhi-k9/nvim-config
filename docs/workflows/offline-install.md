@@ -114,7 +114,10 @@ machine and pass it with `--sha256` on the offline one.
       link named `lazy`, so nothing is ever written through it. If a move
       fails (usually because a running Neovim holds a file), every move is
       undone and the data folder is left as it was.
-   6. Re-points Mason's Python venvs at this machine's Python.
+   6. Re-points Mason's Python venvs at this machine's Python. On POSIX it also
+      rebases recognized console-script launchers to the installed venv,
+      including paths with spaces. Windows native `.exe` launchers are not
+      rewritten; a relocated Python package may need reinstalling there.
 
    | Option | Effect |
    |--------|--------|

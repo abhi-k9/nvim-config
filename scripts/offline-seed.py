@@ -24,6 +24,7 @@ cmd) runs it the same way. See docs/workflows/offline-install.md.
 """
 
 import argparse
+import ast
 import hashlib
 import io
 import json
@@ -31,6 +32,7 @@ import os
 import platform
 import posixpath
 import re
+import shlex
 import shutil
 import stat
 import subprocess
@@ -550,12 +552,130 @@ def promote(staging, data_dir, tops):
     return backup
 
 
+def repair_posix_entrypoints(venv):
+    """Rebase recognized Python launchers, preserving script bodies and modes.
+
+    venv --upgrade repairs its interpreter but deliberately leaves installed
+    console scripts alone. Use distlib's shell/Python wrapper format so the
+    restored path may contain spaces or exceed the kernel's shebang limit.
+    """
+    if WINDOWS:
+        return
+    venv = venv.resolve()
+    bindir, python = venv / "bin", venv / "bin" / "python"
+    if not python.is_file():
+        return
+    pattern = re.compile(r"^/(?:.*/)?venv/bin/python(?:\d+(?:\.\d+)*)?$")
+    coding_cookie = re.compile(br"^[ \t\f]*#.*?coding[:=][ \t]*([-_.a-zA-Z0-9]+)")
+    for script in sorted(bindir.iterdir()):
+        if script.is_symlink() or not script.is_file():
+            continue
+        try:
+            script.resolve().relative_to(venv.resolve())
+            with script.open("rb") as source:
+                first = source.readline(8192)
+                if not first.endswith(b"\n"):
+                    continue
+                options = []
+                encoding = None
+                direct = None
+                if first.startswith(b"#!") and first.strip() != b"#!/bin/sh":
+                    # Standard pip console scripts have an absolute interpreter
+                    # followed by optional interpreter flags, never shell code.
+                    direct = re.fullmatch(
+                        r"(/(?:.*/)?venv/bin/python(?:\d+(?:\.\d+)*)?)(?:[ \t]+(.*))?",
+                        os.fsdecode(first[2:].strip()),
+                    )
+                    if not direct:
+                        continue
+                    options = shlex.split(direct[2] or "")
+                    # PEP 263 recognizes a source encoding only in the first
+                    # two lines. Keep a copy in the shell wrapper's second
+                    # line before moving the original body below its prefix.
+                    body_offset = source.tell()
+                    declaration = coding_cookie.match(source.readline(8192))
+                    if declaration:
+                        encoding = declaration[1]
+                    source.seek(body_offset)
+                elif first == b"#!/bin/sh\n":
+                    second = source.readline(8192)
+                    declaration = coding_cookie.match(second)
+                    if declaration:
+                        encoding = declaration[1]
+                        second = source.readline(8192)
+                    third = source.readline(8192)
+                    if not second.startswith(b"'''exec' ") or third != b"' '''\n":
+                        continue
+                    parts = shlex.split(os.fsdecode(second[len(b"'''exec' "):].strip()))
+                    if (len(parts) < 3 or parts[-2:] != ["$0", "$@"]
+                            or not pattern.fullmatch(parts[0])):
+                        continue
+                    options = parts[1:-2]
+                else:
+                    continue
+                # Only interpreter flags belong here; leave unfamiliar wrappers
+                # untouched rather than interpreting or broadening their role.
+                if any(not option.startswith("-") for option in options):
+                    continue
+                if direct and direct[1] == str(python):
+                    continue  # An already-correct launcher needs no mutation.
+                header = os.fsencode("#!" + str(python)
+                                     + (" " + " ".join(options) if options else "") + "\n")
+                simple = (len(header) <= 127 and len(options) <= 1
+                          and not any(c.isspace() for c in str(python))
+                          and not any(c.isspace() for option in options for c in option))
+                if not simple:
+                    command = " ".join(shlex.quote(arg) for arg in [str(python), *options])
+                    header = b"#!/bin/sh\n"
+                    if encoding:
+                        header += b"# coding: " + encoding + b"\n"
+                    header += os.fsencode("'''exec' " + command + ' "$0" "$@"\n\' \'\'\'\n')
+                body_offset = source.tell()
+                if direct and not simple:
+                    # A shell/Python prefix is itself a module docstring. It
+                    # cannot safely precede a custom docstring (or __doc__
+                    # usage), especially before a from __future__ import.
+                    # Inspect only bounded source bytes, never execute them.
+                    body = source.read(1024 * 1024 + 1)
+                    try:
+                        if len(body) > 1024 * 1024:
+                            raise ValueError("launcher is too large to inspect")
+                        tree = ast.parse(first + body, filename=str(script))
+                        if (ast.get_docstring(tree) is not None
+                                or any(isinstance(node, ast.Name) and node.id == "__doc__"
+                                       for node in ast.walk(tree))):
+                            raise ValueError("a wrapper would change its module docstring")
+                        compile(header + body, str(script), "exec", dont_inherit=True)
+                    except (SyntaxError, ValueError, RecursionError) as exc:
+                        warn(f"leaving custom Python launcher {script} unchanged ({exc}); "
+                             "reinstall this package at its final path")
+                        continue
+                source.seek(0)
+                if source.read(body_offset) == header:
+                    continue
+                source.seek(body_offset)
+                fd, temp = tempfile.mkstemp(prefix=".offline-entrypoint-", dir=str(bindir))
+                try:
+                    with os.fdopen(fd, "wb") as dest:
+                        dest.write(header)
+                        shutil.copyfileobj(source, dest)
+                    os.chmod(temp, stat.S_IMODE(script.stat().st_mode))
+                    os.replace(temp, script)
+                finally:
+                    if os.path.exists(temp):
+                        os.unlink(temp)
+        except (OSError, RuntimeError, ValueError) as exc:
+            warn(f"could not relocate Python entrypoint {script}: {exc}")
+
+
 def repair_venvs(data_dir):
     """Re-point Mason's Python venvs (debugpy, clang-format, ...) at this Python.
 
     A venv records the absolute path of the Python that created it; on another
     machine that path usually doesn't exist. `venv --upgrade` fixes that when
-    this Python has the same major.minor version, without the network.
+    this Python has the same major.minor version, without the network. POSIX
+    console-script shebangs need a separate relocation even when the original
+    base Python still exists. Windows native launchers are not rewritten.
     """
     here = "%d.%d" % sys.version_info[:2]
     for cfg in sorted((data_dir / "mason" / "packages").glob("*/venv/pyvenv.cfg")):
@@ -575,7 +695,9 @@ def repair_venvs(data_dir):
             if sep:
                 vals[key.strip()] = val.strip()
         home = vals.get("home", "")
-        if home and Path(home).exists():
+        python = cfg.parent / ("Scripts/python.exe" if WINDOWS else "bin/python")
+        if home and Path(home).exists() and python.is_file():
+            repair_posix_entrypoints(cfg.parent)
             continue
         name = cfg.parent.parent.name
         version = vals.get("version") or vals.get("version_info", "")
@@ -591,6 +713,7 @@ def repair_venvs(data_dir):
         res = subprocess.run([sys.executable, "-m", "venv", "--upgrade", "--without-pip", str(cfg.parent)],
                              capture_output=True, text=True)
         if res.returncode == 0:
+            repair_posix_entrypoints(cfg.parent)
             print(f"  re-pointed {name}'s venv at {sys.executable}")
         else:
             warn(f"could not repair {name}'s venv (exit {res.returncode}): {(res.stderr or res.stdout).strip()}")

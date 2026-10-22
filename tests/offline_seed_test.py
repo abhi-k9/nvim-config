@@ -12,6 +12,7 @@ import importlib.util
 import io
 import json
 import os
+import shlex
 import shutil
 import stat
 import sys
@@ -439,6 +440,139 @@ class CompletenessCheck(Base):
             with self.assertRaises(SystemExit) as cm:
                 S.cmd_build(build)
         self.assertIn("--no-check", str(cm.exception.code))
+
+
+@unittest.skipIf(WINDOWS, "POSIX console scripts; Windows native launchers are not rewritten")
+class VenvRelocation(Base):
+    def make_relocated_venv(self, destination=None, shell_wrapper=False):
+        old = self.tmp / "builder" / "venv"
+        old.parent.mkdir()
+        result = S.subprocess.run(
+            [sys.executable, "-m", "venv", "--without-pip", str(old)],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        body = b"import sys\nprint('ENTRYPOINT_OK:' + sys.prefix)\n"
+        if shell_wrapper:
+            header = ("#!/bin/sh\n'''exec' " + shlex.quote(str(old / "bin" / "python"))
+                      + ' "$0" "$@"\n\' \'\'\'\n').encode()
+        else:
+            header = ("#!" + str(old / "bin" / "python") + "\n").encode()
+        (old / "bin" / "report").write_bytes(header + body)
+        (old / "bin" / "report").chmod(0o751)
+        destination = destination or self.data / "mason" / "packages" / "tool" / "venv"
+        destination.parent.mkdir(parents=True)
+        old.rename(destination)
+        return destination, body
+
+    def assert_launcher_works(self, venv):
+        result = S.subprocess.run([str(venv / "bin" / "report")], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "ENTRYPOINT_OK:" + str(venv))
+
+    def test_relocates_console_script_even_when_base_python_still_exists(self):
+        venv, body = self.make_relocated_venv()
+        with self.assertRaises(FileNotFoundError):
+            self.assert_launcher_works(venv)
+        S.repair_venvs(self.data)
+        self.assert_launcher_works(venv)
+        script = venv / "bin" / "report"
+        self.assertTrue(script.read_bytes().endswith(body))
+        self.assertEqual(stat.S_IMODE(script.stat().st_mode), 0o751)
+        before = (script.read_bytes(), script.stat().st_ino)
+        S.repair_venvs(self.data)
+        self.assertEqual((script.read_bytes(), script.stat().st_ino), before)
+
+    def test_relocates_distlib_wrapper_to_long_path_with_spaces_and_quotes(self):
+        destination = (self.data / "mason" / "packages" / ("long space's " + "x" * 130) / "venv")
+        venv, body = self.make_relocated_venv(destination, shell_wrapper=True)
+        S.repair_venvs(self.data)
+        self.assert_launcher_works(venv)
+        self.assertTrue((venv / "bin" / "report").read_bytes().endswith(body))
+
+    def test_relocates_entrypoint_after_interpreter_upgrade(self):
+        venv, _ = self.make_relocated_venv()
+        cfg = venv / "pyvenv.cfg"
+        text = cfg.read_text()
+        text = "\n".join("home = /missing/build-python" if line.startswith("home =") else line
+                         for line in text.splitlines()) + "\n"
+        cfg.write_text(text)
+        with redirect_stdout(io.StringIO()):
+            S.repair_venvs(self.data)
+        self.assert_launcher_works(venv)
+
+    def test_preserves_latin1_source_encoding_across_repair_and_repeat(self):
+        destination = self.data / "mason" / "packages" / "latin1 space" / "venv"
+        venv, _ = self.make_relocated_venv(destination)
+        script = venv / "bin" / "report"
+        body = b"# -*- coding: latin-1 -*-\nprint('caf\xe9')\n"
+        script.write_bytes(b"#!/old/venv/bin/python\n" + body)
+        script.chmod(0o751)
+
+        S.repair_venvs(self.data)
+        result = S.subprocess.run([str(script)], capture_output=True,
+                                  env=dict(os.environ, PYTHONIOENCODING="utf-8"))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.decode("utf-8").strip(), "caf\u00e9")
+        self.assertTrue(script.read_bytes().endswith(body))
+        self.assertEqual(script.read_bytes().splitlines()[1], b"# coding: latin-1")
+        self.assertEqual(stat.S_IMODE(script.stat().st_mode), 0o751)
+        before = (script.read_bytes(), script.stat().st_ino)
+
+        S.repair_venvs(self.data)
+        self.assertEqual((script.read_bytes(), script.stat().st_ino), before)
+        result = S.subprocess.run([str(script)], capture_output=True,
+                                  env=dict(os.environ, PYTHONIOENCODING="utf-8"))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.decode("utf-8").strip(), "caf\u00e9")
+
+    def test_keeps_direct_shebang_for_docstrings_and_future_imports(self):
+        venv, _ = self.make_relocated_venv()
+        script = venv / "bin" / "report"
+        body = b'"""original module documentation"""\nfrom __future__ import annotations\nprint(__doc__)\n'
+        script.write_bytes(b"#!/old/venv/bin/python\n" + body)
+        script.chmod(0o751)
+        S.repair_venvs(self.data)
+        result = S.subprocess.run([str(script)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "original module documentation")
+        self.assertEqual(script.read_bytes(), os.fsencode("#!" + str(venv / "bin/python") + "\n") + body)
+
+    def test_leaves_an_already_correct_direct_launcher_and_flag_untouched(self):
+        venv, body = self.make_relocated_venv()
+        script = venv / "bin" / "report"
+        script.write_bytes(os.fsencode("#!" + str(venv / "bin/python") + " -s\n") + body)
+        before = (script.read_bytes(), script.stat().st_ino)
+        S.repair_venvs(self.data)
+        self.assertEqual((script.read_bytes(), script.stat().st_ino), before)
+        self.assert_launcher_works(venv)
+
+    def test_refuses_unsafe_wrapper_conversion_for_a_custom_docstring(self):
+        destination = self.data / "mason" / "packages" / "custom space" / "venv"
+        venv, _ = self.make_relocated_venv(destination)
+        script = venv / "bin" / "report"
+        body = b'"""custom docs"""\nfrom __future__ import annotations\nprint(__doc__)\n'
+        script.write_bytes(b"#!/old/venv/bin/python\n" + body)
+        before = (script.read_bytes(), script.stat().st_ino)
+        errors = io.StringIO()
+        with redirect_stderr(errors):
+            S.repair_venvs(self.data)
+        self.assertEqual((script.read_bytes(), script.stat().st_ino), before)
+        self.assertIn("leaving custom Python launcher", errors.getvalue())
+        self.assertIn("reinstall this package at its final path", errors.getvalue())
+
+    def test_skips_linked_scripts_and_unrelated_interpreters(self):
+        venv, _ = self.make_relocated_venv()
+        outside = self.tmp / "outside.py"
+        original = b"#!/old/venv/bin/python\nprint('must remain unchanged')\n"
+        outside.write_bytes(original)
+        (venv / "bin" / "linked-script").symlink_to(outside)
+        unrelated = venv / "bin" / "system-script"
+        unrelated.write_bytes(b"#!/usr/bin/python3\nprint('system script')\n")
+        S.repair_venvs(self.data)
+        self.assertTrue((venv / "bin" / "linked-script").is_symlink())
+        self.assertEqual(outside.read_bytes(), original)
+        self.assertEqual(unrelated.read_bytes(), b"#!/usr/bin/python3\nprint('system script')\n")
 
 
 if __name__ == "__main__":
