@@ -249,6 +249,8 @@ function prepare(opts)
   -- too so the skip path can report the same message as a real run.
   -- -------------------------------------------------------------------
   local fingerprint = vim.fn.sha256(vim.json.encode({
+    -- Matcher semantics changed: do not reuse or share older filtered output.
+    2,
     Path.key(State.root()),
     scope.include,
     scope.exclude,

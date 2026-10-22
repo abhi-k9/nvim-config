@@ -535,6 +535,9 @@ vim.api.nvim_create_autocmd("User", {
 
 - Symlinks are matched logically (not resolved). If you want resolved
   matching, normalize through `vim.uv.fs_realpath` before adding.
+- Native Windows 8.3 aliases are expanded for comparisons, so a short cwd
+  and long buffer filename still identify the same scope. Stored project
+  identity and scope names retain their existing form.
 - `:ScoperReplace` refuses an active restricted scope because grug-far
   cannot preserve its working directory through deferred operations and
   window changes. Unrestricted replacement requires grug-far.nvim.

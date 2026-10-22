@@ -591,10 +591,14 @@ end
 -- exactly the same one.
 function M.build_matcher(scope, cwd)
   cwd = Path.normalize(cwd)
-  local cwd_key = Path.fold(cwd)
+  local aliases = {}
+  local function canonical(path)
+    return Path.expand_short(path, aliases)
+  end
+  local cwd_key = Path.fold(canonical(cwd))
   local dirs, globs, excludes = {}, {}, {}
   for _, entry in ipairs(scope.include) do
-    local absolute = Path.absolute(entry, cwd)
+    local absolute = canonical(Path.absolute(entry, cwd))
     table.insert(dirs, Path.key(absolute))
     local first = absolute:find("[%*%?%[{]")
     if first then
@@ -602,10 +606,11 @@ function M.build_matcher(scope, cwd)
       -- literal ancestor. For /build/lib*/**/*.c that is /build, whereas
       -- /build/lib/**/*.c starts at /build/lib. Retain the slash for roots.
       local ancestor = absolute:sub(1, first - 1):match("^(.*)/")
-      table.insert(globs, { pattern = entry, root = Path.key((ancestor or "") .. "/") })
+      table.insert(globs, { pattern = absolute, root = Path.key((ancestor or "") .. "/") })
     end
   end
   for _, pat in ipairs(scope.exclude) do
+    if Path.is_absolute(pat) then pat = canonical(pat) end
     local m = Path.exclude_matcher(pat)
     if m then table.insert(excludes, m) end
   end
@@ -618,7 +623,7 @@ function M.build_matcher(scope, cwd)
   end
 
   return function(path)
-    local abs = Path.absolute(path, cwd)
+    local abs = canonical(Path.absolute(path, cwd))
     local key = Path.fold(abs)
     local root_dir
     for _, d in ipairs(dirs) do

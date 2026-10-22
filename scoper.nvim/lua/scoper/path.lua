@@ -78,6 +78,32 @@ function M.normalize(path, opts)
   return path
 end
 
+-- Native buffers can expand Windows 8.3 names while getcwd() retains them.
+-- Expand only the literal prefix through the last short-name component;
+-- this also handles globs and not-yet-created descendants. Unlike realpath,
+-- fnamemodify(:p) keeps symbolic links logical. The caller owns the cache.
+function M.expand_short(path, cache)
+  if not M.is_windows or not path:find("~", 1, true) or vim.fn.has("win32") == 0 then
+    return path
+  end
+  local pos, last = 1, nil
+  while true do
+    local first, finish = path:find("[^/]+", pos)
+    if not first then break end
+    local segment = path:sub(first, finish)
+    if segment:find("~%d") and not segment:find("[%*%?%[{]") then last = finish end
+    pos = finish + 1
+  end
+  if not last then return path end
+  local prefix = path:sub(1, last)
+  local expanded = cache and cache[prefix]
+  if not expanded then
+    expanded = M.normalize(vim.fn.fnamemodify(prefix, ":p"))
+    if cache then cache[prefix] = expanded end
+  end
+  return expanded .. path:sub(last + 1)
+end
+
 -- ---------------------------------------------------------------------------
 -- Is this (normalized) path absolute? Unix: "/x". Windows: "c:/x" or a UNC
 -- "//server/x"; a lone "/x" there is relative to the current drive and
