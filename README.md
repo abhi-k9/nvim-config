@@ -242,6 +242,7 @@ nvim/
 │   ├── treesitter_install_spec.lua  failed parser installation cooldown
 │   ├── swap_cleanup_spec.lua  swap revalidation across cleanup prompts
 │   ├── session_scope_spec.lua  tab scope persistence after moving tabs
+│   ├── session_dap_spec.lua    preserve normal files with debugger-like names
 │   └── offline_seed_test.py  Python tests for scripts/offline-seed.py (make test-seed)
 ├── docs/                     Human-facing docs (not loaded by nvim)
 │   ├── CHANGES-archive.md    older changelog entries

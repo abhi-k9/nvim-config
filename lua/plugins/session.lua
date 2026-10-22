@@ -136,6 +136,9 @@ return {
         local ok_dap, dap = pcall(require, "dap")
         local debugging = ok_dap and dap.session() ~= nil
         local function is_dap_buf(buf)
+          -- A regular file can legitimately contain "[dap-" in its path.
+          -- Only runtime buffers may be closed/wiped as debugger state.
+          if vim.bo[buf].buftype == "" then return false end
           local name = vim.api.nvim_buf_get_name(buf)
           return name:match("%[dap%-") or name:match("%[dap_")
         end
