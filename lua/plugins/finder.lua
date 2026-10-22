@@ -198,12 +198,23 @@ return {
               -- path; even if the notification is blocked by the picker UI,
               -- the path is in the clipboard, so you can close the picker
               -- and paste/view it.
-              ["<C-y>"] = function(_)
-                local entry = require("telescope.actions.state").get_selected_entry()
+              ["<C-y>"] = function(prompt_bufnr)
+                local state = require("telescope.actions.state")
+                local entry = state.get_selected_entry()
                 if not entry then return end
-                local raw = entry.filename or entry.path or entry.value or ""
-                if raw == "" then return end
-                local full = vim.fn.fnamemodify(tostring(raw), ":p")
+                -- File/buffer entries can carry both an absolute `path` and
+                -- a display-relative `filename`. Prefer the actual path;
+                -- the picker's cwd can differ from the current window's.
+                local raw = entry.path or entry.filename
+                if type(raw) ~= "string" or raw == "" or raw == "[No Name]" then return end
+                local full = raw
+                if not raw:match("^%a[%w+.-]*://") then
+                  if vim.fn.isabsolutepath(raw) == 0 then
+                    local picker = state.get_current_picker(prompt_bufnr)
+                    full = vim.fs.joinpath(entry.cwd or picker.cwd or vim.fn.getcwd(), raw)
+                  end
+                  full = vim.fn.fnamemodify(full, ":p")
+                end
                 vim.fn.setreg("+", full)
                 vim.fn.setreg('"', full)
                 vim.notify(full, vim.log.levels.INFO, { title = "Yanked path" })

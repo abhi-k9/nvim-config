@@ -235,6 +235,7 @@ nvim/
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager
+│   ├── navigation_paths_spec.lua  Telescope picker-relative clipboard paths
 │   ├── lsp_lifecycle_spec.lua  LSP attachment and per-buffer capabilities
 │   ├── hooks_spec.lua         staged-path and Git failure handling
 │   ├── behavior_spec.lua
