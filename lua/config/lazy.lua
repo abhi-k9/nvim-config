@@ -25,6 +25,10 @@ local function bootstrap_failed(msg)
   }, true, {})
 end
 
+local function manager_installed()
+  return vim.fn.filereadable(lazypath .. "/lua/lazy/init.lua") == 1
+end
+
 if not vim.uv.fs_stat(lazypath) then
   if vim.fn.executable("git") == 0 then
     bootstrap_failed("git is not on PATH; it is needed to download lazy.nvim.")
@@ -52,27 +56,56 @@ if not vim.uv.fs_stat(lazypath) then
     end
   end
   local lazyrepo = "https://github.com/folke/lazy.nvim.git"
+  -- Concurrent first starts must own separate partial clones. Only publish
+  -- a fully checked-out manager, and never clean up another editor's path.
+  local staging = lazypath .. ".tmp-" .. vim.fn.getpid() .. "-" .. vim.uv.hrtime()
   local out = vim.fn.system({
     "git",
     "clone",
     "--filter=blob:none",
     "--branch=stable",
     lazyrepo,
-    lazypath,
+    staging,
   })
   if vim.v.shell_error ~= 0 then
-    vim.fn.delete(lazypath, "rf") -- no half-cloned directory for the next start
-    bootstrap_failed("git clone " .. lazyrepo .. " failed:\n" .. out)
-    return
-  end
-  if commit then
-    out = vim.fn.system({ "git", "-C", lazypath, "checkout", "--detach", commit })
-    if vim.v.shell_error ~= 0 then
-      vim.fn.delete(lazypath, "rf")
-      bootstrap_failed("Cannot check out locked lazy.nvim commit " .. commit .. ":\n" .. out)
+    vim.fn.delete(staging, "rf")
+    if not manager_installed() then
+      bootstrap_failed("git clone " .. lazyrepo .. " failed:\n" .. out)
+      return
+    end
+  else
+    if commit then
+      out = vim.fn.system({ "git", "-C", staging, "checkout", "--detach", commit })
+      if vim.v.shell_error ~= 0 then
+        vim.fn.delete(staging, "rf")
+        bootstrap_failed("Cannot check out locked lazy.nvim commit " .. commit .. ":\n" .. out)
+        return
+      end
+    end
+    if vim.fn.filereadable(staging .. "/lua/lazy/init.lua") ~= 1 then
+      vim.fn.delete(staging, "rf")
+      bootstrap_failed("The cloned lazy.nvim checkout is incomplete")
+      return
+    end
+    -- Do not replace even an empty pre-existing target. A concurrently
+    -- published complete manager is nonempty, so rename cannot replace it;
+    -- reuse that winner if it appeared after the existence check.
+    local published, err
+    if not vim.uv.fs_lstat(lazypath) then
+      published, err = vim.uv.fs_rename(staging, lazypath)
+    end
+    vim.fn.delete(staging, "rf")
+    if not published and not manager_installed() then
+      bootstrap_failed(
+        "Cannot publish lazy.nvim checkout: " .. (err or "destination already exists")
+      )
       return
     end
   end
+end
+if not manager_installed() then
+  bootstrap_failed("Existing lazy.nvim checkout is incomplete: " .. lazypath)
+  return
 end
 vim.opt.rtp:prepend(lazypath)
 
