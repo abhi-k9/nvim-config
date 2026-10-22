@@ -235,6 +235,7 @@ nvim/
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager
+│   ├── search_file_navigation_spec.lua  Grug result header navigation
 │   ├── health_paths_spec.lua  state path types and native option decoding
 │   ├── diagnostic_tail_spec.lua  bounded regular-file log reads and I/O failures
 │   ├── explorer_directory_spec.lua  directory startup and reload behavior

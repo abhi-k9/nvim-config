@@ -96,20 +96,42 @@ return {
   -- all. <down>/<up> step match by match and <enter> jumps.
   opts = {},
   -- grug-far has no "next file" action: buffer-local ]f / [f jump between
-  -- the file-path headers of the results. Each file group follows a blank
-  -- line, so a header is "a non-blank line right after a blank one" (a
-  -- column-0 test would also hit match lines, which show raw source text).
+  -- result paths using their highlight extmarks. Text is ambiguous: a
+  -- source match after an empty matching line also follows a blank line.
   init = function()
     vim.api.nvim_create_autocmd("FileType", {
       group = require("config.util").augroup("grugfar_file_nav"),
       pattern = "grug-far",
       callback = function(ev)
-        local header_pat = [[^\s*$\n\zs\S]]
+        local function jump_file_header(backward)
+          local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+          local marks = vim.api.nvim_buf_get_extmarks(
+            ev.buf,
+            -1,
+            { row, 0 },
+            backward and 0 or -1,
+            {
+              details = true,
+              type = "highlight",
+            }
+          )
+          for _, mark in ipairs(marks) do
+            local details = mark[4]
+            if
+              mark[2] ~= row
+              and not details.invalid
+              and details.hl_group == "GrugFarResultsPath"
+            then
+              vim.api.nvim_win_set_cursor(0, { mark[2] + 1, 0 })
+              return
+            end
+          end
+        end
         vim.keymap.set("n", "]f", function()
-          vim.fn.search(header_pat, "W")
+          jump_file_header(false)
         end, { buffer = ev.buf, desc = "Next file header (grug-far)" })
         vim.keymap.set("n", "[f", function()
-          vim.fn.search(header_pat, "bW")
+          jump_file_header(true)
         end, { buffer = ev.buf, desc = "Prev file header (grug-far)" })
       end,
     })
