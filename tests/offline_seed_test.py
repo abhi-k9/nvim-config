@@ -108,7 +108,10 @@ def dir_link(target, link):
 
 class Base(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp(prefix="seed-test-"))
+        # macOS commonly exposes its temp directory through /var -> /private/var.
+        # Relocation intentionally uses real interpreter paths, so compare the
+        # fixture against that same filesystem identity instead of its alias.
+        self.tmp = Path(tempfile.mkdtemp(prefix="seed-test-")).resolve()
         self.addCleanup(shutil.rmtree, self.tmp, True)
         self.data = self.tmp / S.data_dir_name()
 
@@ -171,7 +174,8 @@ class RoundTrip(Base):
             ("mason/packages/tool/tool", "file", b"#!/bin/sh\n", "", 0o755),
             ("mason/bin/tool", "symlink", b"", "../packages/tool/tool"),
             ("mason/packages/tool/copy", "hardlink", b"", "mason/packages/tool/tool", 0o755),
-            ("mason/packages/py/venv/bin/python", "symlink", b"", "/nonexistent/python3"),
+            ("mason/packages/py/venv/" + ("Scripts/python.exe" if WINDOWS else "bin/python"),
+             "symlink", b"", "/nonexistent/python3"),
         ])
         self.assertEqual(self.install(seed), 0)
         self.assertEqual(os.readlink(self.data / "mason" / "bin" / "tool"), "../packages/tool/tool")
@@ -495,7 +499,7 @@ class VenvRelocation(Base):
         (old / "bin" / "report").write_bytes(header + body)
         (old / "bin" / "report").chmod(0o751)
         destination = destination or self.data / "mason" / "packages" / "tool" / "venv"
-        destination.parent.mkdir(parents=True)
+        destination.parent.mkdir(parents=True, exist_ok=True)
         old.rename(destination)
         return destination, body
 
@@ -561,16 +565,22 @@ class VenvRelocation(Base):
         self.assertEqual(result.stdout.decode("utf-8").strip(), "caf\u00e9")
 
     def test_keeps_direct_shebang_for_docstrings_and_future_imports(self):
-        venv, _ = self.make_relocated_venv()
+        # Test the direct-shebang branch without adding the full Mason layout
+        # to macOS's already long temporary-directory prefix. Discovery and
+        # unsafe long-path conversion are exercised by separate cases.
+        venv, _ = self.make_relocated_venv(self.tmp / "v")
+        header = os.fsencode("#!" + str(venv / "bin/python") + "\n")
+        if len(header) > 127:
+            self.skipTest("temporary path is too long for a direct Python shebang")
         script = venv / "bin" / "report"
         body = b'"""original module documentation"""\nfrom __future__ import annotations\nprint(__doc__)\n'
         script.write_bytes(b"#!/old/venv/bin/python\n" + body)
         script.chmod(0o751)
-        S.repair_venvs(self.data)
+        S.repair_posix_entrypoints(venv)
         result = S.subprocess.run([str(script)], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "original module documentation")
-        self.assertEqual(script.read_bytes(), os.fsencode("#!" + str(venv / "bin/python") + "\n") + body)
+        self.assertEqual(script.read_bytes(), header + body)
 
     def test_leaves_an_already_correct_direct_launcher_and_flag_untouched(self):
         venv, body = self.make_relocated_venv()
