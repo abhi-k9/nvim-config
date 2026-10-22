@@ -52,6 +52,7 @@ CHECK_TIMEOUT = 300
 MAX_TOTAL_MB = 16 * 1024
 MAX_FILE_MB = 4 * 1024
 MAX_ENTRIES = 1_000_000
+MAX_MANIFEST_BYTES = 2**20
 
 
 def fail(msg):
@@ -299,6 +300,8 @@ def cmd_build(args):
         "mason_packages": mason_pkgs,
         "parsers": parsers,
     }, indent=2) + "\n"
+    if len(manifest.encode("utf-8")) > MAX_MANIFEST_BYTES:
+        fail("manifest exceeds the 1 MiB metadata limit")
 
     ext = "zip" if WINDOWS else "tar.gz"
     out_dir = Path(args.out_dir).resolve()
@@ -360,12 +363,33 @@ def verify_checksum(seed, expected, no_verify):
 
 def read_manifest(seed):
     try:
-        if seed.name.endswith(".zip"):
-            with zipfile.ZipFile(seed) as z:
-                return json.loads(z.read(MANIFEST))
-        with tarfile.open(seed, "r:*") as t:
-            return json.loads(t.extractfile(MANIFEST).read())
-    except (KeyError, AttributeError, ValueError):
+        with open_seed(seed) as archive:
+            if isinstance(archive, zipfile.ZipFile):
+                member = archive.getinfo(MANIFEST)
+                size = member.file_size
+            else:
+                member = archive.getmember(MANIFEST)
+                if not member.isfile():
+                    fail(f"{seed.name} has no regular {MANIFEST}; not an offline seed")
+                size = member.size
+            # Metadata is parsed before the archive-wide entry checks. Bound
+            # both the declared size and the actual read before JSON decoding.
+            if size > MAX_MANIFEST_BYTES:
+                fail("manifest exceeds the 1 MiB metadata limit")
+            source = (archive.open(member) if isinstance(archive, zipfile.ZipFile)
+                      else archive.extractfile(member))
+            with source:
+                raw = source.read(MAX_MANIFEST_BYTES + 1)
+            if len(raw) > MAX_MANIFEST_BYTES:
+                fail("manifest exceeds the 1 MiB metadata limit")
+        manifest = json.loads(raw)
+        if not isinstance(manifest, dict):
+            fail("manifest must be a JSON object")
+        contents = manifest.get("contents", [])
+        if not isinstance(contents, list) or not all(isinstance(item, str) for item in contents):
+            fail("manifest contents must be a list of strings")
+        return manifest
+    except (KeyError, AttributeError, ValueError, OSError, RecursionError, tarfile.TarError, zipfile.BadZipFile):
         fail(f"{seed.name} has no readable {MANIFEST}; not an offline seed")
 
 

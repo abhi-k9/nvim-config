@@ -165,6 +165,24 @@ class RoundTrip(Base):
 
 
 class HostileSeeds(Base):
+    def test_manifest_size_is_bounded_before_decoding_for_both_archives(self):
+        raw = manifest(padding="x" * S.MAX_MANIFEST_BYTES)
+        for format in ("zip", "tar"):
+            with self.subTest(format=format):
+                seed = (make_zip(self.tmp / "seed.zip", man=raw) if format == "zip"
+                        else make_tar(self.tmp / "seed.tar.gz", [], man=raw))
+                with mock.patch.object(S.json, "loads", side_effect=AssertionError("must not decode")):
+                    self.assertRefused(self.install(seed), "metadata limit")
+                self.assertFalse(self.data.exists())
+
+    def test_manifest_requires_an_object_and_string_contents(self):
+        for raw, reason in ((b"[]", "JSON object"), (b"null", "JSON object"),
+                            (manifest(contents=[1]), "list of strings")):
+            with self.subTest(raw=raw):
+                seed = make_zip(self.tmp / "seed.zip", man=raw)
+                self.assertRefused(self.install(seed), reason)
+                self.assertFalse(self.data.exists())
+
     def test_zip_paths_outside_are_refused(self):
         for name in ("../evil.txt", "lazy/../../evil.txt", "/abs.txt", "C:/evil.txt", "lazy\\..\\..\\evil.txt"):
             with self.subTest(name=name):

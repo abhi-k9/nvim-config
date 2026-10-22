@@ -99,7 +99,8 @@ machine and pass it with `--sha256` on the offline one.
    1. Compares the seed's SHA-256 with `--sha256`, or else with the
       `.sha256` file next to it. With neither, it stops.
    2. Checks the seed was built for this OS and CPU, and from this config's
-      `lazy-lock.json`.
+      `lazy-lock.json`. Manifest metadata is limited to 1 MiB before JSON
+      decoding, independently of the archive's file-size limits.
    3. Checks every entry before writing anything. Each one must sit under
       `lazy/`, `mason/` or `site/`, or be the manifest. These are refused:
       absolute, `..`, drive-letter or backslash paths; duplicates; devices;
