@@ -598,8 +598,16 @@ function M.build_matcher(scope, cwd)
   local cwd_key = Path.fold(cwd)
   local dirs, globs, excludes = {}, {}, {}
   for _, entry in ipairs(scope.include) do
-    table.insert(dirs, Path.key(Path.absolute(entry, cwd)))
-    if Path.is_glob(entry) then table.insert(globs, entry) end
+    local absolute = Path.absolute(entry, cwd)
+    table.insert(dirs, Path.key(absolute))
+    local first = absolute:find("[%*%?%[{]")
+    if first then
+      -- Excludes of an outside glob are relative to its deepest complete
+      -- literal ancestor. For /build/lib*/**/*.c that is /build, whereas
+      -- /build/lib/**/*.c starts at /build/lib. Retain the slash for roots.
+      local ancestor = absolute:sub(1, first - 1):match("^(.*)/")
+      table.insert(globs, { pattern = entry, root = Path.key((ancestor or "") .. "/") })
+    end
   end
   for _, pat in ipairs(scope.exclude) do
     local m = Path.exclude_matcher(pat)
@@ -623,17 +631,24 @@ function M.build_matcher(scope, cwd)
         break
       end
     end
+    local included = root_dir ~= nil
+    if not included then
+      for _, g in ipairs(globs) do
+        if Path.match_glob(abs, g.pattern, cwd) then
+          included = true
+          if Path.key_under(key, g.root) then root_dir = g.root end
+          break
+        end
+      end
+    end
+    if not included then return false end
     if #excludes > 0 then
       local rel = rel_to(key, cwd_key) or (root_dir and rel_to(key, root_dir)) or key
       for _, ex in ipairs(excludes) do
         if ex(key, rel) then return false end
       end
     end
-    if root_dir then return true end
-    for _, g in ipairs(globs) do
-      if Path.match_glob(abs, g, cwd) then return true end
-    end
-    return false
+    return true
   end
 end
 
