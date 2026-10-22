@@ -156,9 +156,10 @@ SpacesInSquareBrackets:                   false
 # noise in diffs when one line widens, so the shipped dotfile leaves all
 # of it off (LLVM defaults). If you like tabular #define blocks, flip
 # AlignConsecutiveMacros to AcrossComments/AcrossEmptyLines locally.
+# Keep that key inherited here: clang-format 18's legacy `None` spelling
+# changes a dormant PadOperators field, so its dump differs from LLVM defaults.
 AlignConsecutiveAssignments:              false           # (same as None; dotfile spells it `false`)
 AlignConsecutiveDeclarations:             false
-AlignConsecutiveMacros:                   None            # matches the dotfile; was AcrossEmptyLines here before
 AlignArrayOfStructures:                   None            # matches the dotfile; set Left/Right to tabulate array-of-struct literals
 AlignEscapedNewlines:                     Right
 AlignOperands:                            Align
