@@ -332,6 +332,11 @@ return {
     opts = {
       max_lines = 3, -- never let context grow taller than 3 lines
       multiline_threshold = 1, -- one line per context level (keeps it compact)
+      -- Context parses independently of highlighting, so stopping the
+      -- highlighter alone does not enforce the large-file opt-out.
+      on_attach = function(buf)
+        return not vim.b[buf].big_file
+      end,
     },
   },
 }
