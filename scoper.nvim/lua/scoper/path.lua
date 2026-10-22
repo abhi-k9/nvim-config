@@ -221,11 +221,25 @@ end
 -- the pattern is safe — glob syntax has no letters with meaning.)
 -- ---------------------------------------------------------------------------
 local glob_cache = {}
+-- vim.glob rejects the empty segment at the start of a UNC path. Compile
+-- that one separator away, then require and remove the same UNC prefix from
+-- the subject. This keeps UNC patterns distinct from ordinary /root globs.
+local function glob_source(pattern)
+  return pattern:sub(1, 2) == "//" and pattern:sub(2) or pattern
+end
+
 local function compiled(pattern)
   local matcher = glob_cache[pattern]
   if matcher == nil then
-    local ok, m = pcall(vim.glob.to_lpeg, pattern)
+    local ok, m = pcall(vim.glob.to_lpeg, glob_source(pattern))
     matcher = ok and m or false
+    if ok and pattern:sub(1, 2) == "//" then
+      matcher = {
+        match = function(_, path)
+          if path:sub(1, 2) == "//" then return m:match(path:sub(2)) end
+        end,
+      }
+    end
     glob_cache[pattern] = matcher
     if not ok then
       vim.notify(("Scoper: invalid glob %q is ignored"):format(pattern), vim.log.levels.WARN)
@@ -240,7 +254,7 @@ end
 function M.valid_glob(pattern)
   if not pattern:find("[^/]") then return false end
   for _, p in ipairs({ pattern, (pattern:gsub("/+$", "")), (pattern:gsub("^/+", "")) }) do
-    if not pcall(vim.glob.to_lpeg, p) then return false end
+    if not pcall(vim.glob.to_lpeg, glob_source(p)) then return false end
   end
   return true
 end
