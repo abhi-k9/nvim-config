@@ -241,6 +241,7 @@ nvim/
 │   ├── local_plugin_spec.lua  checkout-relative bundled plugin loading
 │   ├── treesitter_install_spec.lua  failed parser installation cooldown
 │   ├── swap_cleanup_spec.lua  swap revalidation across cleanup prompts
+│   ├── swap_directory_spec.lua  native escaped swap-directory parsing
 │   ├── session_scope_spec.lua  tab scope persistence after moving tabs
 │   ├── session_dap_spec.lua    preserve normal files with debugger-like names
 │   └── offline_seed_test.py  Python tests for scripts/offline-seed.py (make test-seed)

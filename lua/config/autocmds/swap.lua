@@ -252,6 +252,29 @@ end, { desc = "Toggle read-only guard for files open in another Neovim" })
 -- session's own swap, or a genuine crash leftover, is allowed.
 -- ---------------------------------------------------------------------------
 do
+  -- Decode the stored 'directory' option like Neovim's copy_option_part().
+  -- Only a backslash immediately before a comma is removed; other
+  -- backslashes (including Windows/UNC separators) are literal. Even two
+  -- backslashes before a comma still quote that comma, retaining one slash.
+  -- :set's own escaping has already happened before we read vim.o.directory.
+  local function directory_entries()
+    local value, entries, pos = vim.o.directory, {}, 1
+    while pos <= #value do
+      local chars = {}
+      while pos <= #value and value:sub(pos, pos) ~= "," do
+        if value:sub(pos, pos + 1) == "\\," then pos = pos + 1 end
+        chars[#chars + 1] = value:sub(pos, pos)
+        pos = pos + 1
+      end
+      entries[#entries + 1] = table.concat(chars)
+      pos = pos + 1 -- separating comma, if any
+      while value:sub(pos, pos) == " " do
+        pos = pos + 1
+      end
+    end
+    return entries
+  end
+
   -- Swap files record a path under your home folder as `~user/…`
   -- (:h usr_11.txt), and vim.fs.normalize expands only a bare leading `~`,
   -- so the `~user` prefix is expanded first. $HOME, not uv.os_homedir():
@@ -272,10 +295,11 @@ do
   -- Every swap in the 'directory' dirs whose recorded fname is this path.
   local function swaps_for(path)
     local want, found = norm(path), {}
-    for _, dir in ipairs(vim.split(vim.o.directory, ",", { trimempty = true })) do
+    for _, dir in ipairs(directory_entries()) do
       -- 'directory' semantics: "." (or "./sub") is relative to the EDITED
       -- FILE's directory, not the cwd; "~" and $VARs are expanded.
       if dir == "." or dir:match("^%.[/\\]") then dir = vim.fs.dirname(path) .. dir:sub(2) end
+      if dir == "" then dir = vim.fn.getcwd() end
       dir = vim.fs.normalize(dir, { expand_env = true })
       dir = dir:gsub("[/\\]+$", "") -- drop the dir// trailing slashes
       local h = vim.uv.fs_scandir(dir)
@@ -474,7 +498,8 @@ do
   -- -------------------------------------------------------------------------
   local function swap_dirs()
     local dirs = {}
-    for _, dir in ipairs(vim.split(vim.o.directory, ",", { trimempty = true })) do
+    for _, dir in ipairs(directory_entries()) do
+      if dir == "" then dir = vim.fn.getcwd() end
       if dir ~= "." and not dir:match("^%.[/\\]") then
         dir = vim.fs.normalize(dir, { expand_env = true }):gsub("[/\\]+$", "")
         dirs[#dirs + 1] = dir
