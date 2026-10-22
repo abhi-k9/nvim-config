@@ -56,6 +56,17 @@ return {
           )
           return
         end
+        -- The pinned backend expands $NAME while normalizing paths. It has
+        -- no literal-path option, so passing such a file could target a
+        -- different existing file. Refuse even unset names: environment
+        -- variables can change before a deferred search or replacement.
+        if path:find("%$[%w_]+") then
+          vim.notify(
+            "Current-file search cannot preserve literal $NAME in a file name",
+            vim.log.levels.WARN
+          )
+          return
+        end
         -- grug-far splits `paths` on spaces itself and only understands a
         -- BACKSLASH-escaped space ("my\ dir/f.c"); double quotes are
         -- passed through literally, so `"my dir/f.c"` searched nothing.
