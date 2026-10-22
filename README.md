@@ -274,6 +274,7 @@ nvim/
 │   └── offline_seed_test.py  Python tests for scripts/offline-seed.py (make test-seed)
 ├── docs/                     Human-facing docs (not loaded by nvim)
 │   ├── audit-2026-10-21.md     findings, regressions, sources, and limits
+│   ├── audit-followup-2026-10-22.md  expanded audit and complete file coverage
 │   ├── CHANGES-archive.md    older changelog entries
 │   ├── cheatsheets/          Open these in any browser
 │   │   ├── keymaps.html              All bindings, grouped by prefix
