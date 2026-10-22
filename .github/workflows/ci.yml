@@ -76,6 +76,7 @@ jobs:
   lint:
     name: luacheck + stylua + doc-sync
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
@@ -107,18 +108,21 @@ jobs:
       # in scoper.nvim's lua/ plugin/ tests/, each tree using its own
       # .luacheckrc / stylua.toml.
       - name: Lint + format check (both trees)
-        run: make check
+        timeout-minutes: 3
+        run: python3 scripts/ci-run.py make check
 
       # `make check-docs` = the doc-sync guards listed in scripts/check-docs.sh
       # (README tree, keymaps, user commands, plugins vs lazy-lock.json,
       # version floor, template pairs). Pure POSIX shell, no Neovim — runs
       # here in the fast job.
       - name: Doc-sync guards
-        run: make check-docs
+        timeout-minutes: 2
+        run: python3 scripts/ci-run.py make check-docs
 
   test:
     name: plenary specs (full config, nvim ${{ matrix.nvim }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -165,11 +169,13 @@ jobs:
             nvim-data-${{ runner.os }}-${{ matrix.nvim }}-
 
       - name: Test config (smoke, leader maps, behaviour specs)
-        run: make test
+        timeout-minutes: 10
+        run: python3 scripts/ci-run.py make test
 
   test-scoper:
     name: scoper specs (${{ matrix.os }}, nvim ${{ matrix.nvim }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -192,15 +198,17 @@ jobs:
       # the Windows runner); `shell: bash` gives one command that works on
       # ubuntu and windows alike (Git Bash ships on the Windows image).
       - name: Run scoper specs
+        timeout-minutes: 5
         shell: bash
         working-directory: scoper.nvim
         run: |
-          nvim --headless --noplugin -u tests/minimal_init.lua \
-            -c "PlenaryBustedDirectory tests/ { minimal_init = 'tests/minimal_init.lua' }"
+          py=$(command -v python3 || command -v python)
+          "$py" ../scripts/ci-run.py nvim --headless --noplugin -u NONE -l tests/run.lua
 
   test-seed:
     name: offline-seed tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
@@ -213,10 +221,11 @@ jobs:
       # Standard library only, against the runner's own Python: no Neovim
       # (the completeness check runs a fake nvim), no network.
       - name: Run offline-seed tests
+        timeout-minutes: 3
         shell: bash
         env:
           PYTHONDONTWRITEBYTECODE: "1"
         run: |
           py=$(command -v python3 || command -v python)
           "$py" --version
-          "$py" -m unittest discover -s tests -p "offline_seed_test.py" -v
+          "$py" scripts/ci-run.py "$py" -m unittest discover -s tests -p "offline_seed_test.py" -v

@@ -552,7 +552,7 @@ vim.api.nvim_create_autocmd("User", {
 ## Testing
 
 Unit tests live under `tests/` and use [plenary.nvim](https://github.com/nvim-lua/plenary.nvim)'s
-busted-style runner, one Neovim process per spec file. The Windows-only
+busted-style runner, one Neovim process per spec file, run sequentially. The Windows-only
 rules (case-insensitive paths, device prefixes, root- and
 drive-relative paths) run on every OS by forcing the Windows branch.
 CI (the host config's `test-scoper` job) runs them on Ubuntu and

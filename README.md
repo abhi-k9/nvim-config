@@ -312,6 +312,7 @@ nvim/
 ├── Makefile                  test / lint / fmt-check / check / check-docs / format / all / ci / hooks
 ├── scripts/
 │   ├── check-docs.sh             doc-sync guards: tree, keymaps, commands, plugins, version floor, templates, health
+│   ├── ci-run.py                 stream CI output and annotate bounded failure details
 │   ├── offline-seed.py           pack / install plugins + Mason tools + parsers for an offline machine
 │   └── offline-seed-check.lua    what this install would still download (used by offline-seed.py)
 ├── CHANGES.md                changelog (recent entries, newest first)
@@ -610,6 +611,9 @@ These checks are now *enforced*, not just available:
   but not in the same environment (Ubuntu and Windows runners, the newest
   stylua, luacheck and tree-sitter CLI), so a green `make ci`
   locally is a strong hint, not a guarantee.
+  Jobs have explicit 5–20 minute limits; the full-config test step has a
+  10 minute limit. Failures include bounded output in Actions annotations,
+  alongside the complete streamed job log.
 - **Pre-commit hook** — `.githooks/pre-commit` runs luacheck and
   `stylua --check` on the **staged** content of each `*.lua` file (what
   you're committing, not the working copy), then the doc-sync guards
@@ -630,6 +634,8 @@ Run `make test` from the repository root (the harness resolves paths
 against the cwd); any checkout location works.
 Both suites enter through a Lua `-l` script so initialization and harness errors
 exit nonzero instead of leaving a headless editor waiting indefinitely.
+Spec files run sequentially to avoid simultaneous full-config startups contending
+for plugin caches and short asynchronous UI deadlines.
 
 What the suite covers:
 

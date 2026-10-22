@@ -36,6 +36,7 @@ describe("headless test runner failures", function()
       'package.preload["plenary.test_harness"] = function() return { test_directory = function(target, opts)',
       'assert(target == "specs with spaces")',
       'assert(opts.minimal_init == "tests/minimal_init.lua")',
+      "assert(opts.sequential == true)",
       'io.stdout:write("correct runner target\\n")',
       "end } end",
     }, "specs with spaces")
