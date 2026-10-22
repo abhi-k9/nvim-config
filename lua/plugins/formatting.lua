@@ -261,6 +261,18 @@ return {
       -- stylua: ignore end
     },
     config = function(_, opts)
+      opts = vim.deepcopy(opts)
+      local supported = false
+      for i, package in ipairs(opts.ensure_installed) do
+        supported = require("config.tooling").install_supported(package) or supported
+        opts.ensure_installed[i] = {
+          package,
+          condition = function()
+            return require("config.tooling").install_supported(package)
+          end,
+        }
+      end
+      if not supported then opts.run_on_start = false end
       require("mason-tool-installer").setup(opts)
     end,
   },

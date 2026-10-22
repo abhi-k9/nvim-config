@@ -188,8 +188,9 @@ return {
 
       -- Fuzzy matcher: blink ships a Rust implementation that is much
       -- faster than the Lua fallback. The binary is downloaded by
-      -- `version = "*"`; if you're offline, set `implementation = "lua"`.
-      fuzzy = { implementation = "prefer_rust_with_warning" },
+      -- `version = "*"`. Missing download/checksum tools select Lua quietly;
+      -- failures with those tools present retain Blink's normal warnings.
+      fuzzy = { implementation = require("config.tooling").blink_implementation() },
     },
     -- Lets another spec fragment for blink.cmp APPEND to sources.default
     -- instead of replacing it (lazy.nvim list-merge).

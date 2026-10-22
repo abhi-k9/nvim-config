@@ -90,7 +90,11 @@ return {
     "nvim-treesitter/nvim-treesitter",
     branch = "main",
     lazy = false, -- REQUIRED — see top-of-file comment.
-    build = ":TSUpdate",
+    build = function()
+      if vim.g.treesitter_auto_install ~= false and require("config.tooling").parsers_ready() then
+        vim.cmd.TSUpdate()
+      end
+    end,
     -- Not setup() options: config() installs them, and
     -- scripts/offline-seed-check.lua reads them from the resolved spec.
     opts = { parsers = PARSERS },
@@ -104,10 +108,10 @@ return {
       -- next event-loop tick lets the rest of startup finish first so
       -- nvim is interactive sooner. install() does its own up-to-date
       -- check, so this is a near-instant no-op when nothing is missing.
-      -- Without the tree-sitter CLI every build fails, so skip it instead
-      -- of re-downloading and erroring for each parser on every launch
-      -- (:checkhealth config explains what to install).
-      if vim.g.treesitter_auto_install ~= false and vim.fn.executable("tree-sitter") == 1 then
+      -- Skip builds without the CLI, compiler, curl, or tar rather than
+      -- failing for every parser on each launch. :checkhealth config keeps
+      -- the missing-prerequisite report available without startup popups.
+      if vim.g.treesitter_auto_install ~= false and require("config.tooling").parsers_ready() then
         vim.defer_fn(function()
           require("nvim-treesitter").install(opts.parsers)
         end, 0)
@@ -151,7 +155,7 @@ return {
         local s = state[lang]
         if s and not (s.status == "failed" and os.time() - s.at >= RETRY_AFTER) then return end
         if vim.treesitter.language.add(lang) then return end -- already available
-        if vim.fn.executable("tree-sitter") == 0 then return end
+        if not require("config.tooling").parsers_ready() then return end
         if not vim.tbl_contains(ts.get_available(), lang) then
           state[lang] = { status = "unavailable", at = os.time() }
           return

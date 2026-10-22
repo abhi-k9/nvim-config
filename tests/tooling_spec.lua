@@ -112,6 +112,34 @@ describe("optional tool prerequisites", function()
     assert.is_true(tools.install_supported("bash-debug-adapter"))
   end)
 
+  it("wires installer conditions per package and leaves manual commands available", function()
+    local old = package.loaded["mason-tool-installer"]
+    local observed
+    package.loaded["mason-tool-installer"] = {
+      setup = function(opts)
+        observed = opts
+      end,
+    }
+    local spec = dofile(vim.fn.getcwd() .. "/lua/plugins/formatting.lua")[2]
+    local ok, err = pcall(function()
+      spec.config(nil, spec.opts)
+      assert.is_false(observed.run_on_start)
+      assert.is_true(spec.opts.run_on_start)
+      local conditions = {}
+      for _, entry in ipairs(observed.ensure_installed) do
+        conditions[entry[1]] = entry.condition
+      end
+      available = { curl = true, unzip = true }
+      assert.is_true(conditions.stylua())
+      assert.is_false(conditions.prettierd())
+      assert.is_false(conditions.debugpy())
+      available.node, available.npm = true, true
+      assert.is_true(conditions.prettierd())
+    end)
+    package.loaded["mason-tool-installer"] = old
+    assert.is_true(ok, tostring(err))
+  end)
+
   it("skips a partial Python installation without venv and caches the bounded probe", function()
     available = { curl = true, python3 = true }
     local calls = 0

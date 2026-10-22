@@ -55,23 +55,14 @@ return {
       "nvim-lua/plenary.nvim",
       -- Native C sorter; massively speeds up the matching algorithm. Built
       -- at install/update time. Rather than guess by OS, pick whichever build
-      -- tool is actually on PATH: prefer `make` (upstream default; needs
-      -- gcc/clang), else fall back to `cmake` (needs CMake + a C++ toolchain,
+      -- toolchain is available: prefer `make` (cc on Unix, gcc on Windows),
+      -- else fall back to `cmake` (needs CMake + a C toolchain,
       -- e.g. the MSVC Build Tools on Windows where `make` is usually absent).
       -- Detected when the spec loads; if you install a tool later, restart
       -- Neovim so this re-evaluates, then :Lazy build telescope-fzf-native.
       {
         "nvim-telescope/telescope-fzf-native.nvim",
-        build = (function()
-          if vim.fn.executable("make") == 1 then
-            return "make"
-          elseif vim.fn.executable("cmake") == 1 then
-            return "cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release --target install"
-          end
-          -- Neither found: fall back to make so the build error names a tool
-          -- you can install. (:checkhealth telescope will flag the missing sorter.)
-          return "make"
-        end)(),
+        build = require("config.tooling").native_sorter_build(),
       },
       -- Routes vim.ui.select (code actions, etc.) through telescope.
       "nvim-telescope/telescope-ui-select.nvim",

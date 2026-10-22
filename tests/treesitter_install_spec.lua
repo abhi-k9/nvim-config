@@ -90,6 +90,28 @@ describe("on-demand parser installation", function()
     assert.equals(0, attempts)
   end)
 
+  it("skips both startup and first-use builds without a compiler", function()
+    local tooling = require("config.tooling")
+    local msvc = tooling.msvc_install_path
+    tooling.msvc_install_path = function()
+      return nil
+    end
+    vim.fn.executable = function(name)
+      return (name == "tree-sitter" or name == "curl" or name == "tar") and 1 or 0
+    end
+    local ok, err = pcall(function()
+      dofile(vim.fn.getcwd() .. "/lua/plugins/treesitter.lua")[1].config(
+        nil,
+        { parsers = { "audit_parser" } }
+      )
+      filetype()
+      assert.equals(0, attempts)
+      assert.same({}, notes)
+    end)
+    tooling.msvc_install_path = msvc
+    assert.is_true(ok, tostring(err))
+  end)
+
   it("also backs off when the async task raises an error", function()
     task_error = "test download failure"
     filetype()

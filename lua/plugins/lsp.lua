@@ -25,7 +25,9 @@ return {
       require("mason").setup(opts)
     end,
     keys = { { "<leader>cm", "<cmd>Mason<cr>", desc = "Mason" } },
-    build = ":MasonUpdate",
+    build = function()
+      if require("config.tooling").mason_download_ready() then vim.cmd.MasonUpdate() end
+    end,
     opts = {
       ui = {
         icons = {
@@ -94,6 +96,9 @@ return {
         "taplo", -- TOML
       },
     },
+    config = function(_, opts)
+      require("mason-lspconfig").setup(require("config.tooling").configure_servers(opts))
+    end,
   },
 
   -- -------------------------------------------------------------------------
