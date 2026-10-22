@@ -203,6 +203,7 @@ nvim/
 │   │   │   └── swap.lua          swap guard, :SwapGuardToggle, :SwapDelete
 │   │   ├── dap.lua           nvim-dap setup: adapters, fallback configs, signs
 │   │   ├── diagnostics.lua   :DiagnosticDump (hang triage)
+│   │   ├── lsp_format.lua    asynchronous LSP formatting with buffer lifecycle guards
 │   │   ├── health.lua        :checkhealth config (external toolchain check)
 │   │   ├── util.lua          Shared helpers (buffer delete, file-buffer test, augroup)
 │   │   ├── icons.lua         Shared diagnostic glyphs
@@ -235,6 +236,7 @@ nvim/
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager
+│   ├── lsp_format_race_spec.lua  delayed formatting and buffer lifecycle races
 │   ├── search_file_navigation_spec.lua  Grug result header navigation
 │   ├── health_paths_spec.lua  state path types and native option decoding
 │   ├── diagnostic_tail_spec.lua  bounded regular-file log reads and I/O failures

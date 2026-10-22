@@ -235,7 +235,7 @@ return {
           -- wait for timeoutlen. Same rule as keymaps.lua's visual maps.
           k({ "n", "x" }, "<leader>la", vim.lsp.buf.code_action, "Code action")
           k("n", "<leader>lf", function()
-            vim.lsp.buf.format({ async = true })
+            require("config.lsp_format").format(buf)
           end, "Format")
 
           -- Inlay hints — Neovim 0.10+. Two subtle correctness points:
