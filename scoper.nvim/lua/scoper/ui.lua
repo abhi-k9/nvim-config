@@ -184,20 +184,24 @@ function M.pick_many(items, opts, cb)
     local choices = vim.list_extend({ "(done)" }, remaining)
     local loop_prompt = prompt
     if #picked > 0 then loop_prompt = ("%s [%d picked]"):format(prompt, #picked) end
-    vim.ui.select(choices, vim.tbl_extend("force", opts, { prompt = loop_prompt }), function(choice)
-      if choice == nil or choice == "(done)" then
-        cb(picked)
-        return
-      end
-      table.insert(picked, choice)
-      for i, v in ipairs(remaining) do
-        if v == choice then
-          table.remove(remaining, i)
-          break
+    vim.ui.select(
+      choices,
+      vim.tbl_extend("force", opts, { prompt = loop_prompt }),
+      function(choice, idx)
+        if choice == nil or idx == 1 then
+          cb(picked)
+          return
         end
+        table.insert(picked, choice)
+        for i, v in ipairs(remaining) do
+          if v == choice then
+            table.remove(remaining, i)
+            break
+          end
+        end
+        loop()
       end
-      loop()
-    end)
+    )
   end
   loop()
 end
