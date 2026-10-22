@@ -1,10 +1,13 @@
 local State = require("scoper.state")
 local Lsp = require("scoper.lsp")
+local Path = require("scoper.path")
 
 describe("Scoper filter cache failures", function()
   local root, previous, env, notify, warnings
   before_each(function()
-    root, previous = vim.fn.tempname(), vim.fn.getcwd()
+    -- clangd commands deliberately use normalized forward-slash paths on
+    -- Windows too; tempname() uses the native separators and drive case.
+    root, previous = Path.normalize(vim.fn.tempname()), vim.fn.getcwd()
     env = { vim.env.XDG_DATA_HOME, vim.env.XDG_CACHE_HOME }
     vim.env.XDG_DATA_HOME, vim.env.XDG_CACHE_HOME = root .. "/data", root .. "/cache"
     vim.fn.mkdir(root .. "/src", "p")
