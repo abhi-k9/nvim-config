@@ -116,12 +116,25 @@ local function cache_dir(fingerprint)
   -- (case-insensitive on Windows), so the state file and this cache
   -- always agree on which project they belong to.
   local hash = Util.cwd_hash(Path.key(State.root()))
-  -- Scope names are validated at creation (state.new_scope rejects
-  -- anything outside [%w_%-.]), but a hand-edited state file may still
-  -- carry unsafe names. Sanitize before using one as a directory
-  -- component; '/' would nest, '..' would traverse, ':' fails mkdir on
-  -- Windows.
-  local scope = State.active_name():gsub("[^%w_%-%.]", "_")
+  -- Preserve readable cache paths for ordinary names. Legacy logical names
+  -- such as CON or frontend. must remain loadable, but Windows rejects those
+  -- components (including device names with extensions); long names also
+  -- exceed the component limit on Unix. Encode only those cache components.
+  local name = State.active_name()
+  local scope = name:gsub("[^%w_%-%.]", "_")
+  local stem = (scope:match("^[^%.]+") or ""):upper()
+  if
+    #scope > 255
+    or scope:sub(-1) == "."
+    or stem == "CON"
+    or stem == "PRN"
+    or stem == "AUX"
+    or stem == "NUL"
+    or stem:match("^COM[1-9]$")
+    or stem:match("^LPT[1-9]$")
+  then
+    scope = "scope-" .. vim.fn.sha256(name):sub(1, 32)
+  end
   return Path.normalize(
     vim.fn.stdpath("cache") .. "/scoper/" .. hash .. "/" .. scope .. "/" .. fingerprint:sub(1, 32)
   )

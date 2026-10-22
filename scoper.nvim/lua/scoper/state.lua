@@ -61,7 +61,8 @@ local function fallback_scope(scopes)
   return names[1]
 end
 
--- Scope names end up in cache paths (lsp.lua), so "." and ".." are out.
+-- Scope names are command-friendly identifiers; "." and ".." are out.
+-- lsp.lua additionally encodes names that cannot be filesystem components.
 local function valid_scope_name(name)
   return type(name) == "string"
     and name:match("^[%w_%-%.]+$") ~= nil
@@ -505,15 +506,10 @@ end
 -- Create a new scope (seeded with default_excludes) and switch to it.
 -- Returns false if the name is taken or unusable.
 --
--- Scope names become DIRECTORY COMPONENTS on disk — the filtered clangd
--- cache lives at stdpath("cache")/scoper/<cwd-hash>/<scope-name>/ — so
--- they must be filesystem-safe on every OS. Allow word characters plus
--- '.', '-', '_' and reject everything else: '/' or '\' would silently
--- nest directories (or traverse with ".."), and ':' '*' '?' fail
--- mkdir outright on Windows. Rejecting at creation gives the user a
--- clear error at the moment they typed the name, instead of an opaque
--- cache failure later. (lsp.cache_dir additionally sanitizes names
--- that were hand-edited into the JSON.)
+-- Keep names simple to type and complete in commands: word characters plus
+-- '.', '-', '_', excluding traversal components. lsp.cache_dir separately
+-- encodes Windows device names, trailing dots, and overlong components so
+-- existing logical names remain readable on every platform.
 function M.new_scope(name)
   sync()
   if not name or name == "" then return false, "name required" end
