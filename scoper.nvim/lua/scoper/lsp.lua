@@ -353,7 +353,14 @@ local function run_in_background(job, cb)
     cb(ok and res or { info = "filter failed: " .. tostring(res) })
   end
 
-  vim.fn.mkdir(job.out_dir, "p")
+  local made, mkdir_error = pcall(vim.fn.mkdir, job.out_dir, "p")
+  if not made then
+    cleanup("failed (cannot create cache directory)")
+    return cb({
+      info = "cannot create filter cache: " .. tostring(mkdir_error),
+      warn = "Scoper LSP: cannot create filter cache: " .. tostring(mkdir_error),
+    })
+  end
   local wrote, write_result = pcall(vim.fn.writefile, { vim.json.encode(job) }, job_path)
   if not wrote or write_result ~= 0 then return run_here("can't write " .. job_path) end
   local ok, err = pcall(

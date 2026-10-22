@@ -96,7 +96,13 @@ function M.run(job)
   local digest = vim.fn.sha256(encoded)
   local changed = digest ~= job.old_digest
 
-  vim.fn.mkdir(job.out_dir, "p")
+  local made, mkdir_error = pcall(vim.fn.mkdir, job.out_dir, "p")
+  if not made then
+    return {
+      info = "cannot create filter cache: " .. tostring(mkdir_error),
+      warn = "Scoper: cannot create filter cache: " .. tostring(mkdir_error),
+    }
+  end
 
   -- Atomic write (util.atomic_write: tmp + rename). Same rationale as
   -- state.save, plus one extra reason specific to this file: it is
