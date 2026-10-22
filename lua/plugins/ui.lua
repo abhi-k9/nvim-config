@@ -363,14 +363,10 @@ return {
           end
         end
 
-        -- Run `fn` with a REGULAR file window focused. The pin/close-others
-        -- actions below use `:buffer N`, which loads the target into the
-        -- CURRENT window — and a right-click on a bufferline tab doesn't
-        -- move focus, so if you were sitting in neo-tree (or a terminal,
-        -- help, trouble, …) the file got loaded INTO that panel, replacing
-        -- the tree with a 32-column file view. Hop to the first normal
-        -- window in the tab first; if none exists, fall through unchanged
-        -- (same behaviour as before, and there's nothing better to pick).
+        -- Right-clicking the tabline keeps the previous window focused.
+        -- Run file actions from a normal window so they do not replace or
+        -- split a focused neo-tree, terminal, help, or trouble panel. If no
+        -- file window exists, use the current window.
         local function in_file_window(fn)
           local cur_win = vim.api.nvim_get_current_win()
           if vim.bo[vim.api.nvim_win_get_buf(cur_win)].buftype ~= "" then
@@ -386,8 +382,12 @@ return {
 
         local actions = {
           -- stylua: ignore start
-          { "Open in vsplit",       function() vim.cmd("vertical sbuffer " .. bufnum) end },
-          { "Open in hsplit",       function() vim.cmd("sbuffer " .. bufnum) end },
+          { "Open in vsplit",       function()
+              in_file_window(function() vim.cmd("vertical sbuffer " .. bufnum) end)
+            end },
+          { "Open in hsplit",       function()
+              in_file_window(function() vim.cmd("sbuffer " .. bufnum) end)
+            end },
           { "Copy absolute path",   copy_path(":p") },
           { "Copy relative path",   copy_path(":.") },
           { "Copy filename",        copy_path(":t") },
