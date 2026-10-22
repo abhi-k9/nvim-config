@@ -1,9 +1,10 @@
 describe("on-demand parser installation", function()
-  local original_ts, original_add, original_executable, original_notify
+  local original_ts, original_add, original_executable, original_notify, original_auto_install
   local attempts, notes, installed, result, task_error, fake_time, original_time
   local buf
 
   before_each(function()
+    original_auto_install, vim.g.treesitter_auto_install = vim.g.treesitter_auto_install, true
     original_ts = package.loaded["nvim-treesitter"]
     original_add = vim.treesitter.language.add
     original_executable = vim.fn.executable
@@ -52,6 +53,7 @@ describe("on-demand parser installation", function()
   end)
 
   after_each(function()
+    vim.g.treesitter_auto_install = original_auto_install
     pcall(vim.api.nvim_buf_delete, buf, { force = true })
     package.loaded["nvim-treesitter"] = original_ts
     vim.treesitter.language.add = original_add
@@ -77,6 +79,15 @@ describe("on-demand parser installation", function()
     fake_time = fake_time + 300
     filetype()
     assert.are.equal(2, attempts)
+  end)
+
+  it("honors the opt-out for both startup and first-use installation", function()
+    vim.g.treesitter_auto_install = false
+    dofile(vim.fn.getcwd() .. "/lua/plugins/treesitter.lua")[1].config(nil, {
+      parsers = { "audit_parser" },
+    })
+    filetype()
+    assert.equals(0, attempts)
   end)
 
   it("also backs off when the async task raises an error", function()

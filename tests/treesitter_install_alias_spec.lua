@@ -1,8 +1,10 @@
 describe("parser installation completion", function()
   local original_ts, original_add, original_start, original_query, original_executable, original_notify
   local buffers, attached, installed, completion, attempts
+  local original_auto_install
 
   before_each(function()
+    original_auto_install, vim.g.treesitter_auto_install = vim.g.treesitter_auto_install, true
     original_ts = package.loaded["nvim-treesitter"]
     original_add, original_start = vim.treesitter.language.add, vim.treesitter.start
     original_query, original_executable, original_notify =
@@ -45,6 +47,7 @@ describe("parser installation completion", function()
   end)
 
   after_each(function()
+    vim.g.treesitter_auto_install = original_auto_install
     for _, buf in ipairs(buffers) do
       pcall(vim.api.nvim_buf_delete, buf, { force = true })
     end

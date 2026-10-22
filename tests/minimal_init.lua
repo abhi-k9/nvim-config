@@ -14,6 +14,10 @@
 -- minimal_init does the same.)
 vim.opt.rtp:prepend(vim.fn.getcwd())
 
+-- Specs exercise installers with controlled tasks. Real background builds in
+-- every child would race over the same grammar checkout on a fresh CI runner.
+vim.g.treesitter_auto_install = false
+
 local bootstrap_plenary = dofile(vim.fn.getcwd() .. "/scoper.nvim/tests/bootstrap.lua")
 
 bootstrap_plenary()
@@ -84,6 +88,11 @@ end
 -- lazy itself.
 vim.go.loadplugins = true
 dofile(vim.fn.getcwd() .. "/init.lua")
+
+-- Keep the real plugin configuration, without provisioning tools from each
+-- spec process when VimEnter fires. Explicit installer tests use controlled APIs.
+local installer = package.loaded["mason-tool-installer"]
+if installer then installer.setup({ run_on_start = false }) end
 
 -- Stop recording: from here on it's asynchronous plugin loading, not a
 -- config-declared mapping.

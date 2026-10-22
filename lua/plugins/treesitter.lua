@@ -107,7 +107,7 @@ return {
       -- Without the tree-sitter CLI every build fails, so skip it instead
       -- of re-downloading and erroring for each parser on every launch
       -- (:checkhealth config explains what to install).
-      if vim.fn.executable("tree-sitter") == 1 then
+      if vim.g.treesitter_auto_install ~= false and vim.fn.executable("tree-sitter") == 1 then
         vim.defer_fn(function()
           require("nvim-treesitter").install(opts.parsers)
         end, 0)
