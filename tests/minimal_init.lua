@@ -14,30 +14,7 @@
 -- minimal_init does the same.)
 vim.opt.rtp:prepend(vim.fn.getcwd())
 
-local function bootstrap_plenary()
-  if pcall(require, "plenary.busted") then return end
-  -- Under stdpath("cache"), added to 'runtimepath' explicitly — NOT a
-  -- site/pack/*/start directory: that is your everyday Neovim's package
-  -- path, where a test-only plenary would be auto-loaded (or, with lazy.nvim,
-  -- flagged by :checkhealth lazy as "found existing packages").
-  local install_dir = vim.fn.stdpath("cache") .. "/test-deps/plenary.nvim"
-  if vim.fn.isdirectory(install_dir) == 0 then
-    local out = vim.fn.system({
-      "git",
-      "clone",
-      "--depth=1",
-      "https://github.com/nvim-lua/plenary.nvim",
-      install_dir,
-    })
-    if vim.v.shell_error ~= 0 then
-      -- A failed clone can leave a partial directory behind, which the
-      -- isdirectory() check above would take for an install next run.
-      vim.fn.delete(install_dir, "rf")
-      error("git clone of plenary.nvim failed:\n" .. out)
-    end
-  end
-  vim.opt.rtp:append(install_dir)
-end
+local bootstrap_plenary = dofile(vim.fn.getcwd() .. "/scoper.nvim/tests/bootstrap.lua")
 
 bootstrap_plenary()
 vim.cmd("runtime plugin/plenary.vim")
