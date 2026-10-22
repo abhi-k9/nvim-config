@@ -33,20 +33,30 @@ end
 -- end up appended to the report.
 local function file_tail(path, max_bytes)
   max_bytes = max_bytes or 64 * 1024
-  if vim.fn.filereadable(path) == 0 then return "(no file at " .. path .. ")" end
-  local f = io.open(path, "rb")
-  if not f then return "(could not open " .. path .. ")" end
-  -- seek() returns nil for non-seekable files (a FIFO, some network
-  -- shares); treat that as "read it all" instead of erroring on nil > n.
-  local size = f:seek("end") or 0
-  if size > max_bytes then
-    f:seek("set", size - max_bytes)
-    f:read("l") -- discard the partial first line so output isn't garbled
-  else
-    f:seek("set", 0)
+  local stat = vim.uv.fs_stat(path)
+  if not stat then return "(no file at " .. path .. ")" end
+  -- Opening a FIFO for reading can block the editor indefinitely. Check
+  -- before opening and use nonblocking mode where supported so replacement
+  -- of the path between stat and open cannot strand the command either.
+  if stat.type ~= "file" then return "(not a regular file: " .. path .. ")" end
+  local flags = bit.bor(vim.uv.constants.O_RDONLY, vim.uv.constants.O_NONBLOCK or 0)
+  local fd = vim.uv.fs_open(path, flags, 0)
+  if not fd then return "(could not open " .. path .. ")" end
+  stat = vim.uv.fs_fstat(fd)
+  if not stat or stat.type ~= "file" then
+    vim.uv.fs_close(fd)
+    return "(not a regular file: " .. path .. ")"
   end
-  local body = f:read("*a") or ""
-  f:close()
+  local size = stat.size
+  local body = vim.uv.fs_read(fd, max_bytes, math.max(0, size - max_bytes))
+  vim.uv.fs_close(fd)
+  if not body then return "(could not read " .. path .. ")" end
+  if size > max_bytes then
+    -- Drop a partial first line only if another line follows. A log with
+    -- one huge line must still produce useful output, bounded by max_bytes.
+    local newline = body:find("\n", 1, true)
+    if newline and newline < #body then body = body:sub(newline + 1) end
+  end
   local prefix = (size > max_bytes)
       and ("(showing last %d KiB of %d KiB)\n\n"):format(
         math.floor(max_bytes / 1024),
@@ -316,7 +326,14 @@ function M.dump(opts)
   -- returns the path, doesn't create it. mkdir -p is a no-op if the
   -- directory already exists.
   local log_dir = vim.fn.stdpath("log")
-  vim.fn.mkdir(log_dir, "p")
+  local made, mkdir_error = pcall(vim.fn.mkdir, log_dir, "p")
+  if not made then
+    vim.notify(
+      ("Diagnostic dump FAILED to create %s: %s"):format(log_dir, mkdir_error),
+      vim.log.levels.ERROR
+    )
+    return nil
+  end
 
   -- Filename: timestamp at second resolution + PID. The PID gives us
   -- uniqueness across (a) rapid double-invocations within the same
@@ -326,7 +343,7 @@ function M.dump(opts)
   -- A second dump in the same second gets a -2, -3, … suffix.
   local base = ("%s/diagnostic_%s_%d"):format(log_dir, os.date("%Y%m%d_%H%M%S"), vim.uv.os_getpid())
   local dest, n = base .. ".txt", 1
-  while vim.uv.fs_stat(dest) do
+  while vim.uv.fs_lstat(dest) do
     n = n + 1
     dest = ("%s-%d.txt"):format(base, n)
   end
@@ -335,7 +352,9 @@ function M.dump(opts)
   -- this command because something is already wrong; failing silently
   -- here would leave them debugging the wrong problem ("the dump says
   -- the LSP attached fine — but actually the dump didn't save").
-  if vim.fn.writefile(vim.split(table.concat(out, "\n"), "\n"), dest) ~= 0 then
+  -- API calls also raise the Vim error as a Lua exception (e.g. E482).
+  local wrote, status = pcall(vim.fn.writefile, vim.split(table.concat(out, "\n"), "\n"), dest)
+  if not wrote or status ~= 0 then
     vim.notify(
       ("Diagnostic dump FAILED to write %s (disk full? permissions?)"):format(dest),
       vim.log.levels.ERROR

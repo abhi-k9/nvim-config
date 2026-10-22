@@ -235,6 +235,7 @@ nvim/
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager
+│   ├── diagnostic_tail_spec.lua  bounded regular-file log reads and I/O failures
 │   ├── explorer_directory_spec.lua  directory startup and reload behavior
 │   ├── treesitter_context_bigfile_spec.lua  large-file context parser exclusion
 │   ├── treesitter_install_alias_spec.lua  shared-parser filetype aliases
