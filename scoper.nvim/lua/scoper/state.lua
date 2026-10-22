@@ -126,6 +126,9 @@ end
 -- file changed on disk since we last touched it, it is reloaded before the
 -- change applies, and the other instance's edits survive.
 local file_mtime
+-- Failed reads must never turn session defaults into an overwrite of scopes
+-- we could not inspect or back up. A successful explicit load clears this.
+local read_error
 
 local function stat_mtime(path)
   local st = vim.uv.fs_stat(path)
@@ -149,23 +152,43 @@ end
 -- Read the state file for the current root. Tolerant of every plausible
 -- failure mode: file missing or empty → fresh state; file unparseable →
 -- fresh state, with the broken file copied aside so a hand-editing slip
--- (a trailing comma, say) doesn't cost every scope of the project.
+-- (a trailing comma, say) doesn't cost every scope of the project. Unreadable
+-- files or failed backups block saves until an explicit successful reload.
 -- The defensive table-filling below is essential: older files lack some
 -- fields, and a partial or hand-edited JSON file must not crash anything.
 -- Sets file_mtime.
 local function read_state()
+  read_error = nil
   local path = store_path()
-  if vim.fn.filereadable(path) == 0 and vim.fn.filereadable(legacy_store_path()) == 1 then
+  local st, stat_err, stat_code = vim.uv.fs_stat(path)
+  if not st and (stat_code == "ENOENT" or stat_code == "ENOTDIR") then
     path = legacy_store_path()
+    st, stat_err, stat_code = vim.uv.fs_stat(path)
   end
   file_mtime = nil
-  if vim.fn.filereadable(path) == 0 then return fresh_state() end
-
-  local lines = vim.fn.readfile(path)
+  local ok, lines
+  if not st and (stat_code == "ENOENT" or stat_code == "ENOTDIR") then return fresh_state() end
+  if st and st.type == "file" then
+    ok, lines = pcall(vim.fn.readfile, path)
+  elseif st then
+    stat_err = "expected a regular file, got " .. tostring(st.type)
+  end
+  if not ok then
+    read_error = tostring(lines or stat_err)
+    vim.notify(
+      ("Scoper: could not read %s (%s). Saves are blocked; fix the file and run setup() again to reload it."):format(
+        path,
+        read_error
+      ),
+      vim.log.levels.ERROR
+    )
+    return nil
+  end
   file_mtime = stat_mtime(path)
   if #lines == 0 then return fresh_state() end
 
-  local ok, parsed = pcall(vim.json.decode, table.concat(lines, "\n"))
+  local parsed
+  ok, parsed = pcall(vim.json.decode, table.concat(lines, "\n"))
   if not ok or type(parsed) ~= "table" then
     -- EXCL: never overwrite an earlier backup from the same second.
     local stamp, backup, copied = os.date("%Y%m%d-%H%M%S"), nil, nil
@@ -174,10 +197,11 @@ local function read_state()
       copied = vim.uv.fs_copyfile(path, backup, { excl = true })
       if copied or vim.uv.fs_stat(backup) == nil then break end
     end
+    if not copied then read_error = "corrupt state could not be backed up" end
     vim.notify(
       ("Scoper: corrupt state file, using defaults. %s"):format(
         copied and ("The old file is kept as " .. backup)
-          or ("Could not back up " .. path .. "; the next scope change overwrites it")
+          or ("Could not back up " .. path .. "; saves are blocked until a successful reload")
       ),
       vim.log.levels.WARN
     )
@@ -223,7 +247,7 @@ end
 -- initial load.
 function M.load(opts)
   root = Path.normalize(Path.cwd())
-  M.state = read_state()
+  M.state = read_state() or fresh_state()
   if not (opts and opts.quiet) then fire_change() end
 end
 
@@ -250,15 +274,30 @@ end
 -- being present doesn't break the rename.
 --
 -- Returns false (after notifying) when the file couldn't be written; the
--- in-memory change stays and the next successful save persists it.
+-- in-memory change stays and the next successful save persists it. After an
+-- unsafe read, saves remain blocked until load() can read or back up the file.
 function M.save()
-  ensure_dir()
-  local ok, err = Util.atomic_write(store_path(), { vim.json.encode(M.state) })
+  local ok, err
+  if read_error then
+    ok, err = false, "state was not safely read; fix the file and run setup() again"
+  else
+    local called
+    called, ok, err = pcall(function()
+      ensure_dir()
+      return Util.atomic_write(store_path(), { vim.json.encode(M.state) })
+    end)
+    if not called then
+      ok, err = false, ok
+    end
+  end
   if not ok then
     vim.notify(
-      ("Scoper: failed to save %s (%s). The change applies to this session only, until a later change saves."):format(
+      ("Scoper: failed to save %s (%s). %s"):format(
         store_path(),
-        err
+        err,
+        read_error
+            and "The change applies to this session only; reload after fixing the state file."
+          or "The change applies to this session only, until a later change saves."
       ),
       vim.log.levels.ERROR
     )
@@ -303,6 +342,7 @@ end
 -- Re-read the state file if another instance changed it (see file_mtime).
 -- No event: the mutation that follows fires ScoperChanged itself.
 local function sync()
+  if read_error then return end
   local now = stat_mtime(store_path())
   if now ~= nil and now ~= file_mtime then
     local refreshed = read_state()
