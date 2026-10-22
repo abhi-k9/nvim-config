@@ -76,9 +76,10 @@ vim.api.nvim_create_autocmd("BufReadPost", {
       once = true,
       desc = "big_file: no regex syntax, no treesitter",
       callback = function(ev)
+        if not vim.b[ev.buf].big_file then return end
         vim.bo[ev.buf].syntax = ""
         vim.schedule(function()
-          if vim.api.nvim_buf_is_valid(ev.buf) then
+          if vim.api.nvim_buf_is_valid(ev.buf) and vim.b[ev.buf].big_file then
             vim.treesitter.stop(ev.buf)
             vim.bo[ev.buf].syntax = ""
           end

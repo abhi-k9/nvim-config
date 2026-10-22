@@ -236,6 +236,7 @@ nvim/
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager
+│   ├── bigfile_reread_spec.lua  large-to-small reread callback invalidation
 │   ├── view_janitor_spec.lua  preserve unrelated files during view cleanup
 │   ├── fold_view_freshness_spec.lua  subsecond saved-view freshness
 │   ├── dap_python_adapter_spec.lua  Python launch and socket attach transports
