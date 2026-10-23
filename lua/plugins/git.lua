@@ -6,6 +6,40 @@
 
 local icons = require("config.icons")
 
+local function current_file_history(pin_local, selection)
+  local name = vim.api.nvim_buf_get_name(0)
+  if not require("config.util").is_file_buffer(0) or name:match("^%a[%w+.-]+://") then
+    vim.notify("Current-file history requires an ordinary named file buffer", vim.log.levels.WARN)
+    return
+  end
+  -- Diffview's adapters accept pathspecs and normalize separators. There is
+  -- no backend-independent literal-path mode; do not silently show another
+  -- file's history. Raw commands and repository history keep their full API.
+  local path = vim.fn.has("win32") == 1 and name:gsub("\\", "/") or name
+  if
+    path:find("[%*%?%[]")
+    or path:find("/:", 1, true)
+    or path:match("^:")
+    or (vim.fn.has("win32") == 0 and path:find("\\", 1, true))
+  then
+    vim.notify(
+      "Current-file Diffview history cannot preserve this filename literally. "
+        .. "Use repository history (<leader>gH) to select the file explicitly.",
+      vim.log.levels.WARN
+    )
+    return
+  end
+  local command = { cmd = "DiffviewFileHistory", args = {} }
+  if selection then
+    local first, last = vim.fn.line("v"), vim.fn.line(".")
+    command.range = { math.min(first, last), math.max(first, last) }
+    vim.cmd.normal({ "\27", bang = true })
+  else
+    command.args = pin_local and { "--pin-local", "%" } or { "%" }
+  end
+  vim.api.nvim_cmd(command, {})
+end
+
 return {
   -- -------------------------------------------------------------------------
   -- gitsigns — the most-used git plugin. Sign column markers, blame,
@@ -99,10 +133,10 @@ return {
       -- stylua: ignore start
       { "<leader>gd", "<cmd>DiffviewToggle<cr>",                   desc = "Diffview: toggle" },
       { "<leader>gD", "<cmd>DiffviewClose<cr>",                    desc = "Diffview: close" },
-      { "<leader>gh", "<cmd>DiffviewFileHistory %<cr>",            desc = "File history (current file)" },
-      { "<leader>gh", ":DiffviewFileHistory<cr>", mode = "x",      desc = "File history (selected lines)" },
+      { "<leader>gh", function() current_file_history(false, false) end, desc = "File history (current file)" },
+      { "<leader>gh", function() current_file_history(false, true) end, mode = "x", desc = "File history (selected lines)" },
       { "<leader>gH", "<cmd>DiffviewFileHistory<cr>",              desc = "File history (repo)" },
-      { "<leader>gl", "<cmd>DiffviewFileHistory --pin-local %<cr>", desc = "File history vs working copy" },
+      { "<leader>gl", function() current_file_history(true, false) end, desc = "File history vs working copy" },
       { "<leader>gw", "<cmd>DiffviewWorktreeOverview<cr>",         desc = "Git worktrees overview" },
       -- stylua: ignore end
     },
