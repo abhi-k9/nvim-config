@@ -246,6 +246,37 @@ describe("scoper.lsp filtered compile_commands", function()
     assert.is_truthy(info:find("(cached)", 1, true))
   end)
 
+  it("repairs same-size external edits to a cached database", function()
+    local dir = lsp.write_filtered_compile_commands()
+    local output = dir .. "/compile_commands.json"
+    local original = vim.fn.readfile(output)
+    local changed = original[1]:gsub("src/a%.c", "src/z.c")
+    assert.equals(#original[1], #changed)
+    vim.fn.writefile({ changed }, output)
+    local future = os.time() + 2
+    vim.uv.fs_utime(output, future, future)
+
+    local _, _, repaired = lsp.write_filtered_compile_commands()
+
+    assert.is_true(repaired)
+    assert.same(original, vim.fn.readfile(output))
+  end)
+
+  it("rebuilds corrupt metadata instead of raising from its stamp or counters", function()
+    local dir = lsp.write_filtered_compile_commands()
+    local meta_path = vim.fs.dirname(vim.fs.dirname(dir)) .. "/.scoper-meta.json"
+    local meta = read_json(meta_path)
+    meta.out_stamp = 42
+    vim.fn.writefile({ vim.json.encode(meta) }, meta_path)
+    assert.is_string(lsp.write_filtered_compile_commands())
+    meta = read_json(meta_path)
+    meta.kept = "invalid"
+    vim.fn.writefile({ vim.json.encode(meta) }, meta_path)
+    assert.is_string(lsp.write_filtered_compile_commands())
+    local _, info = lsp.write_filtered_compile_commands()
+    assert.is_truthy(info:find("(cached)", 1, true))
+  end)
+
   it("does not serve a known-truncated database while its refresh is pending", function()
     local dir = lsp.write_filtered_compile_commands()
     vim.fn.writefile({ "[" }, dir .. "/compile_commands.json")
@@ -302,6 +333,77 @@ describe("scoper.lsp filtered compile_commands", function()
     assert.equals(p.root .. "/lib/b.c", read_json(other_dir .. "/compile_commands.json")[1].file)
     local _, cached = lsp.write_filtered_compile_commands()
     assert.is_truthy(cached:find("(cached)", 1, true))
+  end)
+
+  it("does not let an older source generation overwrite a newer worker result", function()
+    local Util = require("scoper.util")
+    local original_write, interleaved, newer_dir = Util.atomic_write, false, nil
+    Util.atomic_write = function(path, lines)
+      if not interleaved and path:match("/compile_commands%.json$") then
+        interleaved = true
+        p.write_cc({ p.entry("src/new.c") })
+        newer_dir = lsp.write_filtered_compile_commands()
+      end
+      return original_write(path, lines)
+    end
+    local ok, dir = pcall(lsp.write_filtered_compile_commands)
+    Util.atomic_write = original_write
+
+    assert.is_true(ok, dir)
+    assert.is_true(interleaved)
+    assert.equals(2, #read_json(newer_dir .. "/compile_commands.json"))
+    assert.equals(newer_dir, dir)
+    local _, cached = lsp.write_filtered_compile_commands()
+    assert.is_truthy(cached:find("(cached)", 1, true))
+  end)
+
+  it("retries a source changed after worker completion before delivering the result", function()
+    local original, calls, delivered, result = vim.system, 0, 0, nil
+    vim.system = function(cmd, _, callback)
+      calls = calls + 1
+      local job = read_json(cmd[#cmd - 1])
+      local output = require("scoper.cdb").run(job)
+      if calls == 1 then p.write_cc({ p.entry("src/new.c") }) end
+      vim.fn.writefile({ vim.json.encode(output) }, cmd[#cmd])
+      callback({ code = 0 })
+    end
+    local ok, err = pcall(lsp._filter_async, function(dir)
+      delivered, result = delivered + 1, dir
+    end)
+    vim.wait(3000, function()
+      return delivered == 1
+    end)
+    vim.system = original
+
+    assert.is_true(ok, err)
+    assert.equals(1, delivered)
+    assert.equals(2, calls)
+    assert.equals(2, #read_json(result .. "/compile_commands.json"))
+  end)
+
+  it("bounds retries when a source keeps changing during background delivery", function()
+    local original, calls, delivered, result = vim.system, 0, 0, nil
+    vim.system = function(cmd, _, callback)
+      calls = calls + 1
+      local job = read_json(cmd[#cmd - 1])
+      local output = require("scoper.cdb").run(job)
+      p.write_cc({ p.entry("src/new" .. calls .. ".c") })
+      vim.fn.writefile({ vim.json.encode(output) }, cmd[#cmd])
+      callback({ code = 0 })
+    end
+    local ok, err = pcall(lsp._filter_async, function(dir, info)
+      delivered, result = delivered + 1, { dir = dir, info = info }
+    end)
+    vim.wait(3000, function()
+      return delivered == 1
+    end)
+    vim.system = original
+
+    assert.is_true(ok, err)
+    assert.equals(1, delivered)
+    assert.equals(2, calls)
+    assert.is_nil(result.dir)
+    assert.matches("kept changing", result.info)
   end)
 
   it("reports a change when the database changes what's in scope", function()

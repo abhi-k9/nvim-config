@@ -28,7 +28,8 @@ describe("portable scope cache components", function()
     State.set_enabled(true)
     local directory, info = LSP.write_filtered_compile_commands()
     assert.is_not_nil(directory, info)
-    return vim.fs.basename(vim.fs.dirname(directory)), directory
+    local scope_dir = vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(directory)))
+    return vim.fs.basename(scope_dir), directory
   end
 
   it("encodes Windows device names and their extension forms without renaming scopes", function()

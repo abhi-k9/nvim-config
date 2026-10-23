@@ -13,6 +13,53 @@ local Util = require("scoper.util")
 
 local M = {}
 
+-- A cheap generation identity for source files and immutable output objects.
+-- Include ctime/inode as well as mtime/size: same-size edits and atomic source
+-- replacement must not reuse metadata from an earlier file generation.
+local stamp_fields = { "size", "mtime_sec", "mtime_nsec", "ctime_sec", "ctime_nsec", "ino", "dev" }
+function M.stamp(path)
+  local stat = vim.uv.fs_stat(path)
+  if not stat or stat.type ~= "file" then return nil end
+  return {
+    size = stat.size,
+    mtime_sec = stat.mtime.sec,
+    mtime_nsec = stat.mtime.nsec,
+    ctime_sec = stat.ctime.sec,
+    ctime_nsec = stat.ctime.nsec,
+    -- Avoid JSON number rounding of large Windows file IDs between runs.
+    ino = ("%.0f"):format(stat.ino),
+    dev = ("%.0f"):format(stat.dev),
+  }
+end
+
+function M.same_stamp(left, right)
+  if type(left) ~= "table" or type(right) ~= "table" then return false end
+  for _, field in ipairs(stamp_fields) do
+    if left[field] ~= right[field] then return false end
+  end
+  return true
+end
+
+local function source_changed(job)
+  return not M.same_stamp(job.meta.source, M.stamp(job.cc))
+end
+
+local function stale_result()
+  return { info = "compile_commands.json changed while filtering", stale_source = true }
+end
+
+-- Verify only while publishing/reusing an object, not on warm cache hits.
+-- A stat sandwich prevents recording a newer file's identity for older bytes.
+local function intact_object(path, digest, max_size)
+  local before = M.stamp(path)
+  if not before or before.size > max_size then return nil end
+  local ok, content = pcall(function()
+    return table.concat(vim.fn.readfile(path), "\n")
+  end)
+  local after = M.stamp(path)
+  if ok and M.same_stamp(before, after) and vim.fn.sha256(content) == digest then return after end
+end
+
 -- ---------------------------------------------------------------------------
 -- The entries whose file `in_scope(path)` accepts.
 --
@@ -77,6 +124,7 @@ end
 -- caller should show (the worker has no UI).
 -- ---------------------------------------------------------------------------
 function M.run(job)
+  if source_changed(job) then return stale_result() end
   local ok, entries = pcall(function()
     return vim.json.decode(table.concat(vim.fn.readfile(job.cc), "\n"))
   end)
@@ -88,15 +136,20 @@ function M.run(job)
 
   local kept = M.filter(entries, State.build_matcher(job.scope, job.root))
   local encoded = vim.json.encode(kept)
-  local out_path = job.out_dir .. "/compile_commands.json"
   -- Did the database clangd will read actually change? Source-database
   -- edits affecting only entries outside this scope rewrite nothing, so
   -- automatic reload can skip restarting clangd. Different scope contents
   -- use separate directories. The meta file hashes the current output.
   local digest = vim.fn.sha256(encoded)
   local changed = digest ~= job.old_digest
+  -- Content-addressed outputs are immutable to cooperating writers. A newer
+  -- source generation can update the advisory metadata pointer without
+  -- changing the file an older clangd instance is already reading.
+  local result_dir = job.out_dir .. "/objects/" .. digest
+  local out_path = result_dir .. "/compile_commands.json"
+  if source_changed(job) then return stale_result() end
 
-  local made, mkdir_error = pcall(vim.fn.mkdir, job.out_dir, "p")
+  local made, mkdir_error = pcall(vim.fn.mkdir, result_dir, "p")
   if not made then
     return {
       info = "cannot create filter cache: " .. tostring(mkdir_error),
@@ -114,7 +167,8 @@ function M.run(job)
   -- prevent. With the rename, clangd sees one atomic IN_MOVED_TO event
   -- with the final file in place. The PID-suffixed tmp name also handles
   -- two Neovim instances sharing this cache dir.
-  if changed then
+  local out_stamp = intact_object(out_path, digest, #encoded + 1)
+  if not out_stamp then
     local ok_w, w_err = Util.atomic_write(out_path, { encoded })
     if not ok_w then
       return {
@@ -122,19 +176,29 @@ function M.run(job)
         warn = "Scoper: failed to install filtered compile_commands: " .. w_err,
       }
     end
+    out_stamp = intact_object(out_path, digest, #encoded + 1)
+    if not out_stamp then
+      return {
+        info = "filtered database changed during publication",
+        warn = "Scoper: filter cache publication failed verification",
+      }
+    end
   end
 
+  if source_changed(job) then return stale_result() end
+
   -- Best-effort: a failed meta write just means the next run re-filters.
-  local out_st = vim.uv.fs_stat(out_path)
   local meta = vim.tbl_extend(
     "force",
     job.meta,
-    { digest = digest, out_size = out_st and out_st.size, kept = #kept, total = #entries }
+    { digest = digest, out_stamp = out_stamp, kept = #kept, total = #entries }
   )
   Util.atomic_write(job.out_dir .. "/.scoper-meta.json", { vim.json.encode(meta) })
 
+  if source_changed(job) then return stale_result() end
+
   return {
-    dir = job.out_dir,
+    dir = result_dir,
     info = ("%d/%d entries kept → %s"):format(#kept, #entries, out_path),
     changed = changed,
   }

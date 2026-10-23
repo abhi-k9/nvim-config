@@ -15,7 +15,7 @@
 --           scope (scoper.cdb; reloads run it in a background Neovim
 --           process so big databases don't freeze the editor)
 --        c. Write the filtered JSON to:
---             stdpath("cache")/scoper/<cwd-hash>/<scope>/<scope-hash>/compile_commands.json
+--             stdpath("cache")/scoper/<cwd-hash>/<scope>/<scope-hash>/objects/<digest>/compile_commands.json
 --        d. Configure clangd via vim.lsp.config with --compile-commands-dir
 --           pointing at that cache dir, alongside the default flags
 --        e. Restart this project's running clangd clients so they pick
@@ -209,8 +209,17 @@ local prepare, finish
 -- Runs the filter in THIS Neovim; reloads use M._filter_async instead.
 -- ---------------------------------------------------------------------------
 function M.write_filtered_compile_commands(opts)
-  local res, job = prepare(opts)
-  return finish(res or Cdb.run(job))
+  for _ = 1, 2 do
+    local res, job = prepare(opts)
+    res = res or Cdb.run(job)
+    if
+      not res.stale_source
+      and (not job or not res.dir or Cdb.same_stamp(job.meta.source, Cdb.stamp(job.cc)))
+    then
+      return finish(res)
+    end
+  end
+  return finish({ info = "compile_commands.json kept changing while filtering" })
 end
 
 -- The cheap half of the filter: the state checks and the freshness cache.
@@ -237,7 +246,7 @@ function prepare(opts)
   -- even though nothing changed — the overwhelmingly common case.
   --
   -- The filtered output only depends on two inputs: the SOURCE
-  -- compile_commands.json (identified by path + mtime sec/nsec + size)
+  -- compile_commands.json (identified by path, timestamps, inode and size)
   -- and the SCOPE CONTENT (include + exclude lists — fingerprinted,
   -- because :ScoperAdd/:ScoperExclude mutate a scope without renaming
   -- it; the scope NAME and cwd are already part of cache_dir's path).
@@ -249,35 +258,36 @@ function prepare(opts)
   -- too so the skip path can report the same message as a real run.
   -- -------------------------------------------------------------------
   local fingerprint = vim.fn.sha256(vim.json.encode({
-    -- Matcher semantics changed: do not reuse or share older filtered output.
-    2,
+    -- Output objects and source/output generation checks changed. Keep older
+    -- versions from sharing their mutable output/metadata with this layout.
+    3,
     Path.key(State.root()),
     scope.include,
     scope.exclude,
   }))
   local out_dir = cache_dir(fingerprint)
-  local out_path = out_dir .. "/compile_commands.json"
   local meta_path = out_dir .. "/.scoper-meta.json"
-  local st = vim.uv.fs_stat(cc)
+  local source = Cdb.stamp(cc)
   local meta = read_json(meta_path)
-  local out_st = vim.uv.fs_stat(out_path)
-  local have_out = out_st ~= nil and out_st.type == "file"
-  local have_intact_out = have_out and meta and meta.out_size == out_st.size
-  -- The output must still have the size the filter wrote (a cheap check:
-  -- hashing it on every start would cost what the cache saves), so a
-  -- truncated or hand-edited cache is filtered again.
-  if
-    have_intact_out
-    and st
-    and meta
-    and meta.src == cc
-    and meta.mtime_sec == st.mtime.sec
-    and meta.mtime_nsec == st.mtime.nsec
-    and meta.size == st.size
+  local digest = meta and meta.digest
+  local valid_meta = type(digest) == "string"
+    and #digest == 64
+    and digest:match("^[0-9a-f]+$")
+    and type(meta.kept) == "number"
+    and meta.kept >= 0
+    and meta.kept % 1 == 0
+    and type(meta.total) == "number"
+    and meta.total >= meta.kept
+    and meta.total % 1 == 0
     and meta.fingerprint == fingerprint
-  then
+  local result_dir = valid_meta and out_dir .. "/objects/" .. digest or nil
+  local out_path = result_dir and result_dir .. "/compile_commands.json" or nil
+  -- Ordinary same-size rewrites also change mtime/ctime or inode identity.
+  -- Keep warm hits stat-only; the publisher hashes each object when reusing it.
+  local have_intact_out = out_path and Cdb.same_stamp(meta.out_stamp, Cdb.stamp(out_path))
+  if have_intact_out and meta.src == cc and Cdb.same_stamp(meta.source, source) then
     return {
-      dir = out_dir,
+      dir = result_dir,
       info = ("%d/%d entries kept → %s (cached)"):format(
         meta.kept or 0,
         meta.total or 0,
@@ -289,7 +299,7 @@ function prepare(opts)
   if opts and opts.stale_ok then
     if not have_intact_out then return { info = "filter pending", stale = true } end
     return {
-      dir = out_dir,
+      dir = result_dir,
       info = ("previous filter result → %s (refresh pending)"):format(out_path),
       changed = false,
       stale = true,
@@ -305,9 +315,7 @@ function prepare(opts)
       -- The inputs that produced the output (see the cache block above).
       meta = {
         src = cc,
-        mtime_sec = st and st.mtime.sec or 0,
-        mtime_nsec = st and st.mtime.nsec or 0,
-        size = st and st.size or 0,
+        source = source,
         fingerprint = fingerprint,
       },
       old_digest = have_intact_out and meta.digest or nil,
@@ -404,11 +412,18 @@ end
 -- cb(dir, info, changed, stale) once the background filter is done, or
 -- right away (synchronously) when there is nothing to filter.
 function M._filter_async(cb, opts)
-  local res, job = prepare(opts)
-  if res then return cb(finish(res)) end
-  run_in_background(job, function(r)
-    cb(finish(r))
-  end)
+  local function attempt(retries)
+    local res, job = prepare(opts)
+    if res then return cb(finish(res)) end
+    run_in_background(job, function(r)
+      if r.stale_source or (r.dir and not Cdb.same_stamp(job.meta.source, Cdb.stamp(job.cc))) then
+        if retries > 0 then return attempt(retries - 1) end
+        return cb(finish({ info = "compile_commands.json kept changing while filtering" }))
+      end
+      cb(finish(r))
+    end)
+  end
+  attempt(1)
 end
 
 -- The clangd cmd for a filter result (what write_filtered_compile_commands
