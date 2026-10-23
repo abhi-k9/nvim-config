@@ -121,23 +121,101 @@ local function legacy_store_path()
   return store_dir() .. "/" .. Util.cwd_hash(M.root()) .. ".json"
 end
 
--- mtime of the state file as this instance last read or wrote it. Two
--- Neovim instances in the same project share one state file and each
--- keeps the state in memory, so every mutator calls sync() first: if the
--- file changed on disk since we last touched it, it is reloaded before the
--- change applies, and the other instance's edits survive.
-local file_mtime
+-- Content identity of the state this instance actually read or published.
+-- Mutation frequency is low and state is small, so compare the contents rather
+-- than trusting filesystem timestamp resolution or atomic-rename inode reuse.
+local file_version
 -- Failed reads must never turn session defaults into an overwrite of scopes
 -- we could not inspect or back up. A successful explicit load clears this.
 local read_error
 
-local function stat_mtime(path)
-  local st = vim.uv.fs_stat(path)
-  return st and (st.mtime.sec .. "." .. st.mtime.nsec) or nil
+local function read_source()
+  local path = store_path()
+  local st, err, code = vim.uv.fs_stat(path)
+  if not st and (code == "ENOENT" or code == "ENOTDIR") then
+    path = legacy_store_path()
+    st, err, code = vim.uv.fs_stat(path)
+  end
+  if not st and (code == "ENOENT" or code == "ENOTDIR") then
+    return { version = "missing:" .. store_path(), path = path }
+  end
+  if st and st.type == "file" then
+    local ok, lines = pcall(vim.fn.readfile, path)
+    if ok then
+      return {
+        path = path,
+        lines = lines,
+        version = path .. "\0" .. vim.fn.sha256(table.concat(lines, "\n")),
+      }
+    end
+    err = lines
+  elseif st then
+    err = "expected a regular file, got " .. tostring(st.type)
+  end
+  return { path = path, error = tostring(err) }
 end
 
 local function ensure_dir()
   vim.fn.mkdir(store_dir(), "p")
+end
+
+-- Publish an already-populated directory to acquire the per-project lock.
+-- Unlike a leased file, a live writer's lock is never expired by elapsed time.
+-- Unique owner markers let a reclaimer/releaser remove only the owner it saw;
+-- rmdir then cannot remove a newly published, nonempty owner's directory.
+local function acquire_lock()
+  local path = store_path() .. ".lock"
+  local owner = ("owner-%d-%.0f"):format(vim.fn.getpid(), vim.uv.hrtime())
+  local staging = path .. ".tmp-" .. owner
+  local made, err = vim.uv.fs_mkdir(staging, 448)
+  if not made then return nil, err end
+  local fd
+  fd, err = vim.uv.fs_open(staging .. "/" .. owner, "wx", 384)
+  if not fd then
+    vim.uv.fs_rmdir(staging)
+    return nil, err
+  end
+  vim.uv.fs_close(fd)
+  local function discard()
+    vim.uv.fs_unlink(staging .. "/" .. owner)
+    vim.uv.fs_rmdir(staging)
+  end
+  for _ = 1, 3 do
+    if vim.uv.fs_rename(staging, path) then return { path = path, owner = owner } end
+    local scan = vim.uv.fs_scandir(path)
+    if scan then
+      local name = vim.uv.fs_scandir_next(scan)
+      local extra = vim.uv.fs_scandir_next(scan)
+      if not name then
+        -- Published locks are never empty; this is an interrupted cleanup.
+        vim.uv.fs_rmdir(path)
+      elseif not extra then
+        local pid = tonumber(name:match("^owner%-(%d+)%-%d+$"))
+        local called, alive, _, code
+        if pid and pid > 0 then
+          called, alive, _, code = pcall(vim.uv.kill, pid, 0)
+        end
+        if called and not alive and code == "ESRCH" then
+          if vim.uv.fs_unlink(path .. "/" .. name) then vim.uv.fs_rmdir(path) end
+        else
+          discard()
+          return nil, "another editor owns the state lock; retry after it finishes: " .. path
+        end
+      else
+        discard()
+        return nil, "unrecognized state lock; inspect it before removing: " .. path
+      end
+    elseif vim.uv.fs_lstat(path) then
+      discard()
+      return nil, "state lock is not an accessible directory: " .. path
+    end
+  end
+  discard()
+  return nil, "state is busy; retry the save"
+end
+
+local function release_lock(lock)
+  if vim.uv.fs_unlink(lock.path .. "/" .. lock.owner) then vim.uv.fs_rmdir(lock.path) end
 end
 
 -- Fire a User autocmd so consumers (lualine, LSP integration) can react.
@@ -157,25 +235,15 @@ end
 -- files or failed backups block saves until an explicit successful reload.
 -- The defensive table-filling below is essential: older files lack some
 -- fields, and a partial or hand-edited JSON file must not crash anything.
--- Sets file_mtime.
-local function read_state()
+-- Sets file_version to the contents actually read, even if the file changes
+-- immediately afterwards. A subsequent save must compare against that snapshot.
+local function read_state(source)
   read_error = nil
-  local path = store_path()
-  local st, stat_err, stat_code = vim.uv.fs_stat(path)
-  if not st and (stat_code == "ENOENT" or stat_code == "ENOTDIR") then
-    path = legacy_store_path()
-    st, stat_err, stat_code = vim.uv.fs_stat(path)
-  end
-  file_mtime = nil
-  local ok, lines
-  if not st and (stat_code == "ENOENT" or stat_code == "ENOTDIR") then return fresh_state() end
-  if st and st.type == "file" then
-    ok, lines = pcall(vim.fn.readfile, path)
-  elseif st then
-    stat_err = "expected a regular file, got " .. tostring(st.type)
-  end
-  if not ok then
-    read_error = tostring(lines or stat_err)
+  source = source or read_source()
+  local path, lines = source.path, source.lines
+  file_version = source.version
+  if source.error then
+    read_error = source.error
     vim.notify(
       ("Scoper: could not read %s (%s). Saves are blocked; fix the file and run setup() again to reload it."):format(
         path,
@@ -185,11 +253,9 @@ local function read_state()
     )
     return nil
   end
-  file_mtime = stat_mtime(path)
-  if #lines == 0 then return fresh_state() end
+  if not lines or #lines == 0 then return fresh_state() end
 
-  local parsed
-  ok, parsed = pcall(vim.json.decode, table.concat(lines, "\n"))
+  local ok, parsed = pcall(vim.json.decode, table.concat(lines, "\n"))
   if not ok or type(parsed) ~= "table" then
     -- EXCL: never overwrite an earlier backup from the same second.
     local stamp, backup, copied = os.date("%Y%m%d-%H%M%S"), nil, nil
@@ -262,13 +328,10 @@ end
 -- rename; see util.atomic_write for the full rationale). This matters
 -- more than it might look — without atomicity, a Neovim crash (OS
 -- reboot, OOM, SIGKILL) mid-write would truncate the JSON file and the
--- user would lose every scope on next load. Two instances racing to
--- save the same project end with last-write-wins on the final path,
--- never with a corrupt file.
---
--- Mutators re-read the file first (sync), so edits another instance saved
--- earlier are kept. Only two saves in the same instant can still race: the
--- later rename wins.
+-- user would lose every scope on next load. Cooperating writers additionally
+-- serialize the compare-and-publish step. A stale save is refused, preserving
+-- the other editor's disk state and this editor's local edits until reload.
+-- External programs that ignore the lock are outside that serialization.
 --
 -- vim.uv.fs_rename is cross-platform — on Windows libuv internally
 -- uses MoveFileEx with MOVEFILE_REPLACE_EXISTING, so the destination
@@ -278,33 +341,50 @@ end
 -- in-memory change stays and the next successful save persists it. After an
 -- unsafe read, saves remain blocked until load() can read or back up the file.
 function M.save()
-  local ok, err
+  local ok, err, lock
   if read_error then
-    ok, err = false, "state was not safely read; fix the file and run setup() again"
+    ok, err = false, read_error
   else
     local called
     called, ok, err = pcall(function()
       ensure_dir()
-      return Util.atomic_write(store_path(), { vim.json.encode(M.state) })
+      lock, err = acquire_lock()
+      if not lock then return false, err end
+      local source = read_source()
+      if source.error then
+        read_error = source.error
+        return false, source.error
+      end
+      -- A caller may save a newly required module before load(). It is safe
+      -- to initialize an absent store, but never to overwrite unread scopes.
+      if file_version == nil and not source.lines then file_version = source.version end
+      if source.version ~= file_version then
+        read_error = "state changed in another editor; run setup() again to reload before saving"
+        return false, read_error
+      end
+      local encoded = vim.json.encode(M.state)
+      local written, write_err = Util.atomic_write(store_path(), { encoded })
+      if written then file_version = store_path() .. "\0" .. vim.fn.sha256(encoded) end
+      return written, write_err
     end)
     if not called then
       ok, err = false, ok
     end
   end
+  if lock then release_lock(lock) end
   if not ok then
     vim.notify(
       ("Scoper: failed to save %s (%s). %s"):format(
         store_path(),
         err,
         read_error
-            and "The change applies to this session only; reload after fixing the state file."
+            and "The change applies to this session only; run setup() again to reload before saving."
           or "The change applies to this session only, until a later change saves."
       ),
       vim.log.levels.ERROR
     )
     return false
   end
-  file_mtime = stat_mtime(store_path())
   return true
 end
 
@@ -340,13 +420,15 @@ end
 -- Mutators. All of them save and fire ScoperChanged on success.
 -- ---------------------------------------------------------------------------
 
--- Re-read the state file if another instance changed it (see file_mtime).
+-- Re-read the state file if another instance changed its contents.
 -- No event: the mutation that follows fires ScoperChanged itself.
 local function sync()
   if read_error then return end
-  local now = stat_mtime(store_path())
-  if now ~= nil and now ~= file_mtime then
-    local refreshed = read_state()
+  local source = read_source()
+  if source.error then
+    read_state(source) -- report the unsafe read without replacing local edits
+  elseif source.version ~= file_version then
+    local refreshed = read_state(source)
     if refreshed then
       M.state = refreshed
       return true
