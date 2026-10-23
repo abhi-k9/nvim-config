@@ -154,6 +154,10 @@ them by default (ripgrep's default).
 On the telescope
 backend, `<M-p>` (insert and normal mode) shows the highlighted entry's
 full path in the prompt title without closing the picker.
+Parsed Telescope entries use the same captured scope matcher as clangd,
+including brace alternatives and negated character classes. If Telescope
+would expand a supplied directory into another path (for example `$NAME`),
+Scoper refuses that search with a warning.
 
 ### LSP
 
@@ -220,8 +224,8 @@ Special cases:
   slashes, no `\\?\` or `\\.\` prefix. On Windows comparisons are
   **case-insensitive** (NTFS is): `:ScoperAdd src` after `Src` is a
   duplicate, `:ScoperRemove SRC` removes it, `**/Build/**` excludes
-  `build/` (ripgrep runs with `--glob-case-insensitive`, telescope's
-  patterns ignore case too), and `C:\Proj` / `c:\proj` are the same
+  `build/` (ripgrep runs with `--glob-case-insensitive`, Telescope's
+  scope matcher ignores case too), and `C:\Proj` / `c:\proj` are the same
   project (older state files saved under the case-sensitive key are
   still read). The one exception is fd, which `:ScoperFind` on the
   fzf-lua backend uses only when ripgrep isn't installed: it matches
@@ -292,10 +296,14 @@ A few things worth knowing:
   isolated by project, scope name, and a hash of the loaded include/exclude
   lists, so instances retaining divergent scope contents do not overwrite
   each other's clangd input. The state file itself is still shared.
-- **Only simultaneous saves race.** Saves are atomic (a crash can never
-  corrupt the store), and every change re-reads the file first, so an
-  edit saved earlier by another instance is kept. Two saves in the
-  same instant still race: the later one wins.
+- **Conflicting saves are refused.** Changes refresh the saved contents
+  first, including equal-timestamp edits and deletions. Saves use an owned
+  per-project directory lock and compare the contents read with the contents
+  on disk before atomic publication. A stale save preserves the other editor's
+  file and your local edits; copy any local changes you need, then rerun
+  `require("scoper").setup()` to reload before saving. Dead-owner locks are
+  recovered; live or unrecognized locks are retained with an error.
+  External programs that ignore the lock are outside this serialization.
 - **`default_excludes` seed new scopes only.** They apply to scopes
   created with `:ScoperNew` and to the `default` scope of a project
   that has no state file yet. Scopes that already exist on disk keep
@@ -340,7 +348,7 @@ When `lsp.clangd = true` in setup, every scope change triggers:
 1. Locate `compile_commands.json` (cwd, `./build`, `./out`, `./cmake-build-*`)
 2. Filter entries where `entry.file` is in the active scope
 3. Write filtered JSON to
-   `stdpath("cache")/scoper/<project-hash>/<scope>/<scope-hash>/compile_commands.json`
+   `stdpath("cache")/scoper/<project-hash>/<scope>/<scope-hash>/objects/<digest>/compile_commands.json`
 4. Update `vim.lsp.config("clangd", { cmd = ... --compile-commands-dir=... })`
 5. Restart this project's running clangd clients
 
@@ -376,6 +384,15 @@ When they do run, scope edits and `:ScoperLspReload` do steps
 (10k entries: ~300 ms) doesn't freeze the editor. Only
 `require("scoper").clangd_cmd()`, which must return a ready cmd, filters
 in Neovim itself.
+
+Each filtered output has a content-addressed directory; cooperating writers
+cannot mix one worker's output with another's metadata. Source changes during
+filtering or delivery trigger one retry, then a reported fallback. Warm hits
+check file identity, size, mtime and ctime without reading the database again;
+this is a freshness check, not protection against arbitrary metadata-preserving
+tampering. Old objects remain available to active clangd processes. Quit all
+editors using the cache before removing `stdpath("cache")/scoper` to reclaim
+space; it is rebuilt on demand.
 
 The restart in step 5 is **asynchronous**: the old clients get a
 graceful shutdown that turns into a forced one after 2 s (clangd with a
@@ -508,7 +525,7 @@ or `<reason>; clangd will use built-in discovery` (no CC.json found).
 | Thing | Path |
 |---|---|
 | Per-project state | `stdpath("data")/scoper/<hash>.json` |
-| Filtered compile_commands | `stdpath("cache")/scoper/<hash>/<scope>/<scope-hash>/` |
+| Filtered compile_commands | `stdpath("cache")/scoper/<hash>/<scope>/<scope-hash>/objects/<digest>/` |
 
 `<hash>` is the first 16 hex digits of the sha256 of the project path
 (lower-cased on Windows). A state file that can't be parsed is kept
@@ -517,7 +534,8 @@ next to it as `<hash>.json.corrupt-<time>` before Scoper starts over.
 project path and the scope's include/exclude lists. Older cache layouts
 are no longer used and may be deleted.
 
-Both directories are safe to delete; Scoper rebuilds on next launch.
+Deleting the state directory resets saved scopes. Deleting the cache directory
+after closing its editors only removes rebuildable filtered databases.
 
 ## Events
 
@@ -602,7 +620,7 @@ Static-analysis tools:
   queued reloads, automatic skips) against fake clients.
 - `pickers_spec`: the scope context (scoping off means the whole cwd),
   the options passed to stub fzf-lua and telescope modules, shell quoting,
-  refusal of restricted replacement, the telescope pattern translation,
+  refusal of restricted replacement, captured Telescope entry filtering,
   the rewriting of
   absolute excludes and of those of includes outside the cwd, and the
   plain-vim grep filter.
@@ -610,5 +628,8 @@ Static-analysis tools:
   `--noplugin`) and runs the commands and their completion;
   `init_spec` covers `setup()` and which directory changes it follows.
 
-Not covered: `ui.lua`, and real fzf-lua, telescope and clangd
-processes; those are checked by hand.
+`state_concurrency_spec` starts two real editors at a save barrier and tests
+dead-owner recovery. The host config's `tests/scoper_telescope_spec.lua` runs
+the actual pinned Telescope and ripgrep. Standalone specs still use controlled
+picker modules and LSP clients; a full native debugger/clangd matrix is not
+covered by this suite.

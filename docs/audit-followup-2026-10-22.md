@@ -142,6 +142,9 @@ cases are not native Windows execution.
 
 ## Remaining limitations and findings
 
+This is the historical finding list for that audit revision. Later fixes and
+current verification boundaries are tracked in [audit-resolution.md](audit-resolution.md).
+
 1. **Toggleterm literal cwd expansion:** its pinned implementation expands an
    already absolute directory with `vim.fn.expand`. A project literally named
    `$NAME` can open a shell or lazygit in a sibling expanded directory when the
@@ -221,7 +224,7 @@ failed fetches were not used as evidence.
 
 ## File coverage ledger
 
-This ledger enumerates all **144 current files** (107 baseline files and 37 additions). Static review, controlled regressions, native integration, and retained prior-audit coverage are identified separately. External dependencies themselves are outside the tracked-file inventory.
+This historical ledger enumerates all **144 files at that audit revision** (107 baseline files and 37 additions). Static review, controlled regressions, native integration, and retained prior-audit coverage are identified separately. External dependencies themselves are outside the tracked-file inventory. Later additions are accounted for in [audit-resolution.md](audit-resolution.md).
 
 | File | Review and verification |
 | --- | --- |

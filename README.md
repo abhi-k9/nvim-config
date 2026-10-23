@@ -253,13 +253,19 @@ nvim/
 │   ├── config_runtime_spec.lua  checkout discovery after a cold plugin install
 │   ├── lsp_initialization_spec.lua  first-client settings and capabilities
 │   ├── fixtures/
-│   │   └── lsp_initialization.lua  real Lazy startup with controlled Mason boundary
+│   │   ├── lsp_initialization.lua  real Lazy startup with controlled Mason boundary
+│   │   └── windows_dap_spawn.lua  native Windows adapter process and argv checks
 │   ├── escape_float_lifecycle_spec.lua  popup closure under reentrant window hooks
 │   ├── session_filetype_rescue_spec.lua  session filetype rescue on ordinary files
 │   ├── bigfile_reread_spec.lua  large-to-small reread callback invalidation
 │   ├── view_janitor_spec.lua  preserve unrelated files during view cleanup
 │   ├── fold_view_freshness_spec.lua  subsecond saved-view freshness
 │   ├── dap_python_adapter_spec.lua  Python launch and socket attach transports
+│   ├── dap_windows_adapters_spec.lua  native Mason adapter selection
+│   ├── terminal_literal_cwd_spec.lua  real terminal cwd and persistence
+│   ├── history_literal_paths_spec.lua  exact-file history guards
+│   ├── scoper_telescope_spec.lua  real Telescope and ripgrep scope filtering
+│   ├── ci_actions_test.py     immutable pin guard and explicit updater tests
 │   ├── lsp_format_race_spec.lua  delayed formatting and buffer lifecycle races
 │   ├── search_file_navigation_spec.lua  Grug result header navigation
 │   ├── health_paths_spec.lua  state path types and native option decoding
@@ -292,6 +298,7 @@ nvim/
 ├── docs/                     Human-facing docs (not loaded by nvim)
 │   ├── audit-2026-10-21.md     findings, regressions, sources, and limits
 │   ├── audit-followup-2026-10-22.md  expanded audit and complete file coverage
+│   ├── audit-resolution.md    unresolved findings, verification and retained limits
 │   ├── ci-troubleshooting.md  cold-start hangs, platform paths, execution limits
 │   ├── limited-environments.md  optional tool policy and minimal-machine verification
 │   ├── CHANGES-archive.md    older changelog entries
@@ -330,6 +337,7 @@ nvim/
 ├── scripts/
 │   ├── check-docs.sh             doc-sync guards: tree, keymaps, commands, plugins, version floor, templates, health
 │   ├── ci-run.py                 stream CI output and annotate bounded failure details
+│   ├── update-ci-actions.py       explicitly refresh immutable action pins
 │   ├── offline-seed.py           pack / install plugins + Mason tools + parsers for an offline machine
 │   └── offline-seed-check.lua    what this install would still download (used by offline-seed.py)
 ├── CHANGES.md                changelog (recent entries, newest first)
@@ -615,7 +623,8 @@ make fmt-check    # stylua --check (this tree)
 make format       # stylua, both trees, in place
 make check        # luacheck + stylua --check over this tree AND scoper.nvim/ (lua/ plugin/ tests/)
 make check-docs   # doc-sync guards: README tree, keymaps, commands, plugins, version floor, templates
-make ci           # the targets CI runs (check + check-docs + test + test-scoper + test-seed), with your local tools
+make check-actions # offline CI action pin guard and updater tests (Python)
+make ci           # check + check-docs + check-actions + test + test-scoper + test-seed
 make hooks        # enable the tracked pre-commit hook (one-time per clone)
 ```
 
@@ -639,6 +648,9 @@ These checks are now *enforced*, not just available:
   Jobs have explicit 5–20 minute limits; the full-config test step has a
   10 minute limit. Failures include bounded output in Actions annotations,
   alongside the complete streamed job log.
+  The Windows Scoper job also exercises native DAP process spawning. The
+  Windows seed job executes an actual relocated distlib Python launcher using
+  the runner's bundled pip resource; it downloads no test packages.
 - **Pre-commit hook** — `.githooks/pre-commit` runs luacheck and
   `stylua --check` on the **staged** content of each `*.lua` file (what
   you're committing, not the working copy), then the doc-sync guards
@@ -663,6 +675,25 @@ Spec files run sequentially to avoid simultaneous full-config startups contendin
 for plugin caches and short asynchronous UI deadlines. The test initializer
 disables automatic parser/tool provisioning in child processes; installer specs
 exercise controlled tasks instead of competing for shared build directories.
+
+CI actions are pinned to full commit SHAs. Their comments record the selected
+update tags; updates happen only when you run the updater with authenticated
+GitHub CLI access:
+
+```sh
+python3 scripts/update-ci-actions.py --dry-run
+python3 scripts/update-ci-actions.py
+# To move one action to a new major explicitly:
+python3 scripts/update-ci-actions.py --ref actions/checkout=v8
+make ci
+git diff -- .github/workflows/ci.yml
+```
+
+Commit and push the reviewed diff when ready. `--check` and `make check-actions`
+work offline. The updater supports block-style `uses` scalars in this workflow;
+it rejects unsupported forms and retains the file if resolution fails or a
+concurrent edit is detected. This pins the action source, while tools downloaded
+by actions, Mason and parser versions keep their existing update policies.
 
 What the suite covers:
 
