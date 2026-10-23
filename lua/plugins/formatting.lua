@@ -263,14 +263,15 @@ return {
     config = function(_, opts)
       opts = vim.deepcopy(opts)
       local supported = false
-      for i, package in ipairs(opts.ensure_installed) do
+      for i, item in ipairs(opts.ensure_installed) do
+        local entry = type(item) == "string" and { item } or item
+        local package, condition = entry[1], entry.condition
         supported = require("config.tooling").install_supported(package) or supported
-        opts.ensure_installed[i] = {
-          package,
-          condition = function()
-            return require("config.tooling").install_supported(package)
-          end,
-        }
+        entry.condition = function()
+          return (not condition or condition())
+            and require("config.tooling").install_supported(package)
+        end
+        opts.ensure_installed[i] = entry
       end
       if not supported then opts.run_on_start = false end
       require("mason-tool-installer").setup(opts)

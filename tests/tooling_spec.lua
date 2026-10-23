@@ -165,6 +165,50 @@ describe("optional tool prerequisites", function()
     assert.is_table(tools.configure_servers({ automatic_enable = true }).automatic_enable.exclude)
   end)
 
+  it("checks prerequisites of version-pinned language servers", function()
+    available = { curl = true, tar = true, unzip = true }
+    local opts = tools.configure_servers({
+      ensure_installed = { "pyright@1.1.414", "lua_ls@3.19.2" },
+    })
+    assert.same({ "lua_ls@3.19.2" }, opts.ensure_installed)
+  end)
+
+  it("preserves Mason tool versions and caller conditions", function()
+    local old = package.loaded["mason-tool-installer"]
+    local observed, enabled
+    package.loaded["mason-tool-installer"] = {
+      setup = function(opts)
+        observed = opts
+      end,
+    }
+    local spec = dofile(vim.fn.getcwd() .. "/lua/plugins/formatting.lua")[2]
+    local condition = function()
+      return enabled == true
+    end
+    spec.opts.ensure_installed = {
+      { "prettierd", version = "0.29.0", auto_update = true, condition = condition },
+      "stylua",
+    }
+    available = { curl = true, unzip = true }
+    local ok, err = pcall(function()
+      spec.config(nil, spec.opts)
+      local entry = observed.ensure_installed[1]
+      assert.equals("prettierd", entry[1])
+      assert.equals("0.29.0", entry.version)
+      assert.is_true(entry.auto_update)
+      enabled = true
+      assert.is_false(entry.condition()) -- Node/npm are still unavailable.
+      available.node, available.npm = true, true
+      enabled = false
+      assert.is_false(entry.condition()) -- Preserve the caller's opt-out.
+      enabled = true
+      assert.is_true(entry.condition())
+      assert.equals(condition, spec.opts.ensure_installed[1].condition)
+    end)
+    package.loaded["mason-tool-installer"] = old
+    assert.is_true(ok, tostring(err))
+  end)
+
   it("keeps Telescope's Lua sorter when no native build chain exists", function()
     assert.is_false(tools.native_sorter_build())
     available.make = true

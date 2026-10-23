@@ -206,7 +206,10 @@ function M.configure_servers(opts)
   opts = vim.deepcopy(opts)
   local installs = {}
   for _, server in ipairs(opts.ensure_installed or {}) do
-    if M.install_supported(servers[server] or server) then installs[#installs + 1] = server end
+    -- mason-lspconfig accepts server@version; keep the requested pin while
+    -- checking the same prerequisites as the unversioned server.
+    local name = server:match("^([^@]+)") or server
+    if M.install_supported(servers[name] or name) then installs[#installs + 1] = server end
   end
   opts.ensure_installed = installs
   -- This gates installed servers too: a copied Mason wrapper may still exist
