@@ -68,7 +68,8 @@ The last reminder time is saved as `tooling-reminder` under `stdpath('state')`,
 so restarting the editor does not reset the interval. Headless tests and scripts
 do not notify or consume that timestamp. Concurrent starts use a short filesystem
 lease; an interrupted lease is cleared after a minute and retried on the next
-focus/start. If state cannot be saved, the prompt explains that and still avoids
+focus/start. Future-dated leases after a clock correction are also cleared.
+If state cannot be saved, the prompt explains that and still avoids
 repeating within the current session.
 
 ## Verification
@@ -89,22 +90,30 @@ informational reminder described above.
 
 Regression specs cover missing and complete toolsets, already-installed Node
 servers without npm, Windows Store Python aliases, incomplete Python installs,
-per-package installer conditions, native sorter fallback, compiler-free parser
+per-package installer conditions and version pins, native sorter fallback, compiler-free parser
 startup/first use, MSVC discovery, and automatic-enable exclusions/allowlists.
 Windows prerequisite behavior is tested at the executable/process API boundary;
 the reduced-PATH integration runs were on Linux.
 
-`make ci` passed **521 tests** locally: 216 configuration, 261 portable Scoper,
+`make ci` passed **534 tests** locally: 229 configuration, 261 portable Scoper,
 and 44 Python tests. One additional Windows API test is skipped on Linux.
 Lint, formatting, and documentation checks passed as well.
-Ten further reminder regressions cover default/custom cadence, restart
+Eleven reminder regressions cover default/custom cadence, restart
 persistence, disabling, headless runs, corrupt/future state, interrupted or
-concurrent leases, write failures, and focus checks in long-running sessions.
+concurrent/future-dated leases, write failures, and focus checks in long-running sessions.
+
+Two further PTY-backed launches with an attached terminal UI verified the same
+reduced toolset interactively: the first showed only the informational health
+reminder, and the restart had no notifications or messages. The prerequisite
+regressions also verify that Mason table entries retain versions and caller
+conditions, and that version-pinned LSP entries receive the same prerequisite
+checks as unversioned entries.
 
 ## Upstream implementation references
 
 - [Mason package metadata and installer prerequisites](https://github.com/mason-org/mason-registry/tree/main/packages).
 - [Mason Python virtual-environment creation](https://github.com/mason-org/mason.nvim/blob/2a6940af80375532e5e9e7c1f2fc6319a1b7a69d/lua/mason-core/installer/managers/pypi.lua).
+- [Mason LSP version parsing](https://github.com/mason-org/mason-lspconfig.nvim/blob/e17625cdc8c2650787467398e02c5d63a2cde966/lua/mason-lspconfig/features/ensure_installed.lua).
 - [Mason tool installer per-package conditions](https://github.com/WhoIsSethDaniel/mason-tool-installer.nvim/blob/443f1ef8b5e6bf47045cb2217b6f748a223cf7dc/lua/mason-tool-installer/init.lua).
 - [Treesitter source download and compilation](https://github.com/nvim-treesitter/nvim-treesitter/blob/1a4f47b03dfe92d28de7d5654c67327ef008c9e6/lua/nvim-treesitter/install.lua).
 - [Blink native/Lua matcher choices](https://github.com/Saghen/blink.cmp/blob/78336bc89ee5365633bcf754d93df01678b5c08f/lua/blink/cmp/config/fuzzy.lua).
