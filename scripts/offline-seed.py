@@ -718,7 +718,7 @@ def _pe_image_end(raw):
     """End of an unsigned PE image; distlib appends its shebang here."""
     try:
         pe = struct.unpack_from("<I", raw, 60)[0]
-        if raw[:2] != b"MZ" or raw[pe:pe + 4] != b"PE\0\0":
+        if raw[:2] != b"MZ" or pe < 64 or pe % 4 or raw[pe:pe + 4] != b"PE\0\0":
             raise ValueError("unrecognized PE executable")
         machine, count = struct.unpack_from("<HH", raw, pe + 4)
         optional_size = struct.unpack_from("<H", raw, pe + 20)[0]
@@ -734,8 +734,6 @@ def _pe_image_end(raw):
         certificate = struct.unpack_from("<II", raw, optional + directory + 32)
         if certificate != (0, 0):
             raise ValueError("signed launchers cannot be rewritten safely")
-        if struct.unpack_from("<I", raw, optional + 64)[0] != 0:
-            raise ValueError("checksummed launchers cannot be rewritten safely")
         end = struct.unpack_from("<I", raw, optional + 60)[0]
         sections = optional + optional_size
         for i in range(count):
@@ -746,6 +744,28 @@ def _pe_image_end(raw):
         return end
     except struct.error as exc:
         raise ValueError("truncated PE executable") from exc
+
+
+def _refresh_pe_checksum(raw, offset):
+    """Update the optional unsigned-image checksum after changing the overlay.
+
+    Windows ImageHlp uses a folded one's-complement sum plus the original
+    file length, excluding the checksum field itself. Authenticode signatures
+    are a different integrity mechanism and are refused by _pe_image_end.
+    """
+    if not struct.unpack_from("<I", raw, offset)[0]:
+        return raw  # Zero means the executable does not request a checksum.
+    output = bytearray(raw)
+    struct.pack_into("<I", output, offset, 0)
+    padded = output + b"\0" * (-len(output) % 4)
+    checksum = 0
+    for (word,) in struct.iter_unpack("<I", padded):
+        checksum += word
+        checksum = (checksum & 0xffffffff) + (checksum >> 32)
+    checksum = (checksum & 0xffff) + (checksum >> 16)
+    checksum = (checksum + (checksum >> 16)) & 0xffff
+    struct.pack_into("<I", output, offset, checksum + len(output))
+    return bytes(output)
 
 
 def rebase_windows_launcher(raw, source_root, target_root, command=""):
@@ -807,7 +827,9 @@ def rebase_windows_launcher(raw, source_root, target_root, command=""):
         if not same_root and not legacy_root:
             raise ValueError("the launcher's source venv is not established by the seed metadata")
         new_header = ('#!"' + target + '"\n').encode("utf-8")
-        return raw[:image_end] + new_header + raw[zip_start:]
+        relocated = raw[:image_end] + new_header + raw[zip_start:]
+        checksum_offset = struct.unpack_from("<I", raw, 60)[0] + 24 + 64
+        return _refresh_pe_checksum(relocated, checksum_offset)
     except (UnicodeError, struct.error, zipfile.BadZipFile) as exc:
         raise ValueError("unrecognized Python launcher overlay") from exc
 

@@ -119,6 +119,8 @@ machine and pass it with `--sha256` on the offline one.
       rebases recognized console-script launchers to the installed venv,
       including paths with spaces. On Windows it rebases recognized unsigned
       distlib `.exe` launchers, preserving their native stub and embedded script.
+      An existing PE checksum is recalculated after relocation; signed images
+      remain refused.
       New seeds record the builder venv path for exact relocation; older seeds
       need an unambiguous venv creation command in `pyvenv.cfg`. Signed, custom,
       ambiguous or oversized Python launchers are left intact and reported as

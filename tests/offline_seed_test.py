@@ -531,12 +531,17 @@ class WindowsEntrypoints(Base):
         with self.assertRaisesRegex(ValueError, "not established"):
             S.rebase_windows_launcher(self.launcher(), None, self.new, command + "extra")
 
-    def test_signed_and_checksummed_images_are_refused(self):
-        for offset in (88 + 64, 88 + 112 + 32):
-            raw = bytearray(self.launcher())
-            struct.pack_into("<I", raw, offset, 1)
-            with self.subTest(offset=offset), self.assertRaisesRegex(ValueError, "cannot be rewritten"):
-                S.rebase_windows_launcher(bytes(raw), self.old, self.new)
+    def test_signed_images_are_refused_and_unsigned_checksums_are_refreshed(self):
+        raw = bytearray(self.launcher())
+        struct.pack_into("<I", raw, 88 + 112 + 32, 1)
+        with self.assertRaisesRegex(ValueError, "signed launchers"):
+            S.rebase_windows_launcher(bytes(raw), self.old, self.new)
+        raw = bytearray(self.launcher())
+        struct.pack_into("<I", raw, 88 + 64, 1)
+        rebased = S.rebase_windows_launcher(bytes(raw), self.old, self.new)
+        self.assertGreater(struct.unpack_from("<I", rebased, 88 + 64)[0], len(rebased))
+        self.assertEqual(raw[:88 + 64], rebased[:88 + 64])
+        self.assertEqual(raw[88 + 68:512], rebased[88 + 68:512])
 
     def test_custom_arguments_and_corrupt_overlays_are_refused(self):
         raw = self.launcher()
@@ -577,6 +582,20 @@ class WindowsEntrypoints(Base):
         shutil.rmtree(builder)
         with mock.patch.object(S, "WINDOWS", True):
             self.assertTrue(S.repair_venvs(self.data, {"tool": str(builder)}))
+        # Compare checksum handling against Windows itself, independently of
+        # the parser/relocator's arithmetic, before executing the image.
+        import ctypes
+        relocated = (target / "Scripts" / "probe.exe").read_bytes()
+        checksum_offset = struct.unpack_from("<I", relocated, 60)[0] + 24 + 64
+        if struct.unpack_from("<I", relocated, checksum_offset)[0]:
+            image = ctypes.create_string_buffer(relocated)
+            header, computed = ctypes.c_uint32(), ctypes.c_uint32()
+            checksum = ctypes.WinDLL("imagehlp").CheckSumMappedFile
+            checksum.argtypes = [ctypes.c_void_p, ctypes.c_uint32,
+                                ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint32)]
+            checksum.restype = ctypes.c_void_p
+            self.assertTrue(checksum(image, len(relocated), ctypes.byref(header), ctypes.byref(computed)))
+            self.assertEqual(header.value, computed.value)
         literal = ["with spaces", "literal&argument", "%DO_NOT_EXPAND%", 'a"quoted"argument', "é漢字"]
         result = subprocess.run([str(target / "Scripts" / "probe.exe"), *literal],
                                 check=True, capture_output=True, text=True, encoding="utf-8", timeout=15,
