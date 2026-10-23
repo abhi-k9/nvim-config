@@ -117,8 +117,14 @@ machine and pass it with `--sha256` on the offline one.
       undone and the data folder is left as it was.
    6. Re-points Mason's Python venvs at this machine's Python. On POSIX it also
       rebases recognized console-script launchers to the installed venv,
-      including paths with spaces. Windows native `.exe` launchers are not
-      rewritten; a relocated Python package may need reinstalling there.
+      including paths with spaces. On Windows it rebases recognized unsigned
+      distlib `.exe` launchers, preserving their native stub and embedded script.
+      New seeds record the builder venv path for exact relocation; older seeds
+      need an unambiguous venv creation command in `pyvenv.cfg`. Signed, custom,
+      ambiguous or oversized Python launchers are left intact and reported as
+      incomplete. Reinstall those packages at the final path. An incomplete
+      repair exits with an error after installation; any previous data remains
+      in the backup. General virtual environments are not fully portable.
 
    | Option | Effect |
    |--------|--------|

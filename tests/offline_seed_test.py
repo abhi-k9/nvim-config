@@ -15,6 +15,8 @@ import os
 import shlex
 import shutil
 import stat
+import struct
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -480,7 +482,109 @@ class CompletenessCheck(Base):
         self.assertIn("--no-check", str(cm.exception.code))
 
 
-@unittest.skipIf(WINDOWS, "POSIX console scripts; Windows native launchers are not rewritten")
+def windows_launcher(interpreter, stub=None, body=b"print('fixture')\n"):
+    if stub is None:
+        # Minimal bounded PE layout for parser tests; native execution below
+        # uses the actual distlib launcher bundled with the runner's pip.
+        raw = bytearray(512)
+        raw[:2] = b"MZ"
+        struct.pack_into("<I", raw, 60, 64)
+        raw[64:68] = b"PE\0\0"
+        struct.pack_into("<HH", raw, 68, 0x8664, 1)
+        struct.pack_into("<H", raw, 84, 240)
+        struct.pack_into("<H", raw, 88, 0x20b)
+        struct.pack_into("<I", raw, 88 + 60, 512)
+        struct.pack_into("<I", raw, 88 + 108, 16)
+        stub = bytes(raw)
+    overlay = io.BytesIO()
+    with zipfile.ZipFile(overlay, "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr("__main__.py", body)
+    return stub + ('#!"' + interpreter + '"\n').encode("utf-8") + overlay.getvalue()
+
+
+class WindowsEntrypoints(Base):
+    old = r"C:\builder space\packages\tool\venv"
+    new = r"D:\final & 100% é\packages\tool\venv"
+
+    def launcher(self, root=None):
+        return windows_launcher((root or self.old) + r"\Scripts\python.exe")
+
+    def test_rebase_preserves_pe_and_zip_bytes_and_is_idempotent(self):
+        raw = self.launcher()
+        rebased = S.rebase_windows_launcher(raw, self.old, self.new)
+        self.assertEqual(raw[:512], rebased[:512])
+        self.assertEqual(raw[raw.index(b"PK\x03\x04"):], rebased[rebased.index(b"PK\x03\x04"):])
+        self.assertIn(('#!"' + self.new + '\\Scripts\\python.exe"\n').encode(), rebased)
+        self.assertEqual(S.rebase_windows_launcher(rebased, None, self.new), rebased)
+
+    def test_unrelated_native_binaries_are_unchanged(self):
+        self.assertIsNone(S.rebase_windows_launcher(b"MZnative executable", self.old, self.new))
+
+    def test_unknown_and_mismatched_source_roots_are_refused(self):
+        for root in (None, r"C:\other\venv"):
+            with self.subTest(root=root), self.assertRaisesRegex(ValueError, "not established"):
+                S.rebase_windows_launcher(self.launcher(), root, self.new)
+
+    def test_legacy_creation_command_establishes_only_the_exact_venv(self):
+        command = r"C:\Python\python.exe -m venv " + self.old
+        self.assertIsInstance(S.rebase_windows_launcher(self.launcher(), None, self.new, command), bytes)
+        with self.assertRaisesRegex(ValueError, "not established"):
+            S.rebase_windows_launcher(self.launcher(), None, self.new, command + "extra")
+
+    def test_signed_and_checksummed_images_are_refused(self):
+        for offset in (88 + 64, 88 + 112 + 32):
+            raw = bytearray(self.launcher())
+            struct.pack_into("<I", raw, offset, 1)
+            with self.subTest(offset=offset), self.assertRaisesRegex(ValueError, "cannot be rewritten"):
+                S.rebase_windows_launcher(bytes(raw), self.old, self.new)
+
+    def test_custom_arguments_and_corrupt_overlays_are_refused(self):
+        raw = self.launcher()
+        custom = raw.replace(b'python.exe"\n', b'python.exe" -I\n')
+        with self.assertRaisesRegex(ValueError, "arguments"):
+            S.rebase_windows_launcher(custom, self.old, self.new)
+        corrupt = raw.replace(b"print('fixture')", b"print('changed')")
+        with self.assertRaisesRegex(ValueError, "overlay"):
+            S.rebase_windows_launcher(corrupt, self.old, self.new)
+
+    def test_manifest_rejects_unsafe_or_ambiguous_provenance(self):
+        for roots in ([], {"../tool": self.old}, {"tool": "relative/venv"}, {"tool": self.old + "\n"}):
+            seed = make_zip(self.tmp / "seed.zip", man=manifest(python_venv_roots=roots))
+            self.assertRefused(self.install(seed), "python_venv_roots")
+
+    def test_install_reports_incomplete_relocation_without_claiming_success(self):
+        seed = make_zip(self.tmp / "seed.zip")
+        with mock.patch.object(S, "repair_venvs", return_value=False):
+            self.assertRefused(self.install(seed), "relocation is incomplete")
+        self.assertTrue((self.data / "mason").is_dir())
+
+    @unittest.skipUnless(WINDOWS, "actual distlib launcher requires native Windows")
+    def test_native_launcher_runs_after_builder_venv_is_removed(self):
+        # pip's vendored distlib provides its native launcher as a resource;
+        # no network, pip invocation, or package installation occurs.
+        from pip._vendor.distlib.scripts import ScriptMaker
+        self.data = self.tmp / "final & 100% é" / S.data_dir_name()
+        builder = self.tmp / "old builder" / "venv"
+        subprocess.run([sys.executable, "-m", "venv", "--without-pip", str(builder)],
+                       check=True, capture_output=True, timeout=30)
+        maker = ScriptMaker(None, str(builder / "Scripts"))
+        body = b"import json, sys\nprint(json.dumps(sys.argv[1:], ensure_ascii=False))\n"
+        raw = windows_launcher(str(builder / "Scripts" / "python.exe"), maker._get_launcher("t"), body)
+        (builder / "Scripts" / "probe.exe").write_bytes(raw)
+        target = self.data / "mason" / "packages" / "tool" / "venv"
+        target.parent.mkdir(parents=True)
+        shutil.copytree(builder, target)
+        shutil.rmtree(builder)
+        with mock.patch.object(S, "WINDOWS", True):
+            self.assertTrue(S.repair_venvs(self.data, {"tool": str(builder)}))
+        literal = ["with spaces", "literal&argument", "%DO_NOT_EXPAND%", 'a"quoted"argument', "é漢字"]
+        result = subprocess.run([str(target / "Scripts" / "probe.exe"), *literal],
+                                check=True, capture_output=True, text=True, encoding="utf-8", timeout=15,
+                                env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+        self.assertEqual(json.loads(result.stdout), literal)
+
+
+@unittest.skipIf(WINDOWS, "POSIX console scripts")
 class VenvRelocation(Base):
     def make_relocated_venv(self, destination=None, shell_wrapper=False):
         old = self.tmp / "builder" / "venv"

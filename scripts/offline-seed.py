@@ -28,6 +28,7 @@ import ast
 import hashlib
 import io
 import json
+import ntpath
 import os
 import platform
 import posixpath
@@ -35,6 +36,7 @@ import re
 import shlex
 import shutil
 import stat
+import struct
 import subprocess
 import sys
 import tarfile
@@ -55,6 +57,7 @@ MAX_TOTAL_MB = 16 * 1024
 MAX_FILE_MB = 4 * 1024
 MAX_ENTRIES = 1_000_000
 MAX_MANIFEST_BYTES = 2**20
+MAX_WINDOWS_LAUNCHER_BYTES = 2**21
 
 
 def fail(msg):
@@ -301,6 +304,13 @@ def cmd_build(args):
         "plugins": {name: lock[name]["commit"] for name in sorted(lock)} if "lazy" in parts else {},
         "mason_packages": mason_pkgs,
         "parsers": parsers,
+        # Console-script launchers embed the builder's absolute venv path.
+        # Record provenance for exact relocation, including Python < 3.11
+        # whose pyvenv.cfg has no creation command.
+        "python_venv_roots": {
+            cfg.parent.parent.name: str(cfg.parent.resolve())
+            for cfg in sorted((data_dir / "mason" / "packages").glob("*/venv/pyvenv.cfg"))
+        } if WINDOWS and "mason" in parts else {},
     }, indent=2) + "\n"
     if len(manifest.encode("utf-8")) > MAX_MANIFEST_BYTES:
         fail("manifest exceeds the 1 MiB metadata limit")
@@ -390,6 +400,16 @@ def read_manifest(seed):
         contents = manifest.get("contents", [])
         if not isinstance(contents, list) or not all(isinstance(item, str) for item in contents):
             fail("manifest contents must be a list of strings")
+        roots = manifest.get("python_venv_roots", {})
+        if (not isinstance(roots, dict)
+                or not all(isinstance(name, str) and name not in ("", ".", "..")
+                           and not any(c in name for c in "/\\:\x00\r\n")
+                           and isinstance(root, str) and len(root) <= 8192
+                           and not any(c in root for c in "\x00\r\n")
+                           and ntpath.isabs(root) and ntpath.splitdrive(root)[0]
+                           and ntpath.basename(root).casefold() == "venv"
+                           for name, root in roots.items())):
+            fail("manifest python_venv_roots must map package names to absolute Windows venv paths")
         return manifest
     except (KeyError, AttributeError, ValueError, OSError, RecursionError, tarfile.TarError, zipfile.BadZipFile):
         fail(f"{seed.name} has no readable {MANIFEST}; not an offline seed")
@@ -694,26 +714,186 @@ def repair_posix_entrypoints(venv):
             warn(f"could not relocate Python entrypoint {script}: {exc}")
 
 
-def repair_venvs(data_dir):
+def _pe_image_end(raw):
+    """End of an unsigned PE image; distlib appends its shebang here."""
+    try:
+        pe = struct.unpack_from("<I", raw, 60)[0]
+        if raw[:2] != b"MZ" or raw[pe:pe + 4] != b"PE\0\0":
+            raise ValueError("unrecognized PE executable")
+        machine, count = struct.unpack_from("<HH", raw, pe + 4)
+        optional_size = struct.unpack_from("<H", raw, pe + 20)[0]
+        optional = pe + 24
+        magic = struct.unpack_from("<H", raw, optional)[0]
+        if machine not in (0x14c, 0x8664, 0xaa64) or magic not in (0x10b, 0x20b) or not 1 <= count <= 16:
+            raise ValueError("unsupported PE layout")
+        directory = 112 if magic == 0x20b else 96
+        if optional_size < directory + 40:
+            raise ValueError("truncated PE optional header")
+        if (machine == 0x14c) != (magic == 0x10b) or struct.unpack_from("<I", raw, optional + directory - 4)[0] < 5:
+            raise ValueError("unsupported PE data directories")
+        certificate = struct.unpack_from("<II", raw, optional + directory + 32)
+        if certificate != (0, 0):
+            raise ValueError("signed launchers cannot be rewritten safely")
+        if struct.unpack_from("<I", raw, optional + 64)[0] != 0:
+            raise ValueError("checksummed launchers cannot be rewritten safely")
+        end = struct.unpack_from("<I", raw, optional + 60)[0]
+        sections = optional + optional_size
+        for i in range(count):
+            size, start = struct.unpack_from("<II", raw, sections + 40 * i + 16)
+            end = max(end, start + size)
+        if end < sections + 40 * count or end > len(raw):
+            raise ValueError("invalid PE section boundaries")
+        return end
+    except struct.error as exc:
+        raise ValueError("truncated PE executable") from exc
+
+
+def rebase_windows_launcher(raw, source_root, target_root, command=""):
+    """Rebase only an unsigned distlib-style PE + shebang + __main__.py ZIP.
+
+    Return None for unrelated binaries. Unsupported Python overlays raise a
+    portability error; the original bytes must be left untouched by callers.
+    """
+    if raw[:2] != b"MZ" or not zipfile.is_zipfile(io.BytesIO(raw)):
+        return None
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+            members = archive.infolist()
+            if not any(member.filename == "__main__.py" for member in members):
+                return None
+            if (len(members) != 1 or archive.comment or members[0].compress_type != zipfile.ZIP_STORED
+                    or members[0].flag_bits & 1 or members[0].file_size > 2**20):
+                raise ValueError("custom Python ZIP overlay is not a standard distlib launcher")
+            # Standard distlib overlays have one uncompressed script, no ZIP64
+            # or comments, and offsets relative to the appended ZIP itself.
+            if raw[-22:-18] != b"PK\x05\x06":
+                raise ValueError("unsupported Python ZIP trailer")
+            disk, cd_disk, entries, total, cd_size, cd_offset, comment = struct.unpack_from("<4H2IH", raw, len(raw) - 18)
+            if (disk, cd_disk, entries, total, comment) != (0, 0, 1, 1, 0):
+                raise ValueError("unsupported Python ZIP directory")
+            zip_start = archive.start_dir - cd_offset
+            if (zip_start != members[0].header_offset
+                    or zip_start + cd_offset + cd_size + 22 != len(raw)
+                    or raw[zip_start:zip_start + 4] != b"PK\x03\x04"):
+                raise ValueError("ambiguous Python ZIP offsets")
+            archive.read(members[0])  # bounded above; validate headers and CRC, never execute.
+        image_end = _pe_image_end(raw)
+        header = raw[image_end:zip_start]
+        if not 0 < len(header) <= 8192:
+            raise ValueError("unsupported Python launcher shebang")
+        text = header.decode("utf-8")
+        match = re.fullmatch(r'#!(?:"([^"\r\n]+)"|([^\s"\r\n]+))\r?\n', text)
+        if not match:
+            raise ValueError("custom Python interpreter arguments are not rewritten")
+        old = match[1] or match[2]
+        leaf = ntpath.basename(old).casefold()
+        old_root = ntpath.dirname(ntpath.dirname(old))
+        if (leaf not in ("python.exe", "pythonw.exe")
+                or ntpath.basename(ntpath.dirname(old)).casefold() != "scripts"
+                or ntpath.basename(old_root).casefold() != "venv"
+                or not ntpath.isabs(old) or not ntpath.splitdrive(old)[0]):
+            raise ValueError("launcher does not target a recognized Windows venv interpreter")
+        target = ntpath.join(str(target_root), "Scripts", leaf)
+        if (not ntpath.isabs(target) or not ntpath.splitdrive(target)[0]
+                or any(c in target for c in '"\x00\r\n')):
+            raise ValueError("invalid destination venv interpreter")
+        if ntpath.normcase(ntpath.normpath(old)) == ntpath.normcase(ntpath.normpath(target)):
+            return raw
+        # Old manifests predate explicit provenance. A venv creation command
+        # can establish the same exact source root without interpreting it.
+        same_root = source_root and ntpath.normcase(ntpath.normpath(str(source_root))) == ntpath.normcase(old_root)
+        suffix = " " + old_root
+        legacy_root = source_root is None and " -m venv " in command and command.casefold().endswith(suffix.casefold())
+        if not same_root and not legacy_root:
+            raise ValueError("the launcher's source venv is not established by the seed metadata")
+        new_header = ('#!"' + target + '"\n').encode("utf-8")
+        return raw[:image_end] + new_header + raw[zip_start:]
+    except (UnicodeError, struct.error, zipfile.BadZipFile) as exc:
+        raise ValueError("unrecognized Python launcher overlay") from exc
+
+
+def repair_windows_entrypoints(venv, source_root=None, command=""):
+    """Relocate verified distlib entrypoints; leave unsupported executables intact."""
+    venv = venv.resolve()
+    complete = True
+    for script in sorted((venv / "Scripts").glob("*.exe")):
+        if script.is_symlink():
+            if not re.fullmatch(r"python(?:w|\d+(?:\.\d+)*)?\.exe", script.name, re.I):
+                warn(f"could not relocate linked Python entrypoint {script}; reinstall at its final path")
+                complete = False
+            continue
+        if not script.is_file():
+            continue
+        try:
+            script.resolve().relative_to(venv)
+            with script.open("rb") as source:
+                raw = source.read(MAX_WINDOWS_LAUNCHER_BYTES + 1)
+            if len(raw) > MAX_WINDOWS_LAUNCHER_BYTES:
+                # Native binaries can be large and need no relocation. Only a
+                # bounded, exact Python ZIP directory makes this a known gap.
+                with script.open("rb") as source:
+                    source.seek(-22, os.SEEK_END)
+                    trailer = source.read(22)
+                    if trailer[:4] != b"PK\x05\x06":
+                        continue
+                    count, size = struct.unpack_from("<HI", trailer, 10)
+                    if count > 1024 or size > 65536:
+                        continue
+                    source.seek(-22 - size, os.SEEK_END)
+                    directory = source.read(size)
+                names = []
+                offset = 0
+                for _ in range(count):
+                    if directory[offset:offset + 4] != b"PK\x01\x02" or len(directory) - offset < 46:
+                        break
+                    name_len, extra_len, comment_len = struct.unpack_from("<3H", directory, offset + 28)
+                    names.append(directory[offset + 46:offset + 46 + name_len])
+                    offset += 46 + name_len + extra_len + comment_len
+                if b"__main__.py" not in names:
+                    continue
+                raise ValueError("Python launcher exceeds the 2 MiB inspection limit")
+            repaired = rebase_windows_launcher(raw, source_root, str(venv), command)
+            if repaired is None or repaired == raw:
+                continue
+            fd, temp = tempfile.mkstemp(prefix=".offline-entrypoint-", dir=str(script.parent))
+            try:
+                with os.fdopen(fd, "wb") as dest:
+                    dest.write(repaired)
+                os.chmod(temp, stat.S_IMODE(script.stat().st_mode))
+                os.replace(temp, script)
+            finally:
+                if os.path.exists(temp):
+                    os.unlink(temp)
+        except (OSError, RuntimeError, ValueError) as exc:
+            complete = False
+            warn(f"could not relocate Python entrypoint {script}: {exc}; reinstall at its final path")
+    return complete
+
+
+def repair_venvs(data_dir, source_roots=None):
     """Re-point Mason's Python venvs (debugpy, clang-format, ...) at this Python.
 
     A venv records the absolute path of the Python that created it; on another
     machine that path usually doesn't exist. `venv --upgrade` fixes that when
     this Python has the same major.minor version, without the network. POSIX
-    console-script shebangs need a separate relocation even when the original
-    base Python still exists. Windows native launchers are not rewritten.
+    console-script shebangs and verified distlib Windows launchers need separate
+    relocation even when the original base Python still exists.
     """
     here = "%d.%d" % sys.version_info[:2]
+    complete = True
+    source_roots = source_roots or {}
     for cfg in sorted((data_dir / "mason" / "packages").glob("*/venv/pyvenv.cfg")):
         # This also protects existing data when repair_venvs is called directly:
         # never read or rewrite a cfg linked outside the selected data folder.
         if cfg.is_symlink():
             warn(f"refusing to repair linked venv configuration: {cfg}")
+            complete = False
             continue
         try:
             cfg.resolve().relative_to(data_dir.resolve())
         except (OSError, RuntimeError, ValueError):
             warn(f"refusing to repair venv outside the data folder or through invalid links: {cfg}")
+            complete = False
             continue
         vals = {}
         for line in cfg.read_text(encoding="utf-8", errors="replace").splitlines():
@@ -723,7 +903,10 @@ def repair_venvs(data_dir):
         home = vals.get("home", "")
         python = cfg.parent / ("Scripts/python.exe" if WINDOWS else "bin/python")
         if home and Path(home).exists() and python.is_file():
-            repair_posix_entrypoints(cfg.parent)
+            if WINDOWS:
+                complete = repair_windows_entrypoints(cfg.parent, source_roots.get(cfg.parent.parent.name), vals.get("command", "")) and complete
+            else:
+                repair_posix_entrypoints(cfg.parent)
             continue
         name = cfg.parent.parent.name
         version = vals.get("version") or vals.get("version_info", "")
@@ -731,6 +914,7 @@ def repair_venvs(data_dir):
             warn(f"Mason package {name} needs Python {version} (its venv points at {home}); "
                  f"this is Python {platform.python_version()}. Install Python {version[:4]} and run "
                  f"this install again with --force, or {name} won't start.")
+            complete = False
             continue
         # `venv --upgrade` fails on the dangling bin/python* links left by the old home.
         for exe in (cfg.parent / ("Scripts" if WINDOWS else "bin")).glob("python*"):
@@ -739,10 +923,15 @@ def repair_venvs(data_dir):
         res = subprocess.run([sys.executable, "-m", "venv", "--upgrade", "--without-pip", str(cfg.parent)],
                              capture_output=True, text=True)
         if res.returncode == 0:
-            repair_posix_entrypoints(cfg.parent)
+            if WINDOWS:
+                complete = repair_windows_entrypoints(cfg.parent, source_roots.get(name), vals.get("command", "")) and complete
+            else:
+                repair_posix_entrypoints(cfg.parent)
             print(f"  re-pointed {name}'s venv at {sys.executable}")
         else:
             warn(f"could not repair {name}'s venv (exit {res.returncode}): {(res.stderr or res.stdout).strip()}")
+            complete = False
+    return complete
 
 
 def open_seed(seed, is_zip=None):
@@ -805,7 +994,10 @@ def cmd_install(args):
     if backup is not None:
         print(f"  the previous {', '.join(present)} moved to {backup}; delete it once nvim works")
     if "mason" in tops:
-        repair_venvs(data_dir)
+        if not repair_venvs(data_dir, manifest.get("python_venv_roots", {})):
+            fail("seed files were installed, but Python tooling relocation is incomplete; "
+                 "review the warnings and reinstall affected packages at their final paths. "
+                 "Any previous data remains in the backup shown above.")
     print("Done. Start nvim; :checkhealth should report no downloads pending.")
     return 0
 
