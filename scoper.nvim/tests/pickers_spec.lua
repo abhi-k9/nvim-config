@@ -1,9 +1,9 @@
 -- tests/pickers_spec.lua
 --
 -- Unit tests for scoper.pickers. The pure helpers (the plain-vim :find
--- 'path', shell and grug-far quoting, the telescope pattern translation)
--- are tested directly; the fzf-lua and telescope calls against stub
--- modules that record the options they get.
+-- 'path', shell and grug-far quoting) are tested directly. Controlled
+-- backend calls verify options and actual Telescope entry acceptance,
+-- including the configured entry-maker hooks.
 --
 -- M._find_path must append the recursive "/**" glob to EVERY scope dir:
 -- `table.concat(dirs, ",") .. "/**"` attaches it to the last one only, and
@@ -139,75 +139,6 @@ describe("scoper.pickers._rg_globs", function()
       { "/vendor/**", "//w/ext/vendor/**", "/third/**" },
       pickers._rg_globs({ "/vendor/**", "/p/third/**" }, { "/p/src", "/w/ext" }, "/p")
     )
-  end)
-end)
-
-describe("scoper.pickers telescope ignore patterns", function()
-  local function ignored(glob, path, root)
-    for _, pat in ipairs(pickers._glob_to_lua_pats(glob, root)) do
-      if path:find(pat) then return true end
-    end
-    return false
-  end
-
-  it("matches slashless globs as whole components at any depth", function()
-    assert.is_true(ignored("build", "src/build/a.c"))
-    assert.is_true(ignored("build", "build/a.c"))
-    assert.is_false(ignored("build", "src/builder/a.c"))
-    assert.is_true(ignored("*.o", "x/y.o"))
-    assert.is_false(ignored("*.o", "x/y.oo"))
-  end)
-
-  it("matches a leading **/ at any depth, but anchors other globs with a slash", function()
-    assert.is_true(ignored("**/gen/**", "src/gen/z.c"))
-    assert.is_false(ignored("**/gen/**", "src/my_gen/z.c"))
-    assert.is_true(ignored("src/gen", "src/gen/z.c"))
-    assert.is_true(ignored("src/gen", "./src/gen/z.c"))
-    assert.is_false(ignored("src/gen", "lib/src/gen/z.c"))
-    assert.is_false(ignored("src/gen", "mysrc/gen/z.c"))
-    assert.is_true(ignored("/build", "build/a.c"))
-    assert.is_false(ignored("/build", "src/build/a.c"))
-  end)
-
-  it("matches Windows separators too", function()
-    assert.is_true(ignored("build", [[p\src\build\a.c]]))
-    assert.is_true(ignored("**/gen/**", [[p\src\gen\z.c]]))
-  end)
-
-  it("translates character classes", function()
-    assert.is_true(ignored("*.[ch]", "p/a.h"))
-    assert.is_false(ignored("*.[ch]", "p/a.o"))
-  end)
-
-  it("ignores letter case on Windows only", function()
-    local saved = Path.is_windows
-    Path.is_windows = true
-    local folded = ignored("build", "p/Build/a.c") and ignored("*.[ch]", "p/A.H")
-    Path.is_windows = false
-    local exact = ignored("build", "p/Build/a.c")
-    Path.is_windows = saved
-    assert.is_true(folded)
-    assert.is_false(exact)
-  end)
-
-  it("matches below a search dir outside the cwd, never above it", function()
-    local ext = "/w/build/ext"
-    assert.is_true(ignored("**/build/**", ext .. "/sub/build/a.c", ext))
-    assert.is_true(ignored("build", [[/w/build/ext\build\a.c]], ext))
-    assert.is_false(ignored("**/build/**", ext .. "/a.c", ext))
-    assert.is_true(ignored("/vendor/**", ext .. "/vendor/v.c", ext))
-    assert.is_false(ignored("/vendor/**", ext .. "/sub/vendor/v.c", ext))
-    assert.is_false(ignored("**/build/**", ext .. "/a.c"))
-  end)
-
-  it("keeps cwd patterns off a full path with a drive", function()
-    local saved = Path.is_windows
-    Path.is_windows = true
-    local above = ignored("build", [[C:\w\build\ext\a.c]])
-    local below = ignored("build", [[C:\W\Ext\Build\a.c]], "c:/w/ext")
-    Path.is_windows = saved
-    assert.is_false(above)
-    assert.is_true(below)
   end)
 end)
 
@@ -460,52 +391,93 @@ describe("scoper.pickers with fzf-lua", function()
 end)
 
 describe("scoper.pickers with telescope", function()
-  local p, saved, got
+  local p, saved, got, config
+  local module_names = {
+    "telescope.builtin",
+    "telescope.actions.state",
+    "telescope.config",
+    "telescope.make_entry",
+    "telescope.utils",
+  }
 
   before_each(function()
     p = setup_project()
-    saved = {
-      builtin = package.loaded["telescope.builtin"],
-      action_state = package.loaded["telescope.actions.state"],
-      picker = vim.g.scoper_picker,
+    saved = { modules = {}, picker = vim.g.scoper_picker, notify = vim.notify }
+    for _, name in ipairs(module_names) do
+      saved.modules[name] = package.loaded[name]
+    end
+    got = { notifications = {} }
+    config = { values = { disable_devicons = true }, pickers = {} }
+    package.loaded["telescope.config"] = config
+    package.loaded["telescope.utils"] = {
+      path_expand = function(path)
+        return path
+      end,
     }
-    got = {}
+    package.loaded["telescope.make_entry"] = {
+      gen_from_file = function(opts)
+        got.file_maker_opts = opts
+        return function(line)
+          return { filename = line, path = Path.absolute(line, opts.cwd), value = line }
+        end
+      end,
+      gen_from_vimgrep = function(opts)
+        got.grep_maker_opts = opts
+        -- Native Telescope determines output mode AFTER additional_args runs.
+        local filenames_only = opts.__matches
+        return function(line)
+          local file = filenames_only and line or line:match("^(.-):%d+:%d+:")
+          if file then
+            return { filename = file, path = Path.absolute(file, opts.cwd), value = line }
+          end
+        end
+      end,
+    }
     package.loaded["telescope.builtin"] = {
       find_files = function(opts)
-        got.find = opts
+        got.find = vim.tbl_extend("force", config.pickers.find_files or {}, opts)
       end,
       live_grep = function(opts)
-        got.grep = opts
+        got.grep = vim.tbl_extend("force", config.pickers.live_grep or {}, opts)
+        got.args = got.grep.additional_args(got.grep)
+        for _, arg in ipairs(got.args) do
+          if arg == "--files-with-matches" then got.grep.__matches = true end
+        end
       end,
     }
     package.loaded["telescope.actions.state"] = {}
+    vim.notify = function(message, level)
+      table.insert(got.notifications, { message = message, level = level })
+    end
     vim.g.scoper_picker = "telescope"
   end)
 
   after_each(function()
-    package.loaded["telescope.builtin"] = saved.builtin
-    package.loaded["telescope.actions.state"] = saved.action_state
-    vim.g.scoper_picker = saved.picker
+    for _, name in ipairs(module_names) do
+      package.loaded[name] = saved.modules[name]
+    end
+    vim.g.scoper_picker, vim.notify = saved.picker, saved.notify
     teardown_project(p)
   end)
 
-  local function ignored(patterns, path)
-    for _, pat in ipairs(patterns) do
-      if path:find(pat) then return true end
-    end
-    return false
+  local function found(path)
+    return got.find.entry_maker(path)
+  end
+  local function grepped(path)
+    return got.grep.entry_maker(path .. ":1:1:needle")
   end
 
-  it("hides .git and the excludes when finding", function()
+  it("drops .git and excluded entries while retaining valid file entries", function()
     State.set_enabled(true)
     pickers.find()
-    assert.is_true(ignored(got.find.file_ignore_patterns, "src/.git/config"))
-    assert.is_true(ignored(got.find.file_ignore_patterns, "src/gen/x.c"))
-    assert.is_false(ignored(got.find.file_ignore_patterns, "src/x.c"))
+    assert.is_nil(found("src/.git/config"))
+    assert.is_nil(found("src/gen/x.c"))
+    assert.equals("src/x.c", found("src/x.c").filename)
+    assert.is_nil(found("outside/x.c"))
     assert.are.same({ "src" }, got.find.search_dirs)
   end)
 
-  it("follows directory links like fzf-lua, unless vim.g.scoper_follow_links is false", function()
+  it("follows directory links unless vim.g.scoper_follow_links is false", function()
     pickers.find()
     assert.is_true(got.find.follow)
     vim.g.scoper_follow_links = false
@@ -514,39 +486,144 @@ describe("scoper.pickers with telescope", function()
     assert.is_false(got.find.follow)
   end)
 
-  it("lists the project's dirs relative to it, so excludes never see the folders above", function()
+  it("ignores ancestors above the project when matching excludes", function()
     teardown_project(p)
     p = setup_project("/build/proj")
     State.add_excludes("**/build/**")
     State.set_enabled(true)
     pickers.grep()
     assert.are.same({ "src" }, got.grep.search_dirs)
-    assert.is_false(ignored(got.grep.file_ignore_patterns, [[src\x.c]]))
-    assert.is_true(ignored(got.grep.file_ignore_patterns, [[src\build\x.c]]))
+    assert.is_not_nil(grepped("src/x.c"))
+    assert.is_nil(grepped("src/build/x.c"))
   end)
 
-  it("matches the excludes below an include outside the project, not above it", function()
-    local base = vim.fn.tempname()
-    local ext = Path.normalize(base .. "/build/ext")
+  it("matches excludes below an outside include, never above it", function()
+    teardown_project(p)
+    p = setup_project("/project")
+    local ext = Path.normalize(p.base .. "/build/ext")
     vim.fn.mkdir(ext, "p")
     State.add_paths(ext)
     State.add_excludes("**/build/**")
     State.set_enabled(true)
     pickers.grep()
-    vim.fn.delete(base, "rf")
-    local pats = got.grep.file_ignore_patterns
-    assert.is_false(ignored(pats, ext .. "/a.c"))
-    assert.is_true(ignored(pats, ext .. "/sub/build/a.c"))
-    assert.is_true(ignored(pats, [[src\build\x.c]]))
+    assert.is_not_nil(grepped(ext .. "/a.c"))
+    assert.is_nil(grepped(ext .. "/sub/build/a.c"))
+    assert.is_nil(grepped("src/build/x.c"))
   end)
 
-  it("searches the whole project while scoping is off", function()
+  it("accepts all project entries while scoping is off", function()
     pickers.grep()
     assert.is_nil(got.grep.search_dirs)
-    assert.are.same({}, got.grep.file_ignore_patterns)
+    assert.is_not_nil(grepped("src/gen/x.c"))
+    assert.is_not_nil(grepped("root.c"))
   end)
 
-  it("registers the show-path key through telescope's map, keeping the defaults", function()
+  it("honors brace alternatives and negated character classes", function()
+    State.add_excludes({ "src/{gen,tmp}/**", "src/[!a]*.c" })
+    State.set_enabled(true)
+    pickers.find()
+    assert.is_nil(found("src/gen/x.c"))
+    assert.is_nil(found("src/tmp/x.c"))
+    assert.is_nil(found("src/b.c"))
+    assert.is_not_nil(found("src/a.c"))
+    assert.is_not_nil(found("src/generated/x.c"))
+    pickers.grep()
+    assert.is_nil(grepped("src/tmp/x.c"))
+    assert.is_nil(grepped("src/b.c"))
+    assert.is_not_nil(grepped("src/a.c"))
+  end)
+
+  it("captures the scope for the lifetime of both pickers", function()
+    State.set_enabled(true)
+    pickers.find()
+    pickers.grep()
+    State.remove_excludes({ "**/gen/**" })
+    State.add_excludes({ "src/a.c" })
+    assert.is_nil(found("src/gen/x.c"))
+    assert.is_nil(grepped("src/gen/x.c"))
+    assert.is_not_nil(found("src/a.c"))
+    assert.is_not_nil(grepped("src/a.c"))
+  end)
+
+  it("preserves configured file entry makers, their entries and nil drops", function()
+    local entry = { filename = "src/a.c", custom = true }
+    config.pickers.find_files = {
+      entry_maker = function(line)
+        if line == "keep" then return entry end
+        if line == "excluded" then return { filename = "src/gen/x.c" } end
+      end,
+    }
+    State.set_enabled(true)
+    pickers.find()
+    assert.is_true(rawequal(entry, found("keep")))
+    assert.is_nil(found("excluded"))
+    assert.is_nil(found("drop"))
+    assert.is_nil(got.file_maker_opts)
+  end)
+
+  it("passes configured options to the default file entry maker", function()
+    config.pickers.find_files = { file_entry_encoding = "latin1" }
+    pickers.find()
+    assert.is_not_nil(found("src/a.c"))
+    assert.equals("latin1", got.file_maker_opts.file_entry_encoding)
+    assert.is_true(got.file_maker_opts.disable_devicons)
+  end)
+
+  it("preserves configured grep makers and additional_args callbacks", function()
+    local entry = { filename = "src/a.c", custom = true }
+    local args = { "--fixed-strings" }
+    config.pickers.live_grep = {
+      entry_maker = function(line)
+        return line == "keep" and entry or nil
+      end,
+      additional_args = function(opts)
+        assert.equals(Path.normalize(p.root), opts.cwd)
+        return args
+      end,
+    }
+    State.set_enabled(true)
+    pickers.grep()
+    assert.is_true(rawequal(args, got.args))
+    assert.is_true(rawequal(entry, got.grep.entry_maker("keep")))
+    assert.is_nil(got.grep.entry_maker("drop"))
+    assert.is_nil(got.grep_maker_opts)
+  end)
+
+  it("builds the default grep maker after Telescope determines filename-only mode", function()
+    config.pickers.live_grep = { additional_args = { "--files-with-matches" } }
+    State.set_enabled(true)
+    pickers.grep()
+    assert.is_nil(got.grep_maker_opts)
+    assert.equals("src/a.c", got.grep.entry_maker("src/a.c").filename)
+    assert.is_nil(got.grep.entry_maker("src/gen/a.c"))
+  end)
+
+  it("refuses paths Telescope would expand before starting a search", function()
+    package.loaded["telescope.utils"].path_expand = function(path)
+      return path == State.root() and path .. "/different" or path
+    end
+    pickers.find()
+    pickers.grep()
+    assert.is_nil(got.find)
+    assert.is_nil(got.grep)
+    assert.equals(2, #got.notifications)
+    assert.equals(vim.log.levels.WARN, got.notifications[1].level)
+    assert.is_truthy(
+      got.notifications[1].message:find("cannot preserve the literal directory", 1, true)
+    )
+  end)
+
+  it("refuses an expanded search directory even when cwd remains literal", function()
+    package.loaded["telescope.utils"].path_expand = function(path)
+      return path == "src" and "different" or path
+    end
+    State.set_enabled(true)
+    pickers.find()
+    assert.is_nil(got.find)
+    assert.equals(1, #got.notifications)
+  end)
+
+  it("registers the show-path key through map, keeping defaults", function()
     pickers.find()
     local maps = {}
     local keep = got.find.attach_mappings(0, function(modes, key)
@@ -556,8 +633,7 @@ describe("scoper.pickers with telescope", function()
     assert.are.same({ { modes = { "i", "n" }, key = "<M-p>" } }, maps)
   end)
 
-  it("retains the project root and excludes after a window-local directory change", function()
-    State.add_excludes("src/gen")
+  it("retains the project root and scope after a window-local directory change", function()
     State.set_enabled(true)
     vim.cmd.lcd(vim.fn.fnameescape(p.root .. "/src"))
     pickers.find()
@@ -565,8 +641,8 @@ describe("scoper.pickers with telescope", function()
     assert.equals(Path.normalize(p.root), got.find.cwd)
     assert.equals(Path.normalize(p.root), got.grep.cwd)
     assert.are.same({ "src" }, got.find.search_dirs)
-    assert.is_true(ignored(got.find.file_ignore_patterns, "src/gen/a.c"))
-    assert.is_true(ignored(got.grep.file_ignore_patterns, "src/gen/a.c"))
+    assert.is_nil(found("src/gen/a.c"))
+    assert.is_nil(grepped("src/gen/a.c"))
     vim.cmd.cd(vim.fn.fnameescape(p.root))
   end)
 end)

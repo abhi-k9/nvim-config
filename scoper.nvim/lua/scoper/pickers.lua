@@ -10,14 +10,12 @@
 --
 -- Backend preference (in order):
 --   1. fzf-lua    – fastest, accepts `cwd` + multiple search paths
---   2. telescope  – pure-lua, accepts `search_dirs` and `file_ignore_patterns`
+--   2. telescope  – pure-lua, accepts `search_dirs` and an `entry_maker`
 --   3. plain vim  – falls back to :vimgrep / :find with cwd hacks
 --
--- For the deny-list: telescope wants Lua patterns, fzf-lua and grug-far
--- run ripgrep. We pass excludes to ripgrep as globs (also for finding
--- files, so all three commands read globs the same way) and convert
--- simple globs to Lua patterns for telescope, both anchored the way
--- is_in_scope reads them (M._anchor_excludes).
+-- Ripgrep receives anchored exclude globs. Telescope filters its parsed
+-- entries through the same captured matcher as the compilation database;
+-- it does not approximate Neovim globs with Lua patterns.
 --
 -- Scoping off, or an empty include list, means everything is in scope
 -- (as in is_in_scope): the commands then search the whole cwd, without
@@ -43,7 +41,7 @@ local function get_context()
   end
   local cwd = State.root()
   if not State.is_enabled() or #scope.include == 0 then
-    return { name = "all", cwd = cwd, excludes = {} }
+    return { name = "all", cwd = cwd, excludes = {}, in_scope = State.matcher(cwd) }
   end
   local dirs = State.active_dirs()
   if #dirs == 0 then
@@ -59,7 +57,8 @@ local function get_context()
     name = State.active_name(),
     cwd = cwd,
     dirs = dirs,
-    excludes = scope.exclude,
+    excludes = vim.deepcopy(scope.exclude),
+    in_scope = State.matcher(cwd),
   }
 end
 M._context = get_context
@@ -103,150 +102,53 @@ function M._anchor_excludes(excludes, dirs, cwd)
   return out, #roots > 1
 end
 
--- ---------------------------------------------------------------------------
--- Convert simple glob exclude → Lua patterns for telescope's
--- file_ignore_patterns. We handle the common cases (*, **, ?, [...]);
--- patterns using syntax this small translator CANNOT express — `{a,b}`
--- alternation or `[!...]` negation — return nil, and we notify (once
--- per pattern per session) so the divergence is visible: on the
--- fzf-lua backend those globs pass straight through to ripgrep and
--- work; a silently-mistranslated Lua pattern on the telescope backend
--- would just match nothing.
---
--- Telescope matches the patterns against the paths it lists: relative to
--- the cwd for search dirs inside it (they are passed that way; "./" in
--- front when the cwd itself is searched), absolute for the others, and
--- with "\" on Windows. As in ripgrep, a pattern without a slash (or with a
--- leading "**/") matches whole components at any depth (`build` must not
--- hide `builder/`, `**/x/**` not `my_x/`), and any other pattern is
--- anchored at the cwd. Given a `root` (a search dir outside the cwd) the
--- pattern applies below that dir instead; without one it never matches an
--- absolute path. Separators match "/" and "\", and letters match
--- either case on Windows, where is_in_scope ignores case too. Lua patterns
--- have no alternation, so a LIST of patterns comes back (any match ignores
--- the entry).
--- ---------------------------------------------------------------------------
-local warned_globs = {}
-local SEP, NOTSEP = "[/\\]", "[^/\\]"
-
--- Lua pattern matching the path `s` literally.
-local function literal(s, fold)
-  local pat = s:gsub("[^%w/]", "%%%0"):gsub("/", SEP)
-  if not fold then return pat end
-  return (pat:gsub("%a", function(c)
-    return "[" .. c:lower() .. c:upper() .. "]"
-  end))
+-- Telescope entry_maker is a public filtering hook: returning nil discards
+-- an entry. Wrap the normal/configured maker after it has parsed the filename,
+-- so every supported glob uses State's matcher without a lossy translation.
+-- Keep a matcher snapshot for the picker lifetime, even if the active scope
+-- or global project changes while a picker is open.
+function M._telescope_entry_maker(ctx, factory, opts, hide_git)
+  local make = opts.entry_maker
+  local in_scope = ctx.in_scope or State.matcher(ctx.cwd)
+  local outside_git = hide_git
+    and State.build_matcher({
+      include = ctx.dirs or { ctx.cwd },
+      exclude = { ".git" },
+    }, ctx.cwd)
+  return function(line)
+    if not make then make = factory(opts) end
+    local entry = make(line)
+    if not entry then return nil end
+    local path = entry.path or entry.filename or (hide_git and entry.value)
+    if type(path) ~= "string" or path == "" then return nil end
+    if not in_scope(path) or outside_git and not outside_git(path) then return nil end
+    return entry
+  end
 end
 
-function M._glob_to_lua_pats(glob, root)
-  if glob:find("{", 1, true) or glob:find("[!", 1, true) then
-    if not warned_globs[glob] then
-      warned_globs[glob] = true
+-- The backend expands environment variables and special leading characters
+-- even in supplied paths. Refuse a search whose actual target would change;
+-- filtering wrong-directory results alone would only conceal missing results.
+local function telescope_literal_paths(ctx)
+  local expand = require("telescope.utils").path_expand
+  local paths = { ctx.cwd }
+  for _, dir in ipairs(ctx.dirs or {}) do
+    paths[#paths + 1] = Path.relative(dir, ctx.cwd)
+  end
+  for _, path in ipairs(paths) do
+    local ok, expanded = pcall(expand, path)
+    if
+      not ok
+      or Path.key(Path.absolute(expanded, ctx.cwd)) ~= Path.key(Path.absolute(path, ctx.cwd))
+    then
       vim.notify(
-        (
-          "Scoper: exclude %q uses glob syntax ({a,b} / [!…]) the telescope "
-          .. "backend can't translate — it is ignored there. The fzf-lua "
-          .. "backend handles it; :ScoperTogglePicker to switch."
-        ):format(glob),
+        ("Scoper: Telescope cannot preserve the literal directory %q; search refused."):format(path),
         vim.log.levels.WARN
       )
-    end
-    return nil
-  end
-
-  -- "/**" at the end means "below this directory".
-  local body, below = glob:gsub("/+$", ""), false
-  local anywhere = not body:find("/", 1, true)
-  while body:sub(1, 3) == "**/" do
-    body, anywhere = body:sub(4), true
-  end
-  body = body:gsub("^/+", "")
-  while body:sub(-3) == "/**" do
-    body, below = body:sub(1, -4), true
-  end
-
-  local fold = Path.is_windows
-  local heads
-  if root then
-    local head = "^" .. literal(root, fold) .. SEP
-    heads = anywhere and { head, head .. ".-" .. SEP } or { head }
-  else
-    -- deeper only in a relative path: not after "/", "c:" or "//srv"
-    heads = anywhere and { "^", "^[^/\\]" .. (fold and "[^:]-" or ".-") .. SEP }
-      or { "^", "^%." .. SEP }
-  end
-  if body == "" or body == "**" then return heads end
-
-  local variants = { "" }
-  local function add(s)
-    for i, v in ipairs(variants) do
-      variants[i] = v .. s
+      return false
     end
   end
-  local i = 1
-  while i <= #body do
-    local c = body:sub(i, i)
-    if body:sub(i, i + 2) == "**/" then
-      -- zero or more whole directories: one variant each
-      local more = {}
-      for _, v in ipairs(variants) do
-        table.insert(more, v)
-        table.insert(more, v .. ".-" .. SEP)
-      end
-      variants = more
-      i = i + 3
-    elseif body:sub(i, i + 1) == "**" then
-      add(".*")
-      i = i + 2
-    else
-      local close = c == "[" and body:find("]", i + 2, true)
-      if close then
-        -- character class, copied with its punctuation escaped
-        local class = body:sub(i + 1, close - 1):gsub("[^%w%-]", "%%%0")
-        if fold then class = class:lower() .. class:upper() end
-        add("[" .. class .. "]")
-        i = close + 1
-      else
-        if c == "*" then
-          add(NOTSEP .. "*")
-        elseif c == "?" then
-          add(NOTSEP)
-        elseif c == "/" then
-          add(SEP)
-        elseif fold and c:match("%a") then
-          add("[" .. c:lower() .. c:upper() .. "]")
-        elseif c:match("%w") then
-          add(c)
-        else
-          add("%" .. c)
-        end
-        i = i + 1
-      end
-    end
-  end
-
-  local pats = {}
-  for _, v in ipairs(variants) do
-    for _, head in ipairs(heads) do
-      if below then
-        table.insert(pats, head .. v .. SEP)
-      else
-        table.insert(pats, head .. v .. "$")
-        table.insert(pats, head .. v .. SEP)
-      end
-    end
-  end
-  return pats
-end
-
--- Telescope file_ignore_patterns for `excludes` when searching `dirs`.
-local function telescope_ignores(excludes, dirs, cwd)
-  local out = {}
-  for _, a in ipairs(M._anchor_excludes(excludes, dirs, cwd)) do
-    -- nil for untranslatable globs (warned); otherwise a list of patterns
-    vim.list_extend(out, M._glob_to_lua_pats(a.glob, a.root) or {})
-  end
-  return out
+  return true
 end
 
 -- ---------------------------------------------------------------------------
@@ -444,19 +346,20 @@ function M.find()
   end
 
   if has("telescope.builtin") then
-    require("telescope.builtin").find_files({
+    if not telescope_literal_paths(ctx) then return end
+    local config = require("telescope.config")
+    local opts = {
       prompt_title = ("Find [%s]"):format(ctx.name),
       cwd = ctx.cwd,
       search_dirs = cwd_relative(ctx.dirs, ctx.cwd),
-      file_ignore_patterns = telescope_ignores(
-        vim.list_extend({ ".git" }, ctx.excludes),
-        ctx.dirs,
-        ctx.cwd
-      ),
       hidden = true,
       follow = follow_links(),
       attach_mappings = attach_show_path_mapping,
-    })
+    }
+    local entry_opts = vim.tbl_extend("force", config.values, config.pickers.find_files or {}, opts)
+    opts.entry_maker =
+      M._telescope_entry_maker(ctx, require("telescope.make_entry").gen_from_file, entry_opts, true)
+    require("telescope.builtin").find_files(opts)
     return
   end
 
@@ -485,7 +388,7 @@ end
 -- hide (or nil), and how many files of that name there were in all.
 function M._find_in_scope(ctx, name)
   local found = vim.fn.findfile(name, M._find_path(ctx.dirs or { ctx.cwd or State.root() }), -1)
-  local in_scope = #ctx.excludes > 0 and State.matcher() or nil
+  local in_scope = #ctx.excludes > 0 and (ctx.in_scope or State.matcher()) or nil
   for _, f in ipairs(found) do
     local full = vim.fn.fnamemodify(f, ":p")
     if not in_scope or in_scope(full) then return full, #found end
@@ -544,13 +447,27 @@ function M.grep(initial_query)
   end
 
   if has("telescope.builtin") then
+    if not telescope_literal_paths(ctx) then return end
+    local config = require("telescope.config")
+    local configured = config.pickers.live_grep or {}
+    local additional = configured.additional_args or config.values.additional_args
     require("telescope.builtin").live_grep({
       prompt_title = ("Grep [%s]"):format(ctx.name),
       cwd = ctx.cwd,
       search_dirs = cwd_relative(ctx.dirs, ctx.cwd),
-      file_ignore_patterns = telescope_ignores(ctx.excludes, ctx.dirs, ctx.cwd),
       default_text = initial_query or "",
       attach_mappings = attach_show_path_mapping,
+      -- Telescope passes its resolved options here before starting a job.
+      -- Construct the default maker lazily, after it has also determined
+      -- whether custom rg arguments omit coordinates or invert matches.
+      additional_args = function(opts)
+        local args = additional
+        if type(args) == "function" then args = args(opts) end
+        args = args or {}
+        opts.entry_maker =
+          M._telescope_entry_maker(ctx, require("telescope.make_entry").gen_from_vimgrep, opts)
+        return args
+      end,
     })
     return
   end
@@ -585,7 +502,7 @@ function M.grep(initial_query)
   -- vimgrep can't take excludes; apply the scope's excludes to the result
   -- so this backend agrees with the fzf-lua / telescope ones.
   if #ctx.excludes > 0 then
-    local in_scope = State.matcher()
+    local in_scope = ctx.in_scope or State.matcher()
     local kept = vim.tbl_filter(function(item)
       return item.bufnr == 0 or in_scope(vim.api.nvim_buf_get_name(item.bufnr))
     end, vim.fn.getqflist())
