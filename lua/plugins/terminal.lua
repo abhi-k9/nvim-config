@@ -7,6 +7,15 @@
 -- instead of spawning another lazygit on every press.
 local lazygit_term
 
+local function toggle(direction)
+  return function()
+    -- Toggleterm expands an absolute cwd again before spawning. A relative
+    -- dot survives both expansions and termopen resolves the active cwd
+    -- literally, including window-local directories containing "$NAME".
+    require("toggleterm").toggle(vim.v.count, nil, ".", direction)
+  end
+end
+
 return {
   -- -------------------------------------------------------------------------
   -- toggleterm
@@ -21,10 +30,10 @@ return {
     -- <C-\>.
     keys = {
       -- stylua: ignore start
-      { "<C-\\>",     "<cmd>ToggleTerm direction=float<cr>",      desc = "Toggle floating terminal" },
-      { "<leader>tt", "<cmd>ToggleTerm direction=float<cr>",      desc = "Float terminal" },
-      { "<leader>th", "<cmd>ToggleTerm direction=horizontal<cr>", desc = "Horizontal terminal" },
-      { "<leader>tv", "<cmd>ToggleTerm direction=vertical<cr>",   desc = "Vertical terminal" },
+      { "<C-\\>",     toggle("float"),      desc = "Toggle floating terminal" },
+      { "<leader>tt", toggle("float"),      desc = "Float terminal" },
+      { "<leader>th", toggle("horizontal"), desc = "Horizontal terminal" },
+      { "<leader>tv", toggle("vertical"),   desc = "Vertical terminal" },
       { "<leader>tg", function()                                  -- lazygit in a float
           if vim.fn.executable("lazygit") == 0 then
             vim.notify("lazygit is not on PATH", vim.log.levels.WARN)
@@ -33,6 +42,7 @@ return {
           if not lazygit_term then
             lazygit_term = require("toggleterm.terminal").Terminal:new({
               cmd = "lazygit",
+              dir = ".", -- preserve literal cwd as for the shell mappings
               hidden = true,
               direction = "float",
               float_opts = { border = "rounded" },
@@ -94,6 +104,9 @@ return {
       start_in_insert = true,
       persist_size = true,
       persist_mode = true,
+      -- Preserve existing jobs' directories. Enabling autochdir would also
+      -- make upstream expand absolute project paths before the spawn.
+      autochdir = false,
       direction = "float",
       close_on_exit = true,
       float_opts = {
