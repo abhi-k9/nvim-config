@@ -442,7 +442,9 @@ do
         -- vim.uv.fs_unlink reports failure by RETURNING nil, err (it does
         -- not throw), so the return value is checked — a pcall would see
         -- every failure as success.
-        if not info.error and not local_swap_host(info) and not (explicit and cmd.bang) then
+        if not same_swap_file(st, vim.uv.fs_lstat(swap)) then
+          err = "changed while its header was checked; not deleted"
+        elseif not info.error and not local_swap_host(info) and not (explicit and cmd.bang) then
           err = "owner is on another or unknown host; not deleted"
         elseif owner and owner ~= mypid then
           err = "now in use by another running Neovim; not deleted"
@@ -614,10 +616,13 @@ do
         -- Unknown/corrupt headers are safe to remove only for the original
         -- empty-and-old case, never after a formerly clean swap changed.
         local empty = info.error and st.size == 0 and os.time() - st.mtime.sec > 60
-        if
-          not live_owner(info)
+        local eligible = not live_owner(info)
           and (empty or (not info.error and local_swap_host(info) and info.dirty == 0))
-        then
+        -- Header decoding and owner probes can race an in-place rewrite or
+        -- replacement too. Recheck after them, immediately before unlink.
+        if not same_swap_file(st, vim.uv.fs_lstat(path)) then
+          err = "changed while its header was checked; not deleted"
+        elseif eligible then
           ok, err = vim.uv.fs_unlink(path)
         else
           err = "now active, dirty or unreadable; not deleted"

@@ -115,8 +115,9 @@ two groups:
   crash still counts as unsaved: the swap keeps that flag.
 
 It then shows both lists and asks once, with Cancel as the default.
-Targets are rechecked after confirmation; a replaced or updated swap is
-kept. This reduces accidental cleanup races, but is not an atomic lock
+Targets are rechecked after confirmation and again after decoding the final
+header and checking its owner; a replaced or updated swap is kept.
+This reduces accidental cleanup races, but is not an atomic lock
 against an editor changing the path immediately before deletion.
 Swaps of the Neovim you run it from are never listed. A swap whose
 recorded process ID now belongs to an unrelated running program is kept

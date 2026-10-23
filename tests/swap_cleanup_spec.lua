@@ -113,6 +113,29 @@ describe("swap cleanup revalidates confirmed targets", function()
     assert.same({ "new recovery data" }, vim.fn.readfile(path))
   end)
 
+  for _, command in ipairs({ "SwapClean", "SwapDelete" }) do
+    it("revalidates file identity after " .. command .. " reads the final header", function()
+      local confirmed, changed = false, false
+      vim.fn.confirm = function()
+        confirmed = true
+        return 1
+      end
+      vim.fn.swapinfo = function(name)
+        if name ~= path then return original_swapinfo(name) end
+        local result = vim.deepcopy(info)
+        if confirmed and not changed then
+          changed = true
+          vim.fn.writefile({ "new recovery data written during header read" }, path)
+        end
+        return result
+      end
+      vim.cmd(command == "SwapDelete" and command .. " " .. path or command)
+      assert.is_true(changed)
+      assert.is_not_nil(vim.uv.fs_stat(path))
+      assert.same({ "new recovery data written during header read" }, vim.fn.readfile(path))
+    end)
+  end
+
   it("still allows explicit confirmed deletion of an unchanged dirty swap", function()
     info.dirty = 1
     vim.cmd("SwapDelete " .. path)
