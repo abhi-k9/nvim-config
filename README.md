@@ -12,8 +12,11 @@ your config folder:
 | Linux / macOS   | `~/.config/`          | `~/.config/nvim/`          |
 | Windows (PS)    | `$env:LOCALAPPDATA\`  | `$env:LOCALAPPDATA\nvim\`  |
 
-Commands for extracting, updating to a new zip, trying it next to another
-config, and uninstalling, per OS:
+You can also clone the repository directly into the **Config folder** above.
+Pass that destination explicitly to `git clone` to avoid a nested `nvim-config/`.
+Git accepts an existing destination only when it is empty, including hidden files.
+Commands for cloning, backing up an existing config, extracting, updating to a
+new zip, trying it next to another config, and uninstalling, per OS:
 [docs/workflows/install-update-uninstall.md](docs/workflows/install-update-uninstall.md).
 
 The first `nvim` launch will bootstrap [lazy.nvim](https://github.com/folke/lazy.nvim)
@@ -431,8 +434,9 @@ In order — each step assumes the previous succeeded.
    If any of these come back "not found", fix that first — lazy.nvim's
    build steps assume they're available.
 
-2. **Extract this config** into the parent folder for your OS (table at
-   the top; commands in
+2. **Clone this repository into the config folder**, or extract the zip into
+   its parent folder (table at the top; per-platform commands and existing-folder
+   backup steps in
    [docs/workflows/install-update-uninstall.md](docs/workflows/install-update-uninstall.md)).
    Move an existing config aside first. No internet on this machine? Install an offline seed built elsewhere
    instead of steps 3–7: [docs/workflows/offline-install.md](docs/workflows/offline-install.md).

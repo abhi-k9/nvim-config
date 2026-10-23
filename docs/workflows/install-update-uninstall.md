@@ -1,13 +1,14 @@
 # Install, update and uninstall (Windows, Linux, macOS)
 
-The config ships as a zip with one top-level folder, `nvim/`. You extract it
-into the folder that *contains* Neovim configs, and it becomes the config
-folder. Everything else (plugins, Mason tools, parsers, sessions, undo
+Install by cloning the repository directly into Neovim's config folder, or
+extract a release zip with its top-level `nvim/` folder into the config's
+parent folder. Everything else (plugins, Mason tools, parsers, sessions, undo
 history) lives in Neovim's own data, state and cache folders, which the
 config fills on first start.
 
-Commands are given for PowerShell (Windows) and for a Unix shell. The Unix
-blocks run unchanged in bash, zsh and fish. For machines without internet,
+Commands are given for PowerShell (Windows) and bash/zsh (Linux/macOS).
+Fish users can run `bash` first for examples containing variable assignments.
+For machines without internet,
 see [offline-install.md](offline-install.md).
 
 ## Where things live
@@ -27,7 +28,71 @@ next to your current config"). Inside Neovim, this shows the real paths:
 :echo stdpath('config') . "\n" . stdpath('data') . "\n" . stdpath('state') . "\n" . stdpath('cache')
 ```
 
-## Install
+## Clone directly into Neovim's config folder
+
+Install the [prerequisites](../../README.md#prerequisites), then quit Neovim
+before replacing an existing config. These commands use the default app name,
+`nvim`. If you set `NVIM_APPNAME` or override Windows `XDG_CONFIG_HOME`, use
+the path shown by `:echo stdpath('config')` instead.
+
+**Linux (CachyOS and Ubuntu) and macOS — bash/zsh:**
+
+```bash
+mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}"
+git clone https://github.com/abhi-k9/nvim-config.git "${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
+```
+
+**Windows — PowerShell:**
+
+```powershell
+git clone https://github.com/abhi-k9/nvim-config.git "$env:LOCALAPPDATA\nvim"
+```
+
+The final argument specifies the destination. Without it, Git creates a
+`nvim-config` subfolder in the current directory. The destination can already
+exist, but it must be **empty**, including hidden files.
+
+### If the config folder already contains files
+
+Move it to a timestamped backup, then clone into its former path. Choose a
+different backup name if that name already exists. These commands preserve
+the old config; they do not remove plugins, sessions or other data folders.
+When switching from another distribution/plugin manager, also follow the
+data/state/cache backup advice in step 2 of the zip instructions below.
+
+**Linux (CachyOS and Ubuntu) and macOS — bash/zsh:**
+
+```bash
+nvim_config="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
+mv "$nvim_config" "$nvim_config.backup-$(date +%Y%m%d-%H%M%S)" &&
+  git clone https://github.com/abhi-k9/nvim-config.git "$nvim_config"
+```
+
+**Windows — PowerShell:**
+
+```powershell
+$config = Join-Path $env:LOCALAPPDATA "nvim"
+Move-Item -LiteralPath $config -Destination "$config.backup-$(Get-Date -Format yyyyMMdd-HHmmss)" -ErrorAction Stop
+git clone https://github.com/abhi-k9/nvim-config.git "$config"
+```
+
+If you already have `nvim/nvim-config/init.lua`, this procedure preserves
+that nested clone in the backup. To reuse it instead of downloading again,
+move the entire nested `nvim-config` folder to a temporary location, rename
+the outer `nvim` folder as a backup, then move the clone back as `nvim`.
+Moving the whole clone preserves hidden files such as `.git`.
+
+Verify that `init.lua`, `lua/`, `lazy-lock.json` and `scoper.nvim/` sit
+directly inside the config folder, rather than inside `nvim-config/` or
+another `nvim/` subfolder. Start Neovim and check:
+
+```vim
+:echo stdpath('config')
+```
+
+Then continue with the README's [first-time setup checklist](../../README.md#first-time-setup-checklist), step 3.
+
+## Install from a zip
 
 1. Install the prerequisites (README, Prerequisites; there are per-platform
    recipes there).
