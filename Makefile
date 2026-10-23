@@ -11,6 +11,7 @@
 #   make all         — check + check-docs + test
 #   make test-scoper — `make test` inside scoper.nvim/
 #   make test-seed   — Python tests for scripts/offline-seed.py
+#   make check-actions — offline immutable CI pin guard and updater tests
 #   make ci          — what CI runs: check + check-docs + test + test-scoper
 #                      + test-seed
 #   make hooks       — enable the tracked git pre-commit hook (.githooks/)
@@ -31,14 +32,18 @@ LUACHECK  ?= luacheck
 STYLUA    ?= stylua
 PYTHON    ?= python3
 
-.PHONY: test test-scoper test-seed lint format fmt-check check check-docs all ci hooks
+.PHONY: test test-scoper test-seed lint format fmt-check check check-docs check-actions all ci hooks
 
 all: check check-docs test
 
 # Everything the CI workflow (.github/workflows/ci.yml) gates on, in one
 # local command: static analysis over both trees, the doc-sync guards, then
 # both spec suites and the offline-seed tests.
-ci: check check-docs test test-scoper test-seed
+ci: check check-docs check-actions test test-scoper test-seed
+
+check-actions:
+	$(PYTHON) scripts/update-ci-actions.py --check
+	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) -m unittest discover -s tests -p "ci_actions_test.py"
 
 # Point git at the version-controlled hook directory so .githooks/pre-commit
 # runs on every commit (luacheck + stylua over the staged Lua, plus the

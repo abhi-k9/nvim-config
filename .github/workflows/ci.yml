@@ -67,10 +67,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Action versions: latest major of each as of 2026-10 (checkout v7, cache
-# v6, gh-actions-lua v13, gh-actions-luarocks v6, rhysd/action-setup-vim v1,
-# tree-sitter/setup-action v2). Every input used below exists in those
-# majors' action.yml.
+# Actions use immutable commit pins. Comments record the explicit update track.
+# Refresh deliberately with python3 scripts/update-ci-actions.py; review the
+# diff and run make ci. Use --ref OWNER/REPO=TAG to select another major.
 
 jobs:
   lint:
@@ -78,17 +77,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       - name: Set up Lua
-        uses: leafo/gh-actions-lua@v13
+        uses: leafo/gh-actions-lua@32909a2dea0a48c433aec79e7fcd31b4cd55800f # v13
         with:
           luaVersion: "5.1" # LuaJIT-compatible; matches `std = "luajit"` in .luacheckrc
 
       - name: Set up LuaRocks
-        uses: leafo/gh-actions-luarocks@v6
+        uses: leafo/gh-actions-luarocks@35d062def313a7699a0d513e996bcf4352f05389 # v6
 
       - name: Install luacheck
         run: luarocks install luacheck
@@ -119,6 +118,10 @@ jobs:
         timeout-minutes: 2
         run: python3 scripts/ci-run.py make check-docs
 
+      - name: Immutable action pins and updater tests
+        timeout-minutes: 2
+        run: python3 scripts/ci-run.py make check-actions
+
   test:
     name: plenary specs (full config, nvim ${{ matrix.nvim }})
     runs-on: ubuntu-latest
@@ -128,7 +131,7 @@ jobs:
       matrix:
         nvim: [stable]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
@@ -138,7 +141,7 @@ jobs:
       # the official CLI >= 0.26.1 rather than the npm package. Search
       # integration tests need ripgrep explicitly; it is not on every image.
       - name: Set up tree-sitter CLI
-        uses: tree-sitter/setup-action/cli@v2
+        uses: tree-sitter/setup-action/cli@faab9a23fa6195da0f1cf868219cc1e89f238d3d # v2
 
       - name: Install toolchain
         run: |
@@ -148,7 +151,7 @@ jobs:
           rg --version
 
       - name: Set up Neovim
-        uses: rhysd/action-setup-vim@v1
+        uses: rhysd/action-setup-vim@febef33995d6649302e9d88dda81e071b68f16a7 # v1
         with:
           neovim: true
           version: ${{ matrix.nvim }}
@@ -157,7 +160,7 @@ jobs:
       # clones the plugin set via lazy.nvim (slow once; the plugin cache is
       # keyed below so later runs are fast).
       - name: Cache Neovim plugins
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             ~/.local/share/nvim
@@ -182,12 +185,12 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         nvim: [stable]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       - name: Set up Neovim
-        uses: rhysd/action-setup-vim@v1
+        uses: rhysd/action-setup-vim@febef33995d6649302e9d88dda81e071b68f16a7 # v1
         with:
           neovim: true
           version: ${{ matrix.nvim }}
@@ -205,6 +208,14 @@ jobs:
           py=$(command -v python3 || command -v python)
           "$py" ../scripts/ci-run.py nvim --headless --noplugin -u NONE -l tests/run.lua
 
+      - name: Native Windows DAP adapter spawning
+        if: runner.os == 'Windows'
+        timeout-minutes: 2
+        shell: bash
+        run: |
+          py=$(command -v python3 || command -v python)
+          "$py" scripts/ci-run.py nvim --headless --noplugin -u NONE -l tests/fixtures/windows_dap_spawn.lua
+
   test-seed:
     name: offline-seed tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -214,7 +225,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
