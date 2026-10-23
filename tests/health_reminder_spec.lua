@@ -111,6 +111,15 @@ describe("periodic tooling health reminder", function()
     assert.equals(1, #messages)
   end)
 
+  it("recovers a future-dated lease after a clock correction", function()
+    local path = dir .. "/tooling-reminder.lock"
+    vim.fn.writefile({ "" }, path)
+    vim.uv.fs_utime(path, now + 30 * DAY, now + 30 * DAY)
+    reminder.check()
+    reminder.check()
+    assert.equals(1, #messages)
+  end)
+
   it("still reminds once when saving fails and cleans up temporary files", function()
     vim.uv.fs_rename = function()
       return nil, "simulated failure"

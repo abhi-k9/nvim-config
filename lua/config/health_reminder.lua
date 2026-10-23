@@ -48,7 +48,9 @@ function M.check()
   if not fd then
     local stat = vim.uv.fs_lstat(lock)
     if stat and stat.type == "file" then
-      if now - stat.mtime.sec > 60 then vim.uv.fs_unlink(lock) end
+      -- A copied state directory or clock correction can date a lease in
+      -- the future. It must not block review prompts until that date.
+      if math.abs(now - stat.mtime.sec) > 60 then vim.uv.fs_unlink(lock) end
       return
     end
   end
