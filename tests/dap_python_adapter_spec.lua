@@ -41,7 +41,7 @@ describe("Python debugger transport", function()
     local adapter = resolve({ request = "launch", program = "program.py" })
     assert.equals("executable", adapter.type)
     assert.equals(
-      vim.fn.has("win32") == 1 and "debugpy-adapter.cmd" or "debugpy-adapter",
+      vim.fn.has("win32") == 1 and "python.exe" or "debugpy-adapter",
       vim.fs.basename(adapter.command)
     )
   end)

@@ -123,24 +123,35 @@ function M.setup()
   -- values a launch.json can use. Mason only installs the binaries
   -- (mason-tool-installer's list in lua/plugins/formatting.lua).
   --
-  -- Windows note: Mason ships every bin/ entry as a `.cmd` shim that
-  -- wraps the real executable. Without the extension Neovim's spawn
-  -- call gets ENOENT. The `mason_exe` helper appends it on Windows
-  -- only (and avoids it on WSL, which reports as Linux to `has("win32")`).
-  local mason_bin = vim.fs.joinpath(vim.fn.stdpath("data"), "mason", "bin")
+  -- Mason's Windows bin/ entries are .cmd shims. nvim-dap uses uv.spawn,
+  -- which cannot execute batch files directly. Use the package's native
+  -- image/runtime with an argv list there, keeping literal spaces and shell
+  -- metacharacters out of a command interpreter. Unix keeps Mason's shims.
+  local settings = package.loaded["mason.settings"]
+  local mason_root = settings and settings.current and settings.current.install_root_dir
+    or vim.fs.joinpath(vim.fn.stdpath("data"), "mason")
+  local mason_bin = vim.fs.joinpath(mason_root, "bin")
+  local mason_packages = vim.fs.joinpath(mason_root, "packages")
   local is_windows = vim.fn.has("win32") == 1
-  local function mason_exe(name)
-    return vim.fs.joinpath(mason_bin, is_windows and (name .. ".cmd") or name)
+  local function mason_exe(name, package, ...)
+    if is_windows then return vim.fs.joinpath(mason_packages, package, ...) end
+    return vim.fs.joinpath(mason_bin, name)
   end
 
   -- cpptools / OpenDebugAD7 — Microsoft's C/C++ debug adapter.
-  -- nvim-dap spawns adapters detached by default; on Windows a detached
-  -- start through the .cmd shim opens a stray console or fails to start
-  -- (codelldb below has the same switch).
+  -- nvim-dap spawns adapters detached by default; keep Windows starts in
+  -- this process group instead of opening a separate console.
   dap.adapters.cppdbg = {
     id = "cppdbg",
     type = "executable",
-    command = mason_exe("OpenDebugAD7"),
+    command = mason_exe(
+      "OpenDebugAD7",
+      "cpptools",
+      "extension",
+      "debugAdapters",
+      "bin",
+      "OpenDebugAD7.exe"
+    ),
     options = { detached = not is_windows },
   }
 
@@ -158,7 +169,7 @@ function M.setup()
     options = { max_retries = 40 },
     executable = {
           -- stylua: ignore start
-          command  = mason_exe("codelldb"),
+          command  = mason_exe("codelldb", "codelldb", "extension", "adapter", "codelldb.exe"),
           args     = { "--port", "${port}" },
           detached = not is_windows,
       -- stylua: ignore end
@@ -181,7 +192,9 @@ function M.setup()
     else
       callback({
         type = "executable",
-        command = mason_exe("debugpy-adapter"),
+        command = mason_exe("debugpy-adapter", "debugpy", "venv", "Scripts", "python.exe"),
+        args = is_windows and { "-m", "debugpy.adapter" } or nil,
+        options = is_windows and { detached = false } or nil,
       })
     end
   end
@@ -192,9 +205,16 @@ function M.setup()
   -- won't match the adapter's expected version. Practical on
   -- Unix-likes; on Windows it additionally needs bash/cat/mkfifo/
   -- pkill on PATH (e.g. Git Bash), which is why it's fallback-only.
+  local node = is_windows and vim.fn.exepath("node.exe") or ""
   dap.adapters.bashdb = {
     type = "executable",
-    command = mason_exe("bash-debug-adapter"),
+    command = is_windows and (node ~= "" and node or "node.exe") or mason_exe("bash-debug-adapter"),
+    args = is_windows
+        and {
+          vim.fs.joinpath(mason_packages, "bash-debug-adapter", "extension", "out", "bashDebug.js"),
+        }
+      or nil,
+    options = is_windows and { detached = false } or nil,
     name = "bashdb",
   }
 
@@ -336,8 +356,7 @@ function M.setup()
   -- Bash fallback. The path* fields are required by the adapter —
   -- it drives the vendored bashdb through named pipes, hence the
   -- cat/mkfifo/pkill dependencies (see the adapter comment above).
-  local bash_debug_dir =
-    vim.fs.joinpath(vim.fn.stdpath("data"), "mason", "packages", "bash-debug-adapter")
+  local bash_debug_dir = vim.fs.joinpath(mason_packages, "bash-debug-adapter")
   local bashdb_dir = vim.fs.joinpath(bash_debug_dir, "extension", "bashdb_dir")
   for _, ft in ipairs({ "sh", "bash" }) do
     dap.configurations[ft] = dap.configurations[ft] or {}
