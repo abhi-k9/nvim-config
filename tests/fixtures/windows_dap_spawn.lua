@@ -47,7 +47,9 @@ local ok, err = xpcall(function()
   for _, name in ipairs({ "OpenDebugAD7", "codelldb", "debugpy-adapter", "bash-debug-adapter" }) do
     write(vim.fs.joinpath(mason, "bin", name .. ".cmd"), { "@echo off", "exit /b 17" })
   end
-  local native = (vim.env.SystemRoot or "C:\\Windows") .. "\\System32\\cmd.exe"
+  -- Use a native program with ordinary argv parsing. A renamed cmd.exe still
+  -- interprets its own raw command line and is unsuitable for this fixture.
+  local native = (vim.env.SystemRoot or "C:\\Windows") .. "\\System32\\where.exe"
   for _, relative in ipairs({
     { "cpptools", "extension", "debugAdapters", "bin", "OpenDebugAD7.exe" },
     { "codelldb", "extension", "adapter", "codelldb.exe" },
@@ -82,8 +84,12 @@ local ok, err = xpcall(function()
   require("config.dap").setup()
 
   -- These are direct native-image launches, without cmd /c around the adapter.
-  assert(spawn(dap.adapters.cppdbg.command, { "/d", "/c", "exit", "17" }) == 17)
-  assert(spawn(dap.adapters.codelldb.executable.command, { "/d", "/c", "exit", "17" }) == 17)
+  local missing = { "/Q", "NVIM_DAP_NATIVE_FIXTURE_DOES_NOT_EXIST_6e9ac7" }
+  local cpp, lldb =
+    spawn(dap.adapters.cppdbg.command, missing),
+    spawn(dap.adapters.codelldb.executable.command, missing)
+  assert(cpp == 1, "cppdbg native fixture returned " .. tostring(cpp))
+  assert(lldb == 1, "codelldb native fixture returned " .. tostring(lldb))
 
   local literal =
     { "with spaces", "literal&argument", "%DO_NOT_EXPAND%", 'a"quoted"argument', "é漢字" }
