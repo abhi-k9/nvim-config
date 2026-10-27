@@ -4,6 +4,7 @@
 -- whitespace, formatoptions, q-to-close panels, auto-mkdir, checktime.
 
 local augroup = require("config.util").augroup
+local settings = require("config.settings")
 
 -- ---------------------------------------------------------------------------
 -- Highlight on yank — quick visual confirmation that the yank happened.
@@ -44,6 +45,7 @@ vim.api.nvim_create_autocmd("BufReadPost", {
 vim.api.nvim_create_autocmd("VimResized", {
   group = augroup("resize_splits"),
   callback = function()
+    if settings.get("editing.equalize_windows", true) == false then return end
     for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
       vim.api.nvim_win_call(vim.api.nvim_tabpage_get_win(tab), function()
         vim.cmd("wincmd =")
@@ -79,16 +81,30 @@ vim.api.nvim_create_autocmd("BufWritePre", {
     -- inside a BufWritePre callback).
     local buf = args.buf
     if vim.bo[buf].binary or vim.bo[buf].filetype == "diff" then return end
-    if vim.b[buf].big_file or vim.bo[buf].filetype == "markdown" then return end
+    if vim.b[buf].big_file then return end
+    local policy = settings.get("editing.trim_whitespace", true)
+    if policy == false or type(policy) == "function" and not policy(buf) then return end
+    if
+      vim.tbl_contains(
+        settings.get("editing.trim_skip_filetypes", { "markdown", "diff" }),
+        vim.bo[buf].filetype
+      )
+    then
+      return
+    end
     local ec = vim.b[buf].editorconfig
     if type(ec) == "table" and ec.trim_trailing_whitespace ~= nil then return end
     -- Skip buffers the :s can't (or shouldn't) touch: read-only ones, and
     -- special buffers (nofile/help/terminal/prompt/quickfix) — writing one of
     -- those to a path would otherwise throw E21 from the substitute below.
-    if not vim.bo[buf].modifiable or vim.bo[buf].buftype ~= "" then return end
-    local view = vim.fn.winsaveview()
-    vim.cmd([[keeppatterns %s/\s\+$//e]])
-    vim.fn.winrestview(view)
+    if not vim.bo[buf].modifiable or vim.bo[buf].readonly or vim.bo[buf].buftype ~= "" then
+      return
+    end
+    vim.api.nvim_buf_call(buf, function()
+      local view = vim.fn.winsaveview()
+      vim.cmd([[keeppatterns %s/\s\+$//e]])
+      vim.fn.winrestview(view)
+    end)
   end,
 })
 
@@ -104,8 +120,9 @@ vim.api.nvim_create_autocmd("BufWritePre", {
 -- ---------------------------------------------------------------------------
 vim.api.nvim_create_autocmd("FileType", {
   group = augroup("formatoptions"),
-  callback = function()
-    vim.opt_local.formatoptions:remove({ "c", "r", "o" })
+  callback = function(args)
+    if settings.get("editing.continue_comments", false) then return end
+    vim.bo[args.buf].formatoptions = vim.bo[args.buf].formatoptions:gsub("[cro]", "")
   end,
 })
 

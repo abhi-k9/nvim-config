@@ -21,6 +21,7 @@
 --   <leader>?     → which-key buffer-local keys
 
 local map = vim.keymap.set
+local settings = require("config.settings")
 
 -- ---------------------------------------------------------------------------
 -- Quality-of-life
@@ -54,8 +55,10 @@ end, { desc = "Clear hlsearch & dismiss floats" })
 -- Better up/down on wrapped lines: j/k respect display lines unless used
 -- with a count (so `5j` still jumps 5 real lines, good for relativenumber).
 -- stylua: ignore start
-map({ "n", "x" }, "j", "v:count == 0 ? 'gj' : 'j'", { expr = true, silent = true, desc = "Down (display line)" })
-map({ "n", "x" }, "k", "v:count == 0 ? 'gk' : 'k'", { expr = true, silent = true, desc = "Up (display line)" })
+if settings.get("mappings.navigation", true) then
+  map({ "n", "x" }, "j", "v:count == 0 ? 'gj' : 'j'", { expr = true, silent = true, desc = "Down (display line)" })
+  map({ "n", "x" }, "k", "v:count == 0 ? 'gk' : 'k'", { expr = true, silent = true, desc = "Up (display line)" })
+end
 -- stylua: ignore end
 
 -- Keep cursor centered on big motions; small thing, huge readability win.
@@ -63,8 +66,14 @@ map({ "n", "x" }, "k", "v:count == 0 ? 'gk' : 'k'", { expr = true, silent = true
 -- owns them so the half-page scroll is animated, and it re-centers via a
 -- post_hook (info="center"); a <C-d>zz map here would be overridden by
 -- neoscroll on load.
-map("n", "n", "nzzzv", { desc = "Next search match (centered)" })
-map("n", "N", "Nzzzv", { desc = "Prev search match (centered)" })
+if settings.get("mappings.navigation", true) then
+  map("n", "n", "nzzzv", { desc = "Next search match (centered)" })
+  map("n", "N", "Nzzzv", { desc = "Prev search match (centered)" })
+  if settings.get("ui.reduced_motion", false) then
+    map({ "n", "x" }, "<C-d>", "<C-d>zz", { desc = "Half page down (centered)" })
+    map({ "n", "x" }, "<C-u>", "<C-u>zz", { desc = "Half page up (centered)" })
+  end
+end
 
 -- Horizontal scroll in ONE chord, repeatable by holding.
 -- Built-in zl/zh need the `z` prefix (two keys) and move a single column,
@@ -78,11 +87,13 @@ map("n", "N", "Nzzzv", { desc = "Prev search match (centered)" })
 -- held, decisive on a tap. Bump it if you want bigger jumps; for a
 -- half-screen leap on a single key use zL/zH directly instead.
 local HSCROLL_STEP = 16
-map("n", "<A-l>", HSCROLL_STEP .. "zl", { desc = "Scroll right" })
-map("n", "<A-h>", HSCROLL_STEP .. "zh", { desc = "Scroll left" })
--- Same in visual mode so you can scroll while keeping a selection.
-map("x", "<A-l>", HSCROLL_STEP .. "zl", { desc = "Scroll right" })
-map("x", "<A-h>", HSCROLL_STEP .. "zh", { desc = "Scroll left" })
+if settings.get("mappings.navigation", true) then
+  map("n", "<A-l>", HSCROLL_STEP .. "zl", { desc = "Scroll right" })
+  map("n", "<A-h>", HSCROLL_STEP .. "zh", { desc = "Scroll left" })
+  -- Same in visual mode so you can scroll while keeping a selection.
+  map("x", "<A-l>", HSCROLL_STEP .. "zl", { desc = "Scroll right" })
+  map("x", "<A-h>", HSCROLL_STEP .. "zh", { desc = "Scroll left" })
+end
 
 -- Stay in visual mode after indenting (so you can `>` repeatedly).
 --
@@ -357,26 +368,41 @@ map("n", "<leader>Q", "<cmd>qa!<cr>",       { desc = "Force quit all" })
 -- `A;<Esc>j.` would lose most of the insert. Trade-off: a mapped char no
 -- longer triggers an :iabbrev expansion (none are defined here).
 local UNDO_BREAK_CHARS = { ",", ".", "!", "?", ";", ":" }
-local PROSE_FILETYPES = { markdown = true, text = true, gitcommit = true }
 vim.api.nvim_create_autocmd("FileType", {
   group = vim.api.nvim_create_augroup("user_undo_break", { clear = true }),
   desc = "Undo break after punctuation in prose buffers",
   callback = function(ev)
-    if PROSE_FILETYPES[vim.bo[ev.buf].filetype] then
-      for _, ch in ipairs(UNDO_BREAK_CHARS) do
-        map("i", ch, ch .. "<C-g>u", { buffer = ev.buf, desc = "Undo break after " .. ch })
+    -- Policy can change while the same buffer stays open. Remove only owned
+    -- mappings, even when its old punctuation is absent from the new policy.
+    for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(ev.buf, "i")) do
+      if
+        mapping.rhs == mapping.lhs .. "<C-G>u"
+        and mapping.desc == "Undo break after " .. mapping.lhs
+      then
+        vim.keymap.del("i", mapping.lhs, { buffer = ev.buf })
       end
-    else
-      -- FileType can change without replacing the buffer. Remove only our
-      -- own mappings, preserving any replacements installed by the user.
+    end
+    if
+      settings.get("editing.prose_undo", true) == false
+      or settings.get("editing.prose_undo.enabled", true) == false
+    then
+      return
+    end
+    local filetypes =
+      settings.get("editing.prose_undo.filetypes", { "markdown", "text", "gitcommit" })
+    if not vim.tbl_contains(filetypes, vim.bo[ev.buf].filetype) then return end
+    for _, ch in ipairs(settings.get("editing.prose_undo.chars", UNDO_BREAK_CHARS)) do
+      -- Do not replace an independent buffer-local mapping. FileType hooks
+      -- and user remaps may already own this character.
+      local mapped = false
       for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(ev.buf, "i")) do
-        if
-          vim.tbl_contains(UNDO_BREAK_CHARS, mapping.lhs)
-          and mapping.rhs == mapping.lhs .. "<C-G>u"
-          and mapping.desc == "Undo break after " .. mapping.lhs
-        then
-          vim.keymap.del("i", mapping.lhs, { buffer = ev.buf })
+        if mapping.lhs == ch then
+          mapped = true
+          break
         end
+      end
+      if type(ch) == "string" and vim.fn.strchars(ch) == 1 and not mapped then
+        map("i", ch, ch .. "<C-g>u", { buffer = ev.buf, desc = "Undo break after " .. ch })
       end
     end
   end,
