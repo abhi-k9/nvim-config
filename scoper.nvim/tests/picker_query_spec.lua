@@ -50,7 +50,12 @@ describe("shared scope queries in pickers", function()
     Pickers.grep("needle")
     local hits = vim.fn.getqflist()
     assert.equals(1, #hits)
-    assert.equals(Path.key(file), Path.key(vim.api.nvim_buf_get_name(hits[1].bufnr)))
+    -- Native Windows buffers expand 8.3 temp-directory aliases. Compare the
+    -- same logical filename without resolving symlinks in scope membership.
+    assert.equals(
+      Path.key(Path.expand_short(file, {})),
+      Path.key(Path.expand_short(vim.api.nvim_buf_get_name(hits[1].bufnr), {}))
+    )
   end)
 
   it("bounds a glob by its literal ancestor and filters native matches exactly", function()
