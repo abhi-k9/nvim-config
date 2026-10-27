@@ -39,7 +39,7 @@ local function absolute(path, base)
     path = (vim.uv.os_homedir() or "~") .. path:sub(2)
   end
   local windows = vim.fn.has("win32") == 1
-  if windows and path:match("^%a:[^/\\]") then
+  if windows and path:match("^%a:") and not path:match("^%a:[/\\]") then
     error("Use a fully qualified Windows root; drive-relative paths are ambiguous: " .. path)
   end
   if windows and path:sub(1, 1) == "\\" and path:sub(1, 2) ~= "\\\\" then

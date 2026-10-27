@@ -42,6 +42,26 @@ local function append(prefix, suffix)
 end
 
 local ok, err = xpcall(function()
+  local settings = require("config.settings")
+  local normal = function(path)
+    return vim.fs.normalize(path, { expand_env = false })
+  end
+  local current_drive = vim.fn.getcwd(-1, -1):match("^%a:")
+  assert(current_drive, "Windows fixture needs a drive-qualified working directory")
+  assert(
+    settings.resolve([[\literal $HOME % #]]) == normal(current_drive .. [[\literal $HOME % #]])
+  )
+  assert(
+    settings.resolve([[\\server\share\literal $HOME % #]]) == "//server/share/literal $HOME % #"
+  )
+  assert(not pcall(settings.resolve, [[C:relative]]), "Ambiguous drive-relative root accepted")
+  assert(not pcall(settings.resolve, [[C:]]), "Ambiguous bare drive root accepted")
+  settings.configure({
+    debug = { root = [[D:\project]], launch_file = [[\\server\share\launch.json]] },
+  })
+  assert(require("config.dap").launch_file() == "//server/share/launch.json")
+  settings.reset()
+
   -- A valid .cmd shim must never be sent directly to uv.spawn. Place one at
   -- each old entrypoint so the old configuration fails for the actual reason.
   for _, name in ipairs({ "OpenDebugAD7", "codelldb", "debugpy-adapter", "bash-debug-adapter" }) do
