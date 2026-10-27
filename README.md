@@ -198,13 +198,21 @@ sudo luarocks install luacheck
 
 `fd` is sometimes called `fdfind` on Debian-based distros; symlink or alias it as `fd` if so.
 
-## Machine customization
+## Customization
 
-An optional Git-ignored `local.lua` next to `init.lua` returns machine settings.
-It loads before maps and plugins; explicit false values and empty lists survive.
+Create an optional, Git-ignored `local.lua` next to `init.lua` to override
+leaders/options, selected tools, Scoper, search/debug roots, sessions, editing
+policies and UI behavior. It loads before maps and plugins. Keep shipped files
+unchanged and use normal Lazy specs for plugin-specific overrides.
+See [docs/customization.md](docs/customization.md) for examples, load order,
+list/false semantics, trusted project overlays, inspection and feature guides.
 
-Scoper provides `:ScoperReload` (`!` discards unsaved local state) and
-`:ScoperDatabase` (`!` clears build selection) independently of named scopes.
+Scoper keeps search scope, selected build database and clangd mode separate.
+The existing automatic filtered behavior remains the default; explicit
+`disabled`, `native`, `selected` and `filtered` modes are documented in
+[docs/scoper-integration-notes.md](docs/scoper-integration-notes.md).
+`:ScoperDatabase` selects a build independently of scope, and `:ScoperReload`
+reloads saved state (`!` explicitly discards unsaved session changes).
 
 ## Layout
 
@@ -323,6 +331,7 @@ nvim/
 │   ├── session_dap_spec.lua    preserve normal files with debugger-like names
 │   └── offline_seed_test.py  Python tests for scripts/offline-seed.py (make test-seed)
 ├── docs/                     Human-facing docs (not loaded by nvim)
+│   ├── customization.md       local override lifecycle, trust and feature guide index
 │   ├── generalization-verification.md  test environment, acceptance cases and platform limits
 │   ├── tooling-configuration.md  selected languages, executable discovery and offline intent
 │   ├── scoper-core-notes.md   scope model, revisions, schema and persistence outcomes
@@ -405,8 +414,8 @@ Each is documented in its file and easy to remove if you don't want it.
 | `folke/lazydev.nvim`              | Real completion + hover for the whole `vim.*` API and `require`d plugin modules while editing this config; feeds lua_ls on demand. | `lazydev.lua`     |
 | `MeanderingProgrammer/render-markdown.nvim` | In-buffer rendering of Markdown (headings, bullets, code blocks, tables). `:RenderMarkdown toggle`. | `editor.lua`      |
 
-To remove any of them, delete its block from the relevant file and run
-`:Lazy clean`.
+To disable one locally, add `{ "owner/repository", enabled = false }` under
+`plugins` in `local.lua`. `:Lazy clean` can remove disabled plugin checkouts.
 
 ## Keymap conventions
 
@@ -527,15 +536,13 @@ In order — each step assumes the previous succeeded.
 
 ## Common tweaks
 
-- **Change colorscheme**: edit `lua/plugins/colorscheme.lua`,
-  change `flavour` to `"latte"` / `"frappe"` / `"macchiato"` / `"mocha"`,
-  or replace the catppuccin block with a different scheme entirely
-  and update the `vim.cmd.colorscheme(...)` call.
-- **Format on save** (off by default): in `lua/plugins/formatting.lua`,
-  uncomment the `format_on_save = function(bufnr) … end` block (it honours
-  `:FormatToggle`) **and** add `event = { "BufWritePre" }` to the conform
-  spec. Without the event, conform loads only on `:ConformInfo` or its
-  keys, so `:w` wouldn't format until something else had loaded it.
+- **Change colorscheme**: set `ui.colorscheme = "habamax"` (or another
+  installed theme) in `local.lua`. Use a Catppuccin Lazy `opts` override for
+  its flavour. See [editing/UI policies](docs/editing-ui-configuration.md).
+- **Format on save** (off by default): add a Conform Lazy override with
+  `event = { "BufWritePre" }` and a `format_on_save` callback; see the
+  commented example in `lua/plugins/formatting.lua`. `:FormatToggle` controls
+  Conform formatting; `editing.trim_whitespace` separately controls core trimming.
 - **Big-file threshold**: files larger than `vim.g.big_file_size` bytes
   (default 1 MB) open in big-file mode: no treesitter, regex syntax, swap,
   folding (ufo included) or LSP, and no whitespace trim on save.
@@ -551,24 +558,22 @@ In order — each step assumes the previous succeeded.
   forward (and rewrites the file). CI's plugin cache is keyed on it.
 - **Tooling health reminder**: an informational prompt appears on first
   interactive use, then every 30 days when you start or refocus Neovim.
-  Set `vim.g.tooling_reminder_days = 7` in `lua/config/options.lua` for weekly
+  Set `globals.tooling_reminder_days = 7` in `local.lua` for weekly
   reminders, or `0` to disable them. The timestamp persists in Neovim's state
   directory across restarts. The reminder always points to `:checkhealth config`,
   including when no skipped tooling was recorded during startup.
-- **Add an LSP**: append the server name to `ensure_installed` in
-  `lua/plugins/lsp.lua`. Mason picks it up next launch.
-- **Add a treesitter parser**: same idea, in `lua/plugins/treesitter.lua`;
-  `:TSInstall <lang>` builds it right away.
-- **Disable smear-cursor / neoscroll**: motion can be distracting; add
-  `enabled = false` to its spec in `lua/plugins/editor.lua` (or remove the
-  block and run `:Lazy clean`). Don't delete the file: it holds several
-  other plugins.
+- **Choose LSPs/parsers**: set `tools.servers` / `tools.parsers` in `local.lua`;
+  lists replace the defaults, and `{}` disables config-owned provisioning.
+  See [tool selection](docs/tooling-configuration.md) for extension, pins,
+  auto-enable policy and prerequisite handling. `:TSInstall <lang>` remains manual.
+- **Disable smear-cursor / neoscroll**: set `ui.reduced_motion = true` in
+  `local.lua`, or disable either plugin through a normal Lazy override.
 - **Re-enable implicit system clipboard**: by default this config keeps
   Vim's unnamed register separate from `"+"` so `dd` / `cc` / `x` don't
   clobber the OS clipboard — at the cost of needing `"+y` / `"+p` for
   clipboard access. To restore the convenient-but-leaky `clipboard =
-  "unnamedplus"` behaviour, uncomment the line so labelled in
-  `lua/config/options.lua`.
+  "unnamedplus"` behaviour, set `options.clipboard = "unnamedplus"` in
+  `local.lua`.
 - **Per-project config (`exrc`)**: `exrc` is **on** (`lua/config/options.lua`),
   so a `.nvim.lua` (or `.nvimrc` / `.exrc`) in the current directory **and
   in every parent directory** runs at startup — handy for pinning a

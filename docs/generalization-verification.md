@@ -31,6 +31,12 @@ cd scoper.nvim
 nvim --headless --noplugin -u NONE -l tests/run.lua tests/lsp_modes_spec.lua
 ```
 
+The completed local run passed **733 executable tests**: 339 full-configuration,
+328 Scoper, 52 offline-seed and 14 action-updater tests. Three platform-specific
+cases were pending/skipped on Linux. Lint, formatting, documentation guards and
+the immutable-action check passed. Native CI remains the platform-specific gate
+described below; these counts do not imply full UI/debugger coverage on every OS.
+
 ## Contracts exercised
 
 | Area | Verified behavior |

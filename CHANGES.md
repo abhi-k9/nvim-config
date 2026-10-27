@@ -4,6 +4,58 @@ Newest first. New entries use one `## YYYY-MM-DD — <title>` heading per
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-10-26 — Broader configuration and independent Scoper build selection
+
+### Fixed
+
+- Explicit leaders, `exrc=false`, debugger adapters/configurations and pause
+  choices survive startup and repeated setup. Custom launch-file roots now
+  affect the real DAP provider, not only a validation command.
+- Tool identities, version pins and intentional opt-outs agree across automatic
+  installation, health and offline completeness. Unsupported requested tools
+  remain incomplete for offline seeds. Explicit compiler paths are passed through
+  supported build interfaces, including literal CMake argv for paths with spaces.
+- Search exclusions match directory components instead of hiding similarly named
+  paths. Scoper file/glob includes use the same exact matcher in pickers and CDB
+  filtering. Scope revisions invalidate stale selectors even when names repeat.
+- Scoper notices selected-source regeneration independently of scope changes,
+  preserves base clangd argv/environment, exposes copied status and retains local
+  changes after failed saves, including a project switch within the same editor.
+
+### Changed
+
+- Optional, Git-ignored `local.lua` loads before core behavior and plugin setup.
+  It supports machine policy, explicitly registered trusted runtime project
+  overlays and ordinary Lazy overrides. No project Lua is discovered by the loader.
+- Scoper separates project root, named scope, persisted build selection and
+  `disabled`/`native`/`selected`/`filtered` integration modes. Legacy `lsp.clangd`
+  behavior remains compatible; the bundled automatic-filtering default remains.
+  New explicit modes refuse ambiguous default build discovery. Arbitrary nested
+  or external database locations need no hard-coded build-folder changes.
+- Scoper state uses schema version 1, read-only snapshots and structured
+  persistence outcomes. Unsupported schemas cannot be overwritten. `setup()`
+  starts from defaults; `patch()` explicitly layers configuration. Use
+  `:ScoperReload` for saved state, and `:ScoperReload!` only to discard local edits.
+- Optional asynchronous prepare-before-first-clangd attachment has a bounded
+  timeout; the default immediate startup/fallback policy remains available.
+- Tool lists, Python provider coordination, root/visibility/selector policies,
+  manual sessions/global buffers, trimming/prose, retention, stock themes,
+  ASCII indicators and reduced motion can be selected without editing defaults.
+- **Migration:** Windows terminals inherit `vim.o.shell`; set
+  `terminal.shell="legacy"` for the previous automatic PowerShell preference.
+  Compiler execution trust is explicit through `scoper.lsp.query_drivers`;
+  inferred path-prefix and hard-coded MSYS whitelists are removed. Existing
+  explicit clangd arguments are retained. Review trusted compiler paths if
+  system-header discovery requires `--query-driver`.
+
+### Docs
+
+- [Customization](docs/customization.md) explains load order, replacement rules,
+  trust, context, migration and feature-specific guides. Those guides describe
+  defaults, supported backend boundaries, inspection and targeted regressions.
+- Scoper's README now reflects file/glob matching, configuration lifecycle,
+  recovery commands and independent database/clangd policies.
+
 ## 2026-10-20 — Scoper and config robustness (remaining NV/S2 findings)
 
 ### Fixed
