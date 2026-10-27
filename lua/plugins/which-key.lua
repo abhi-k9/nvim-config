@@ -8,10 +8,39 @@
 --   2. Registers "groups" so the popup shows nice category labels for
 --      `<leader>f`, `<leader>g`, etc., instead of just listing leaves.
 
+local icon_options = { mappings = require("config.settings").get("ui.icons", true) ~= false }
+if not icon_options.mappings then
+  icon_options.keys = {}
+  for _, key in ipairs({
+    "Up",
+    "Down",
+    "Left",
+    "Right",
+    "C",
+    "M",
+    "D",
+    "S",
+    "CR",
+    "Esc",
+    "ScrollWheelDown",
+    "ScrollWheelUp",
+    "NL",
+    "BS",
+    "Space",
+    "Tab",
+  }) do
+    icon_options.keys[key] = key .. " "
+  end
+  for number = 1, 12 do
+    icon_options.keys["F" .. number] = "F" .. number
+  end
+end
+
 return {
   "folke/which-key.nvim",
   event = "VeryLazy",
   opts = {
+    icons = icon_options,
     preset = "modern", -- modern | classic | helix
     -- Register the leader-key "namespaces". Each entry below tells
     -- which-key the human-readable name of a prefix. The actual keymaps

@@ -6,6 +6,13 @@
 -- incline with the first file, fidget with the first LSP client.
 
 local icons = require("config.icons")
+local settings = require("config.settings")
+
+local function bufferline_highlights()
+  if not (vim.g.colors_name or ""):match("^catppuccin") then return {} end
+  local ok, theme = pcall(require, "catppuccin.special.bufferline")
+  return ok and theme.get_theme() or {}
+end
 
 -- fg of a highlight group as a lualine colour, so it follows the
 -- colorscheme.
@@ -49,6 +56,9 @@ return {
   -- -------------------------------------------------------------------------
   {
     "tiagovla/scope.nvim",
+    cond = function()
+      return not settings.get("sessions.global_buffers", false)
+    end,
     lazy = false,
     config = function()
       require("scope").setup({})
@@ -61,10 +71,11 @@ return {
   {
     "nvim-lualine/lualine.nvim",
     event = "VeryLazy",
-    dependencies = { "nvim-tree/nvim-web-devicons", "catppuccin/nvim" },
+    dependencies = { "nvim-tree/nvim-web-devicons" },
     opts = function()
       return {
         options = {
+          icons_enabled = icons.enabled,
           -- "auto" derives the theme from the active colorscheme's
           -- highlight groups. This means changing flavours in
           -- colorscheme.lua (mocha → latte → frappe → …) or swapping to
@@ -94,7 +105,12 @@ return {
           },
           lualine_c = {
             { "diagnostics", symbols = icons.diagnostics },
-            { "filetype", icon_only = true, separator = "", padding = { left = 1, right = 0 } },
+            {
+              "filetype",
+              icon_only = icons.enabled,
+              separator = "",
+              padding = { left = 1, right = 0 },
+            },
             { "filename", path = 1 }, -- relative path
           },
           lualine_x = {
@@ -135,7 +151,7 @@ return {
     -- handler that restores pinned buffers, and auto-session restores the
     -- session in VimEnter, before VeryLazy.
     lazy = false,
-    dependencies = { "nvim-tree/nvim-web-devicons", "catppuccin/nvim" },
+    dependencies = { "nvim-tree/nvim-web-devicons" },
     keys = {
       -- Cycle buffers in the BUFFERLINE'S VISUAL ORDER (pinned first,
       -- custom sort) rather than buffer-number order, which also scrolls
@@ -460,6 +476,7 @@ return {
 
       return {
         options = {
+          show_buffer_icons = icons.enabled,
           mode = "buffers", -- "tabs" if you prefer tab-pages
           themable = true,
           diagnostics = "nvim_lsp", -- show LSP error/warn counts on each tab
@@ -513,7 +530,7 @@ return {
         },
         -- catppuccin's bufferline theme (catppuccin has no bufferline
         -- integration switch); a function, so it follows flavour changes.
-        highlights = require("catppuccin.special.bufferline").get_theme(),
+        highlights = bufferline_highlights(),
       }
     end,
   },
@@ -527,7 +544,7 @@ return {
     event = { "BufReadPre", "BufNewFile" }, -- BufNewFile: `:e newfile` gets a label too
     dependencies = { "nvim-tree/nvim-web-devicons" },
     config = function()
-      local devicons = require("nvim-web-devicons")
+      local devicons = icons.enabled and require("nvim-web-devicons") or nil
       require("incline").setup({
         window = {
           padding = 0,
@@ -540,13 +557,16 @@ return {
         render = function(props)
           local filename = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(props.buf), ":t")
           if filename == "" then filename = "[No Name]" end
-          local ft_icon, ft_color = devicons.get_icon_color(filename)
+          local ft_icon, ft_color
+          if devicons then
+            ft_icon, ft_color = devicons.get_icon_color(filename)
+          end
           local modified = vim.api.nvim_get_option_value("modified", { buf = props.buf })
           return {
             ft_icon and { " ", ft_icon, " ", guifg = ft_color } or "",
             " ",
             { filename, gui = modified and "bold,italic" or "bold" },
-            modified and { " ●", group = "DiagnosticError" } or "",
+            modified and { icons.enabled and " ●" or " *", group = "DiagnosticError" } or "",
             " ",
           }
         end,
@@ -566,7 +586,8 @@ return {
     opts = {
       progress = {
         display = {
-          done_icon = "✓",
+          done_icon = icons.enabled and "✓" or "done",
+          progress_icon = settings.get("ui.reduced_motion", false) and "." or nil,
         },
       },
       notification = {

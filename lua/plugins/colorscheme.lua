@@ -4,7 +4,18 @@
 -- it's ready before any other plugin draws its UI. To change palette,
 -- swap the `flavour` field below (or run `:colorscheme catppuccin-latte`
 -- etc. ad-hoc). To replace the scheme entirely, add another plugin spec
--- and change the `vim.cmd.colorscheme(...)` call at the bottom.
+-- and activate it in that spec. `ui.colorscheme` also accepts stock schemes.
+
+local selected = require("config.settings").get("ui.colorscheme", "catppuccin")
+local catppuccin = type(selected) == "string" and selected:match("^catppuccin") ~= nil
+if not catppuccin then
+  -- Built-in schemes need no plugin. Run before the UI specs draw anything;
+  -- a separate third-party theme spec can perform its own activation later.
+  local ok, err = pcall(vim.cmd.colorscheme, selected)
+  if not ok then
+    vim.notify("Could not load ui.colorscheme: " .. tostring(err), vim.log.levels.WARN)
+  end
+end
 
 return {
   -- -------------------------------------------------------------------------
@@ -14,6 +25,7 @@ return {
   {
     "catppuccin/nvim",
     name = "catppuccin",
+    enabled = catppuccin,
     lazy = false, -- must load on startup, not on demand
     priority = 1000, -- load before any plugin that paints itself
     opts = {
@@ -70,7 +82,7 @@ return {
     -- Activate the colorscheme once setup is done.
     config = function(_, opts)
       require("catppuccin").setup(opts)
-      vim.cmd.colorscheme("catppuccin")
+      vim.cmd.colorscheme(selected)
     end,
   },
 }

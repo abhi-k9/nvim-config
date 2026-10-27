@@ -14,7 +14,7 @@
 -- Values keep their trailing space where the consumer concatenates a
 -- count or message directly after the glyph.
 
-local M = {}
+local M = { enabled = require("config.settings").get("ui.icons", true) ~= false }
 
 M.diagnostics = {
   -- stylua: ignore start
@@ -44,6 +44,15 @@ M.misc = {
   fold       = "\u{F0042}", -- nf-md-arrow_bottom_left (ufo fold suffix)
   -- stylua: ignore end
 }
+
+-- These fallbacks use ordinary ASCII, so diagnostic and fold information
+-- stays visible in terminals without a patched font.
+if not M.enabled then
+  M.diagnostics = { error = "E ", warn = "W ", info = "I ", hint = "H " }
+  M.git = { added = "+ ", modified = "~ ", removed = "- " }
+  M.misc =
+    { git_delete = ">", pl_left = "", pl_right = "", search = ">", recording = "REC", fold = "+" }
+end
 
 -- Keyed-by-severity variant for vim.diagnostic.config's signs.text,
 -- derived from the same table so it can't drift.

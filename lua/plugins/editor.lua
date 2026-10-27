@@ -5,6 +5,8 @@
 -- None of these are huge by themselves; together they make Neovim feel
 -- modern without being intrusive.
 
+local settings = require("config.settings")
+
 return {
   -- -------------------------------------------------------------------------
   -- nvim-autopairs — auto-close brackets, quotes, etc. Treesitter-aware,
@@ -130,6 +132,10 @@ return {
   -- -------------------------------------------------------------------------
   {
     "karb94/neoscroll.nvim",
+    cond = function()
+      return not settings.get("ui.reduced_motion", false)
+        and settings.get("mappings.navigation", true)
+    end,
     event = "VeryLazy",
     config = function()
       local neoscroll = require("neoscroll")
@@ -186,6 +192,9 @@ return {
   -- -------------------------------------------------------------------------
   {
     "sphamba/smear-cursor.nvim",
+    cond = function()
+      return not settings.get("ui.reduced_motion", false)
+    end,
     event = "VeryLazy",
     opts = {
       stiffness = 0.8, -- 0..1, higher = snappier
@@ -377,8 +386,19 @@ return {
       "nvim-treesitter/nvim-treesitter",
       "nvim-tree/nvim-web-devicons",
     },
-    -- Defaults are good and Nerd-Font aware (this config already requires a
-    -- Nerd Font). Tune headings/checkbox glyphs/code style here if you want.
-    opts = {},
+    -- Keep the useful code/table rendering with plain heading markers when
+    -- no patched font is available. Raw checkbox/link/quote text remains
+    -- readable rather than receiving the plugin's built-in font glyphs.
+    opts = function()
+      if settings.get("ui.icons", true) ~= false then return {} end
+      return {
+        heading = { icons = { "# ", "## ", "### ", "#### ", "##### ", "###### " }, sign = false },
+        code = { language_icon = false, sign = false },
+        sign = { enabled = false },
+        checkbox = { enabled = false },
+        link = { enabled = false },
+        quote = { enabled = false },
+      }
+    end,
   },
 }

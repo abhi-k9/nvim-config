@@ -266,6 +266,7 @@ nvim/
 │   ├── terminal_policy_spec.lua  inherited shells and per-project lazygit
 │   ├── editing_policy_spec.lua  trim/comment/prose/window policies
 │   ├── retention_policy_spec.lua  configured view cleanup and log rotation
+│   ├── ui_policy_spec.lua    stock-theme/no-icons/reduced-motion startup
 │   ├── search_policy_spec.lua  literal visibility, selector and session settings
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
@@ -321,6 +322,7 @@ nvim/
 │   ├── scoper-integration-notes.md  build selection, clangd modes, startup and source refresh
 │   ├── search-session-configuration.md  roots, visibility, selectors and persistence policies
 │   ├── debug-terminal-configuration.md  adapters, launch files, shells and lazygit
+│   ├── editing-ui-configuration.md  content editing, themes, motion, icons and retention
 │   ├── audit-2026-10-21.md     findings, regressions, sources, and limits
 │   ├── audit-followup-2026-10-22.md  expanded audit and complete file coverage
 │   ├── audit-resolution.md    unresolved findings, verification and retained limits
