@@ -123,6 +123,8 @@ require("lazy").setup({
     -- Order inside that folder doesn't matter; lazy.nvim resolves
     -- `dependencies` automatically.
     { import = "plugins" },
+    -- Machine-local spec overrides are last, after shipped defaults.
+    require("config.settings").plugin_specs(),
   },
   defaults = {
     -- Same as lazy.nvim's own default, spelled out because the specs rely

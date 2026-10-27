@@ -91,7 +91,7 @@ awk '
     ! -name '*.pyc' ! -name '*.sw?' ! -name '*~' ! -name '.DS_Store' -print 2>/dev/null
   for f in * .[!.]*; do
     [ -f "$f" ] || continue
-    case "$f" in *.sw? | *~ | .DS_Store) continue ;; esac
+    case "$f" in *.sw? | *~ | .DS_Store | local.lua) continue ;; esac
     printf '%s\n' "$f"
   done
 } | sort -u >"$tmp2"

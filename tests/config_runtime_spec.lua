@@ -9,6 +9,10 @@ describe("configuration runtime path during cold installation", function()
     vim.fn.mkdir(checkout .. "/lua/plugins", "p")
     vim.fn.writefile(vim.fn.readfile("lua/config/lazy.lua"), checkout .. "/lua/config/lazy.lua")
     vim.fn.writefile(
+      vim.fn.readfile("lua/config/settings.lua"),
+      checkout .. "/lua/config/settings.lua"
+    )
+    vim.fn.writefile(
       { 'return { { "audit/cold-fixture" } }' },
       checkout .. "/lua/plugins/probe.lua"
     )

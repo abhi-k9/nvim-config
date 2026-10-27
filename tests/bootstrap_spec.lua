@@ -10,8 +10,10 @@ local function bootstrap(lock, options)
   local config = dir .. "/checkout"
   vim.fn.mkdir(config .. "/lua/config", "p")
   vim.fn.writefile(source, config .. "/lua/config/lazy.lua")
+  vim.fn.writefile(vim.fn.readfile("lua/config/settings.lua"), config .. "/lua/config/settings.lua")
   if lock then vim.fn.writefile({ lock }, config .. "/lazy-lock.json") end
   local script = ([=[
+vim.opt.rtp:prepend(%q)
 local calls = {}
 local options = vim.json.decode(%q)
 local lazypath = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
@@ -73,6 +75,7 @@ vim.fn.writefile({ vim.json.encode({
   partials = vim.fn.glob(lazypath .. '.tmp-*', false, true),
 }) }, %q)
 ]=]):format(
+    config,
     vim.json.encode(options or {}),
     config .. "/lua/config/lazy.lua",
     dir .. "/result.json"

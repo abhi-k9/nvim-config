@@ -198,6 +198,11 @@ sudo luarocks install luacheck
 
 `fd` is sometimes called `fdfind` on Debian-based distros; symlink or alias it as `fd` if so.
 
+## Machine customization
+
+An optional Git-ignored `local.lua` next to `init.lua` returns machine settings.
+It loads before maps and plugins; explicit false values and empty lists survive.
+
 ## Layout
 
 ```
@@ -205,6 +210,7 @@ nvim/
 ├── init.lua                  Entry point
 ├── lua/
 │   ├── config/
+│   │   ├── settings.lua      early machine settings, trusted overlays and root intents
 │   │   ├── options.lua       vim.opt settings
 │   │   ├── keymaps.lua       Global keymaps
 │   │   ├── autocmds/         Autocommands, one module per topic
@@ -249,6 +255,7 @@ nvim/
 │       ├── neogen.lua        doc-comment scaffolding (doxygen, luadoc, …)
 │       └── scoper.lua        local spec for bundled scoper.nvim
 ├── tests/                    plenary specs: config smoke + leader maps, behaviour
+│   ├── settings_spec.lua      local values, project isolation and option precedence
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager
@@ -332,6 +339,7 @@ nvim/
 │           └── launch.json.example    nvim-dap debug configurations
 ├── .editorconfig             portable whitespace/charset baseline (all editors)
 ├── .gitattributes            LF line endings in every checkout (stylua + sh need them)
+├── .gitignore               machine-local settings stay untracked
 ├── .luacheckrc               luacheck config
 ├── stylua.toml               stylua config
 ├── .githooks/                tracked git hooks (pre-commit → luacheck + stylua + doc-sync)

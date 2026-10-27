@@ -1,0 +1,2 @@
+# Machine-local settings are intentionally outside the tracked defaults.
+/local.lua

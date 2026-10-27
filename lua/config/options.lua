@@ -8,8 +8,8 @@
 -- ---------------------------------------------------------------------------
 -- Must be set before lazy.nvim loads so plugin keymaps resolve correctly.
 -- stylua: ignore start
-vim.g.mapleader = " "       -- <Space> as the main leader
-vim.g.maplocalleader = "\\" -- backslash for filetype-local mappings
+if vim.g.mapleader == nil then vim.g.mapleader = " " end
+if vim.g.maplocalleader == nil then vim.g.maplocalleader = "\\" end
 -- stylua: ignore end
 
 -- ---------------------------------------------------------------------------

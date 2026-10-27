@@ -47,7 +47,11 @@ end
 -- SAME floor instead of restating the number.
 vim.g.config_min_nvim = MIN_NVIM
 
+local config_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h")
+local settings = require("config.settings")
+settings.bootstrap(config_root)
 require("config.options")
+settings.apply_options()
 require("config.keymaps")
 require("config.autocmds")
 require("config.diagnostics")

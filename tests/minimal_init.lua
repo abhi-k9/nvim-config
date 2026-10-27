@@ -13,6 +13,8 @@
 -- fails with `module 'config.options' not found`. (scoper.nvim's
 -- minimal_init does the same.)
 vim.opt.rtp:prepend(vim.fn.getcwd())
+-- Never import a developer's private machine configuration into the default suite.
+vim.g.config_local_file = false
 
 -- Specs exercise installers with controlled tasks. Real background builds in
 -- every child would race over the same grammar checkout on a fresh CI runner.
