@@ -47,6 +47,15 @@ timing issue was mixed into the startup correction.
 | Windows Scoper tests | One fixture expected an unnormalized temporary pathname. More significantly, native buffer paths expanded `RUNNER~1` to `runneradmin`, while scope roots retained the short name; valid files were rejected. | Normalize the fixture and expand native 8.3 prefixes through `GetLongPathNameW` for scope comparisons. Keep persisted scope identity and logical symlink behavior; version filtered compilation-cache fingerprints to invalidate older results. |
 | Full configuration | The Linux job did not install ripgrep. Repeated child startups also scheduled real parser builds against shared checkout directories, causing missing parser/scanner files. | Install ripgrep explicitly, disable automatic provisioning in the test initializer, and test installer behavior using controlled tasks. The existing parser opt-out now also covers startup installation. |
 
+## Isolated parser probes — 2026-10-27
+
+An FZF parser test inherited a temporary `XDG_DATA_HOME`, then loaded the full
+test initializer in its child editor. That child had no installed plugin tree,
+so startup could bootstrap plugins again and exceed its ten-second deadline.
+The parser probe now adds the parent's resolved, locked plugin source directories
+to `runtimepath` directly. It keeps isolated scope state without running Lazy or
+installers, and asserts that it did not create a plugin installation directory.
+
 ## Execution bounds and failure visibility
 
 The workflow now sets explicit limits:

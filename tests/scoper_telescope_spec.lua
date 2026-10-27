@@ -93,13 +93,17 @@ describe("Scoper with real Telescope and ripgrep", function()
   it("filters real fzf filename and grep parsers before formatting rows", function()
     -- fzf-lua uses the builtin assert's return values while initializing
     -- Unicode separators. Plenary's global luassert replacement adds nils
-    -- there, so exercise this real backend in a clean child editor.
+    -- there, so exercise this real backend in a clean child editor. Reuse
+    -- the locked plugin sources explicitly: XDG_DATA_HOME is the isolated
+    -- state fixture here, not an installed plugin tree to bootstrap again.
+    local fzf_dir = require("lazy.core.config").plugins["fzf-lua"].dir
     local script = base .. "/fzf-probe.lua"
     vim.fn.writefile(
       vim.split(
         ([[
-dofile(%q)
-require("lazy").load({ plugins = { "fzf-lua" } })
+vim.opt.rtp:prepend(%q)
+vim.opt.rtp:append(%q)
+vim.opt.rtp:append(%q)
 vim.api.nvim_set_current_dir(%q)
 local state, pickers = require("scoper.state"), require("scoper.pickers")
 state.load({ quiet = true })
@@ -115,7 +119,7 @@ assert(files("src/b.c", opts) == nil)
 assert(grep("src/gen/a.c:1:1:NEEDLE", opts) == "src/gen/a.c:1:1:NEEDLE")
 assert(grep("src/b.c:1:1:src/a.c", opts) == nil)
 print("FZF_SCOPE_OK")
-]]):format(previous .. "/tests/minimal_init.lua", base .. "/project"),
+]]):format(previous, previous .. "/scoper.nvim", fzf_dir, base .. "/project"),
         "\n"
       ),
       script
@@ -128,6 +132,11 @@ print("FZF_SCOPE_OK")
       :wait(10000)
     assert.equals(0, result.code, result.stderr)
     assert.matches("FZF_SCOPE_OK", (result.stdout or "") .. (result.stderr or ""))
+    assert.equals(
+      0,
+      vim.fn.isdirectory(base .. "/data/nvim/lazy"),
+      "Parser probe provisioned plugins"
+    )
   end)
 
   it("refuses a directory the real backend would expand to another location", function()
