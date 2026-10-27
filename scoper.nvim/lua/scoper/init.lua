@@ -23,7 +23,13 @@ local function Pick()  return require("scoper.pickers") end
 
 local function same_context(context, scope_sensitive)
   local current = State().context()
-  if current.root == context.root and (not scope_sensitive or current.scope == context.scope) then
+  if
+    current.root == context.root
+    and (
+      not scope_sensitive
+      or (current.scope == context.scope and current.revision == context.revision)
+    )
+  then
     return true
   end
   vim.notify(
@@ -36,9 +42,17 @@ end
 -- ---------------------------------------------------------------------------
 -- Configuration
 -- ---------------------------------------------------------------------------
-M.config = {
+local defaults = {
+  project = {},
+  compilation_database = {},
+  picker = "auto",
   -- LSP integration (opt-in).
   lsp = {
+    extra_args = {},
+    query_drivers = {},
+    startup = "fallback",
+    watch = true,
+    debounce_ms = 500,
     clangd = false, -- if true, scope changes auto-rewrite compile_commands.json
     -- Base flags scoper launches clangd with (it prepends its own
     -- --compile-commands-dir on top when applicable). These defaults
@@ -59,39 +73,53 @@ M.config = {
   default_excludes = {},
 }
 
-function M.setup(opts)
-  -- List values (clangd_args, default_excludes) replace the defaults
-  -- wholesale: tbl_deep_extend only merges dict-like tables.
-  M.config = vim.tbl_deep_extend("force", M.config, opts or {})
-  State().default_excludes = vim.deepcopy(M.config.default_excludes or {})
+M.config = vim.deepcopy(defaults)
 
-  -- setup() may be called again to disable or reconfigure integration.
-  -- Stop the old listener and pending refresh before load() fires a change.
-  local previous_lsp = package.loaded["scoper.lsp"]
-  if previous_lsp then previous_lsp.detach_auto() end
-
-  -- Load saved state for the current cwd. (load() fires ScoperChanged,
-  -- but nothing is listening yet — attach_auto below registers the
-  -- listener — so this is a plain load with no restart side effects.)
-  State().load()
-
-  -- Hook LSP auto-reload if requested.
-  if M.config.lsp and M.config.lsp.clangd then
-    LSP().attach_auto()
-
-    -- Apply the clangd cmd NOW, before any server has attached, so a
-    -- persisted enabled scope filters the very first index — the
-    -- cold-start case is the whole point of the integration.
-    -- vim.lsp.config merges, so later config (capabilities from the host
-    -- setup, etc.) still applies.
-    local ok, err = pcall(LSP().apply_initial)
-    if not ok then
-      vim.notify("Scoper LSP: initial clangd config failed: " .. tostring(err), vim.log.levels.WARN)
+-- Dictionary settings merge; list values, including {}, replace as a unit.
+local dictionaries = { project = true, compilation_database = true, lsp = true }
+local function merge(base, overrides)
+  for key, value in pairs(overrides) do
+    if
+      type(value) == "table"
+      and type(base[key]) == "table"
+      and (dictionaries[key] or (not vim.islist(value) and not vim.islist(base[key])))
+    then
+      merge(base[key], value)
+    else
+      base[key] = vim.deepcopy(value)
     end
   end
+  return base
+end
 
-  -- One state per project: follow :cd (also what session plugins use),
-  -- not window or tab directories (:lcd, :tcd, 'autochdir').
+function M.setup(opts)
+  assert(opts == nil or type(opts) == "table", "Scoper setup options must be a table")
+  -- Full setup is deterministic. patch() is the explicit cumulative operation.
+  M.config = merge(vim.deepcopy(defaults), opts or {})
+  State().default_excludes = vim.deepcopy(M.config.default_excludes or {})
+  local previous_lsp = package.loaded["scoper.lsp"]
+  if previous_lsp then
+    if previous_lsp.dispose then
+      previous_lsp.dispose()
+    else
+      previous_lsp.detach_auto()
+    end
+  end
+  State().configure_project(M.config.project and M.config.project.root)
+  State().initialize()
+  if M.config.lsp and (M.config.lsp.clangd or M.config.lsp.mode) then
+    local ok, err = pcall(function()
+      if LSP().configure then
+        LSP().configure()
+      elseif M.config.lsp.clangd then
+        LSP().attach_auto()
+        LSP().apply_initial()
+      end
+    end)
+    if not ok then
+      vim.notify("Scoper LSP: initial config failed: " .. tostring(err), vim.log.levels.WARN)
+    end
+  end
   vim.api.nvim_create_autocmd("DirChanged", {
     group = vim.api.nvim_create_augroup("scoper_dir", { clear = true }),
     pattern = "global",
@@ -99,6 +127,32 @@ function M.setup(opts)
       State().follow_cwd()
     end,
   })
+  return M.status_snapshot()
+end
+
+function M.patch(opts)
+  return M.setup(merge(vim.deepcopy(M.config), opts or {}))
+end
+
+function M.snapshot()
+  return State().snapshot()
+end
+
+function M.status_snapshot()
+  local status = State().snapshot()
+  local integration = package.loaded["scoper.lsp"]
+  if integration and integration.status then status.lsp = integration.status() end
+  return status
+end
+
+function M.reload(opts)
+  local result = State().reload(opts)
+  if not result.applied then vim.notify("Scoper: " .. result.error, vim.log.levels.WARN) end
+  return result
+end
+
+function M.select_database(path)
+  return State().set_database(path)
 end
 
 -- ---------------------------------------------------------------------------
@@ -113,14 +167,15 @@ function M.add(paths)
     end)
     return
   end
-  local n, missing = State().add_paths(paths)
+  local n, missing, result = State().add_paths(paths)
   vim.notify(("Scoper: added %d path(s) to %q"):format(n, State().active_name()))
   if #missing > 0 then
     vim.notify(
-      "Scoper: not an existing directory (added anyway): " .. table.concat(missing, ", "),
+      "Scoper: not an existing path (added anyway): " .. table.concat(missing, ", "),
       vim.log.levels.WARN
     )
   end
+  return result
 end
 
 function M.remove(paths)
@@ -136,8 +191,9 @@ function M.remove(paths)
     end)
     return
   end
-  local n = State().remove_paths(paths)
+  local n, result = State().remove_paths(paths)
   vim.notify(("Scoper: removed %d path(s) from %q"):format(n, State().active_name()))
+  return result
 end
 
 function M.exclude(patterns)
@@ -148,7 +204,7 @@ function M.exclude(patterns)
     end)
     return
   end
-  local n, invalid = State().add_excludes(patterns)
+  local n, invalid, result = State().add_excludes(patterns)
   vim.notify(("Scoper: added %d exclude(s) to %q"):format(n, State().active_name()))
   if #invalid > 0 then
     vim.notify(
@@ -156,6 +212,7 @@ function M.exclude(patterns)
       vim.log.levels.WARN
     )
   end
+  return result
 end
 
 -- Remove exclude pattern(s). No args → multi-select picker over the
@@ -174,13 +231,15 @@ function M.remove_exclude(patterns)
     return
   end
   if type(patterns) == "string" then patterns = { patterns } end
-  local n = State().remove_excludes(patterns)
+  local n, result = State().remove_excludes(patterns)
   vim.notify(("Scoper: removed %d exclude(s) from %q"):format(n, State().active_name()))
+  return result
 end
 
 function M.clear()
-  State().clear_active()
+  local result = State().clear_active()
   vim.notify(("Scoper: cleared scope %q"):format(State().active_name()))
+  return result
 end
 
 -- Show the active scope's contents in a floating panel.
@@ -211,6 +270,22 @@ function M.show()
       table.insert(lines, "  " .. p)
     end
   end
+  local snapshot = M.status_snapshot()
+  vim.list_extend(lines, {
+    "",
+    "Project: " .. snapshot.root,
+    "Revision: " .. snapshot.revision,
+    "Persistence: " .. tostring(snapshot.result.reason),
+    "Selected database: " .. tostring(snapshot.database or "automatic/configured"),
+  })
+  if snapshot.lsp then
+    vim.list_extend(lines, {
+      "LSP mode: " .. tostring(snapshot.lsp.mode),
+      "Database source: "
+        .. tostring(snapshot.lsp.source or snapshot.lsp.database or "native discovery"),
+      "LSP status: " .. tostring(snapshot.lsp.reason or snapshot.lsp.info or "ready"),
+    })
+  end
   UI().show_lines(lines, "Scoper — " .. State().active_name())
 end
 
@@ -222,12 +297,13 @@ function M.new(name)
     end)
     return
   end
-  local ok, err = State().new_scope(name)
+  local ok, err, result = State().new_scope(name)
   if not ok then
     vim.notify("Scoper: " .. err, vim.log.levels.ERROR)
   else
     vim.notify(("Scoper: created and switched to %q"):format(name))
   end
+  return result
 end
 
 function M.use(name)
@@ -238,12 +314,13 @@ function M.use(name)
     end)
     return
   end
-  local ok, err = State().set_active(name)
+  local ok, err, result = State().set_active(name)
   if not ok then
     vim.notify("Scoper: " .. err, vim.log.levels.ERROR)
   else
     vim.notify(("Scoper: active scope → %q"):format(name))
   end
+  return result
 end
 
 function M.delete(names)
@@ -267,9 +344,10 @@ function M.delete(names)
   -- still fires per-iteration, so :ScoperDelete a b c d (where these
   -- are ALL the scopes) will delete the first three and report the
   -- fourth as "cannot delete the last scope".
-  local deleted, errors = {}, {}
+  local deleted, errors, outcomes = {}, {}, {}
   for _, name in ipairs(names) do
-    local ok, err = State().delete_scope(name)
+    local ok, err, result = State().delete_scope(name)
+    outcomes[#outcomes + 1] = { name = name, result = result }
     if ok then
       table.insert(deleted, name)
     else
@@ -283,6 +361,7 @@ function M.delete(names)
   if #errors > 0 then
     vim.notify("Scoper: could not delete " .. table.concat(errors, "; "), vim.log.levels.ERROR)
   end
+  return { deleted = deleted, errors = errors, outcomes = outcomes }
 end
 
 -- Show a panel listing every scope with member counts.
@@ -302,8 +381,9 @@ function M.scopes()
 end
 
 function M.toggle()
-  State().toggle()
+  local result = State().toggle()
   vim.notify(("Scoper: %s"):format(State().is_enabled() and "ON" or "OFF"))
+  return result
 end
 
 function M.status()

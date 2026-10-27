@@ -31,7 +31,7 @@ end
 -- ---------------------------------------------------------------------------
 cmd("ScoperAdd", function(args)
   require("scoper").add(split_args(args.args))
-end, { nargs = "*", complete = "dir", desc = "Add one or more directories to active scope" })
+end, { nargs = "*", complete = "file", desc = "Add paths or globs to active scope" })
 
 cmd("ScoperRemove", function(args)
   require("scoper").remove(split_args(args.args))
@@ -47,7 +47,7 @@ end, {
     end, scope and scope.include or {})
     return starting_with(lead, escaped)
   end,
-  desc = "Remove one or more directories from active scope",
+  desc = "Remove one or more paths from active scope",
 })
 
 cmd("ScoperExclude", function(args)
@@ -151,3 +151,22 @@ end, { desc = "Switch picker backend (fzf-lua ↔ telescope)" })
 cmd("ScoperLspReload", function()
   require("scoper").lsp_reload()
 end, { desc = "Reconfigure clangd for current scope and restart" })
+
+cmd("ScoperReload", function(args)
+  require("scoper").reload({ force = args.bang })
+end, { bang = true, desc = "Reload saved scope state; ! discards unsaved local changes" })
+
+cmd("ScoperDatabase", function(args)
+  if args.bang then
+    require("scoper").select_database(nil)
+  elseif args.args ~= "" then
+    require("scoper").select_database(args.args)
+  else
+    require("scoper").show()
+  end
+end, {
+  nargs = "?",
+  bang = true,
+  complete = "file",
+  desc = "Select compilation database independently of scope; ! clears selection",
+})

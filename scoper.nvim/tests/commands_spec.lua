@@ -4,6 +4,7 @@
 -- with --noplugin, so plugin/scoper.lua is sourced here.
 
 local State = require("scoper.state")
+local Path = require("scoper.path")
 
 local COMMANDS = {
   "ScoperAdd",
@@ -23,6 +24,8 @@ local COMMANDS = {
   "ScoperReplace",
   "ScoperTogglePicker",
   "ScoperLspReload",
+  "ScoperReload",
+  "ScoperDatabase",
 }
 
 describe("scoper commands", function()
@@ -113,5 +116,32 @@ describe("scoper commands", function()
     vim.cmd("ScoperExclude **/gen/**")
     vim.cmd("ScoperExclude build")
     assert.are.same({ "build" }, vim.fn.getcompletion("ScoperRemoveExclude b", "cmdline"))
+  end)
+
+  it(":ScoperDatabase selects literal paths independently and ! resets selection", function()
+    vim.cmd("ScoperDatabase " .. vim.fn.fnameescape(root .. "/my dir/compile_commands.json"))
+    assert.equals(Path.normalize(root .. "/my dir/compile_commands.json"), State.database())
+    vim.cmd("ScoperNew other")
+    assert.equals(Path.normalize(root .. "/my dir/compile_commands.json"), State.database())
+    vim.cmd("ScoperDatabase!")
+    assert.is_nil(State.database())
+  end)
+
+  it(":ScoperReload refuses unsaved changes until ! explicitly discards them", function()
+    State.add_paths("src")
+    local Util = require("scoper.util")
+    local atomic = Util.atomic_write
+    Util.atomic_write = function()
+      return false, "disk full"
+    end
+    local ok, err = pcall(function()
+      State.add_paths("my dir")
+      vim.cmd("ScoperReload")
+      assert.same({ "src", "my dir" }, State.active_scope().include)
+      vim.cmd("ScoperReload!")
+      assert.same({ "src" }, State.active_scope().include)
+    end)
+    Util.atomic_write = atomic
+    assert.is_true(ok, err)
   end)
 end)

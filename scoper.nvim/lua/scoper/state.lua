@@ -25,7 +25,8 @@
 -- glob patterns, kept verbatim.
 
 local Path = require("scoper.path")
-local Util = require("scoper.util")
+local Scope = require("scoper.scope")
+local Store = require("scoper.store")
 
 local M = {}
 
@@ -44,6 +45,7 @@ end
 
 local function fresh_state()
   return {
+    schema_version = Store.SCHEMA_VERSION,
     active = "default",
     enabled = false,
     scopes = { default = fresh_scope() },
@@ -70,322 +72,141 @@ local function valid_scope_name(name)
     and name ~= ".."
 end
 
--- The strings of list `t`, in order; anything else is dropped.
-local function strings(t)
-  local out = {}
-  for _, v in ipairs(t) do
-    if type(v) == "string" and v ~= "" then out[#out + 1] = v end
-  end
-  return out
+-- Project/application state. Disk ownership belongs to store.lua and matching
+-- belongs to scope.lua. Legacy state/accessors remain for existing callers;
+-- new consumers use snapshot() and supported mutators.
+local root, root_resolver, store
+local revision = 0
+local result = { applied = false, persisted = true, reason = "initial" }
+local dirty = false
+-- Only unsaved sessions are retained. This is recovery within this editor,
+-- not a second concurrently active project or an automatic disk-state merge.
+local unsaved = {}
+
+local function resolve_root()
+  local cwd = Path.normalize(Path.cwd())
+  local chosen = root_resolver
+  if type(root_resolver) == "function" then chosen = root_resolver(cwd) end
+  if chosen == nil or chosen == false or chosen == "" then return cwd end
+  assert(type(chosen) == "string", "Scoper project.root must resolve to a path string")
+  return Path.absolute(chosen, cwd)
 end
 
--- ---------------------------------------------------------------------------
--- Project root: the normalized global cwd the state was loaded for. The
--- state file, relative includes and the clangd cache all key off this
--- rather than the cwd of the moment, so a window or tab directory (:lcd,
--- :tcd, 'autochdir') can never make a save land in another project's file.
--- load() sets it; follow_cwd() reloads after a :cd.
--- ---------------------------------------------------------------------------
-local root
+function M.configure_project(resolver)
+  assert(
+    resolver == nil or type(resolver) == "string" or type(resolver) == "function",
+    "Scoper project.root must be a path or function"
+  )
+  root_resolver = resolver
+end
 
 function M.root()
-  return root or Path.normalize(Path.cwd())
+  return root or resolve_root()
 end
 
--- ---------------------------------------------------------------------------
--- Persistence
--- ---------------------------------------------------------------------------
-local function store_dir()
-  return vim.fn.stdpath("data") .. "/scoper"
-end
-
--- Where on disk the per-project state file lives. We hash the cwd
--- rather than putting it in the filename verbatim because raw paths
--- contain `/`, `\`, drive colons, and other filesystem-unfriendly bytes;
--- a 16-char sha256 prefix avoids that without realistic collision risk
--- for the < ~1000 distinct projects any one person works on.
--- The hash itself lives in util.cwd_hash because lsp.cache_dir keys its
--- filtered-compile-commands cache off the SAME value; two independent
--- implementations could drift and silently split one project in two.
---
--- The hash is of Path.key(root) — lower-cased on Windows, where the same
--- directory is routinely reached as "C:\Proj" and "c:\proj" and would
--- otherwise get two unrelated state files. A file saved under the
--- case-sensitive hash (legacy_store_path) is still read and moves to the
--- new name on the next save; on other platforms both paths are identical.
-local function store_path()
-  return store_dir() .. "/" .. Util.cwd_hash(Path.key(M.root())) .. ".json"
-end
-
-local function legacy_store_path()
-  return store_dir() .. "/" .. Util.cwd_hash(M.root()) .. ".json"
-end
-
--- Content identity of the state this instance actually read or published.
--- Mutation frequency is low and state is small, so compare the contents rather
--- than trusting filesystem timestamp resolution or atomic-rename inode reuse.
-local file_version
--- Failed reads must never turn session defaults into an overwrite of scopes
--- we could not inspect or back up. A successful explicit load clears this.
-local read_error
-
-local function read_source()
-  local path = store_path()
-  local st, err, code = vim.uv.fs_stat(path)
-  if not st and (code == "ENOENT" or code == "ENOTDIR") then
-    path = legacy_store_path()
-    st, err, code = vim.uv.fs_stat(path)
+local function ensure_store()
+  if not store then
+    root = resolve_root()
+    store = Store.new(root, fresh_state)
   end
-  if not st and (code == "ENOENT" or code == "ENOTDIR") then
-    return { version = "missing:" .. store_path(), path = path }
-  end
-  if st and st.type == "file" then
-    local ok, lines = pcall(vim.fn.readfile, path)
-    if ok then
-      return {
-        path = path,
-        lines = lines,
-        version = path .. "\0" .. vim.fn.sha256(table.concat(lines, "\n")),
-      }
-    end
-    err = lines
-  elseif st then
-    err = "expected a regular file, got " .. tostring(st.type)
-  end
-  return { path = path, error = tostring(err) }
+  return store
 end
 
-local function ensure_dir()
-  vim.fn.mkdir(store_dir(), "p")
+local function present()
+  for _, message in ipairs(ensure_store().messages()) do
+    vim.notify(message.message, message.level)
+  end
 end
 
--- Publish an already-populated directory to acquire the per-project lock.
--- Unlike a leased file, a live writer's lock is never expired by elapsed time.
--- Unique owner markers let a reclaimer/releaser remove only the owner it saw;
--- rmdir then cannot remove a newly published, nonempty owner's directory.
-local function acquire_lock()
-  local path = store_path() .. ".lock"
-  local owner = ("owner-%d-%.0f"):format(vim.fn.getpid(), vim.uv.hrtime())
-  local staging = path .. ".tmp-" .. owner
-  local made, err = vim.uv.fs_mkdir(staging, 448)
-  if not made then return nil, err end
-  local fd
-  fd, err = vim.uv.fs_open(staging .. "/" .. owner, "wx", 384)
-  if not fd then
-    vim.uv.fs_rmdir(staging)
-    return nil, err
-  end
-  vim.uv.fs_close(fd)
-  local function discard()
-    vim.uv.fs_unlink(staging .. "/" .. owner)
-    vim.uv.fs_rmdir(staging)
-  end
-  for _ = 1, 3 do
-    if vim.uv.fs_rename(staging, path) then return { path = path, owner = owner } end
-    local scan = vim.uv.fs_scandir(path)
-    if scan then
-      local name = vim.uv.fs_scandir_next(scan)
-      local extra = vim.uv.fs_scandir_next(scan)
-      if not name then
-        -- Published locks are never empty; this is an interrupted cleanup.
-        vim.uv.fs_rmdir(path)
-      elseif not extra then
-        local pid = tonumber(name:match("^owner%-(%d+)%-%d+$"))
-        local called, alive, _, code
-        if pid and pid > 0 then
-          called, alive, _, code = pcall(vim.uv.kill, pid, 0)
-        end
-        if called and not alive and code == "ESRCH" then
-          if vim.uv.fs_unlink(path .. "/" .. name) then vim.uv.fs_rmdir(path) end
-        else
-          discard()
-          return nil, "another editor owns the state lock; retry after it finishes: " .. path
-        end
-      else
-        discard()
-        return nil, "unrecognized state lock; inspect it before removing: " .. path
-      end
-    elseif vim.uv.fs_lstat(path) then
-      discard()
-      return nil, "state lock is not an accessible directory: " .. path
-    end
-  end
-  discard()
-  return nil, "state is busy; retry the save"
+function M.last_result()
+  return vim.deepcopy(result)
 end
 
-local function release_lock(lock)
-  if vim.uv.fs_unlink(lock.path .. "/" .. lock.owner) then vim.uv.fs_rmdir(lock.path) end
+local function unapplied(reason, err)
+  result = { applied = false, persisted = not dirty, reason = reason, error = err }
+  return M.last_result()
 end
 
--- Fire a User autocmd so consumers (lualine, LSP integration) can react.
--- We use a User event rather than direct calls so the dependency graph
--- stays one-way: state knows nothing about lualine.
-local function fire_change()
+local function fire_change(reason, fields)
+  revision = revision + 1
   vim.api.nvim_exec_autocmds("User", {
     pattern = "ScoperChanged",
     modeline = false,
+    data = {
+      root = M.root(),
+      scope = M.state.active,
+      revision = revision,
+      reason = reason or "scope",
+      changed = vim.deepcopy(fields or { "scope" }),
+      database = M.database(),
+      persistence = M.last_result(),
+    },
   })
 end
 
--- Read the state file for the current root. Tolerant of every plausible
--- failure mode: file missing or empty → fresh state; file unparseable →
--- fresh state, with the broken file copied aside so a hand-editing slip
--- (a trailing comma, say) doesn't cost every scope of the project. Unreadable
--- files or failed backups block saves until an explicit successful reload.
--- The defensive table-filling below is essential: older files lack some
--- fields, and a partial or hand-edited JSON file must not crash anything.
--- Sets file_version to the contents actually read, even if the file changes
--- immediately afterwards. A subsequent save must compare against that snapshot.
 local function read_state(source)
-  read_error = nil
-  source = source or read_source()
-  local path, lines = source.path, source.lines
-  file_version = source.version
-  if source.error then
-    read_error = source.error
-    vim.notify(
-      ("Scoper: could not read %s (%s). Saves are blocked; fix the file and run setup() again to reload it."):format(
-        path,
-        read_error
-      ),
-      vim.log.levels.ERROR
-    )
-    return nil
-  end
-  if not lines or #lines == 0 then return fresh_state() end
-
-  local ok, parsed = pcall(vim.json.decode, table.concat(lines, "\n"))
-  if not ok or type(parsed) ~= "table" then
-    -- EXCL: never overwrite an earlier backup from the same second.
-    local stamp, backup, copied = os.date("%Y%m%d-%H%M%S"), nil, nil
-    for n = 0, 99 do
-      backup = ("%s.corrupt-%s%s"):format(path, stamp, n > 0 and ("-" .. n) or "")
-      copied = vim.uv.fs_copyfile(path, backup, { excl = true })
-      if copied or vim.uv.fs_stat(backup) == nil then break end
-    end
-    if not copied then read_error = "corrupt state could not be backed up" end
-    vim.notify(
-      ("Scoper: corrupt state file, using defaults. %s"):format(
-        copied and ("The old file is kept as " .. backup)
-          or ("Could not back up " .. path .. "; saves are blocked until a successful reload")
-      ),
-      vim.log.levels.WARN
-    )
-    return fresh_state()
-  end
-
-  -- Defensive: backfill anything the JSON might be missing. Notably:
-  --   * an empty scopes table gets a "default" scope so the rest of the
-  --     plugin can always assume at least one scope exists
-  --   * the active scope name is validated against the available scopes
-  --     and reset to a real one if it points at nothing (e.g. user
-  --     hand-edited the file and deleted the active scope)
-  --   * `enabled` is coerced to boolean to avoid surprises if it
-  --     somehow ended up as "true" (string) or 1 (number)
-  --   * JSON `null` decodes to vim.NIL (a truthy userdata), so a plain
-  --     `x or {}` would let a hand-edited `"include": null` through to an
-  --     ipairs() that throws. Anything that is not the expected
-  --     type is replaced, non-table scope entries and scopes with a name
-  --     :ScoperNew wouldn't accept are dropped, and so are list items
-  --     that aren't strings.
-  if type(parsed.scopes) ~= "table" then parsed.scopes = {} end
-  for name, sc in pairs(parsed.scopes) do
-    if type(sc) ~= "table" or not valid_scope_name(name) then
-      parsed.scopes[name] = nil
-    else
-      sc.include = type(sc.include) == "table" and strings(sc.include) or {}
-      sc.exclude = type(sc.exclude) == "table" and strings(sc.exclude) or {}
-    end
-  end
-  if vim.tbl_isempty(parsed.scopes) then parsed.scopes.default = fresh_scope() end
-  if type(parsed.active) ~= "string" or not parsed.scopes[parsed.active] then
-    parsed.active = fallback_scope(parsed.scopes)
-  end
-  parsed.enabled = parsed.enabled == true
-  return parsed
+  local state = ensure_store().load(source)
+  present()
+  return state
 end
 
--- Load the state of the project in the global cwd and make it the root.
--- load() fires ScoperChanged like the mutators do, so after `:cd
--- other-project` clangd switches to the new project's filtered
--- compile_commands immediately. During setup() this fire is a harmless
--- no-op because lsp.attach_auto() registers its listener after the
--- initial load.
 function M.load(opts)
-  root = Path.normalize(Path.cwd())
-  M.state = read_state() or fresh_state()
-  if not (opts and opts.quiet) then fire_change() end
-end
-
--- DirChanged handler: reload only when the global cwd now names another
--- project than the loaded one.
-function M.follow_cwd()
-  if Path.key(Path.cwd()) ~= Path.key(M.root()) then M.load() end
-end
-
--- Persist the in-memory state to disk. The write is atomic (temp file +
--- rename; see util.atomic_write for the full rationale). This matters
--- more than it might look — without atomicity, a Neovim crash (OS
--- reboot, OOM, SIGKILL) mid-write would truncate the JSON file and the
--- user would lose every scope on next load. Cooperating writers additionally
--- serialize the compare-and-publish step. A stale save is refused, preserving
--- the other editor's disk state and this editor's local edits until reload.
--- External programs that ignore the lock are outside that serialization.
---
--- vim.uv.fs_rename is cross-platform — on Windows libuv internally
--- uses MoveFileEx with MOVEFILE_REPLACE_EXISTING, so the destination
--- being present doesn't break the rename.
---
--- Returns false (after notifying) when the file couldn't be written; the
--- in-memory change stays and the next successful save persists it. After an
--- unsafe read, saves remain blocked until load() can read or back up the file.
-function M.save()
-  local ok, err, lock
-  if read_error then
-    ok, err = false, read_error
+  opts = opts or {}
+  root = opts.root and Path.absolute(opts.root, Path.cwd()) or resolve_root()
+  store = Store.new(root, fresh_state)
+  unsaved[store.path()] = nil
+  local loaded = read_state()
+  M.state = loaded or fresh_state()
+  dirty = false
+  result = {
+    applied = true,
+    persisted = loaded ~= nil,
+    reason = loaded and "loaded" or store.reason(),
+    error = store.error(),
+  }
+  if not opts.quiet then
+    fire_change("load", { "project", "scope", "database" })
   else
-    local called
-    called, ok, err = pcall(function()
-      ensure_dir()
-      lock, err = acquire_lock()
-      if not lock then return false, err end
-      local source = read_source()
-      if source.error then
-        read_error = source.error
-        return false, source.error
-      end
-      -- A caller may save a newly required module before load(). It is safe
-      -- to initialize an absent store, but never to overwrite unread scopes.
-      if file_version == nil and not source.lines then file_version = source.version end
-      if source.version ~= file_version then
-        read_error = "state changed in another editor; run setup() again to reload before saving"
-        return false, read_error
-      end
-      local encoded = vim.json.encode(M.state)
-      local written, write_err = Util.atomic_write(store_path(), { encoded })
-      if written then file_version = store_path() .. "\0" .. vim.fn.sha256(encoded) end
-      return written, write_err
-    end)
-    if not called then
-      ok, err = false, ok
-    end
+    revision = revision + 1
   end
-  if lock then release_lock(lock) end
-  if not ok then
-    vim.notify(
-      ("Scoper: failed to save %s (%s). %s"):format(
-        store_path(),
-        err,
-        read_error
-            and "The change applies to this session only; run setup() again to reload before saving."
-          or "The change applies to this session only, until a later change saves."
-      ),
-      vim.log.levels.ERROR
-    )
-    return false
+  return M.last_result()
+end
+
+function M.reload(opts)
+  opts = vim.deepcopy(opts or {})
+  if dirty and not opts.force then
+    return unapplied("unsaved", "local scope changes are not saved; use force=true to discard them")
   end
-  return true
+  opts.root = M.root()
+  return M.load(opts)
+end
+
+function M.initialize()
+  local next_root = resolve_root()
+  local next_store = Store.new(next_root, fresh_state)
+  if store and store.path() == next_store.path() then return M.last_result() end
+  if store and dirty then
+    unsaved[store.path()] = { state = M.state, store = store, result = result }
+  end
+  local previous = unsaved[next_store.path()]
+  if not previous then return M.load({ root = next_root }) end
+  unsaved[next_store.path()] = nil
+  root, store = next_root, previous.store
+  M.state, result, dirty = previous.state, previous.result, true
+  fire_change("restore_unsaved", { "project", "scope", "database" })
+  return M.last_result()
+end
+
+function M.follow_cwd()
+  return M.initialize()
+end
+
+function M.save()
+  local ok, err, reason = ensure_store().save(M.state)
+  result = { applied = true, persisted = ok, reason = reason, error = err }
+  dirty = not ok
+  present()
+  return ok, M.last_result()
 end
 
 -- ---------------------------------------------------------------------------
@@ -423,15 +244,24 @@ end
 -- Re-read the state file if another instance changed its contents.
 -- No event: the mutation that follows fires ScoperChanged itself.
 local function sync()
-  if read_error then return end
-  local source = read_source()
+  ensure_store()
+  -- A failed publication must not let a later refresh replace local edits.
+  -- A successful retry or an explicit forced reload resolves this state.
+  if dirty then return end
+  if store.error() then return end
+  local source = store.source()
   if source.error then
     read_state(source) -- report the unsafe read without replacing local edits
-  elseif source.version ~= file_version then
+    result = { applied = false, persisted = false, reason = store.reason(), error = store.error() }
+  elseif source.version ~= store.version() then
     local refreshed = read_state(source)
     if refreshed then
       M.state = refreshed
+      result = { applied = true, persisted = true, reason = "refreshed" }
       return true
+    else
+      result =
+        { applied = false, persisted = false, reason = store.reason(), error = store.error() }
     end
   end
 end
@@ -440,8 +270,26 @@ end
 -- checking its target, including changes saved by another editor meanwhile.
 function M.context()
   -- A canceled picker has no subsequent mutator to announce a refresh.
-  if sync() then fire_change() end
-  return { root = Path.key(M.root()), scope = M.active_name() }
+  if sync() then fire_change("refresh", { "scope", "database" }) end
+  return {
+    root = Path.key(M.root()),
+    scope = M.active_name(),
+    revision = revision,
+    database = M.database(),
+  }
+end
+
+function M.database()
+  return M.state.database_path
+end
+
+function M.set_database(path)
+  sync()
+  assert(path == nil or type(path) == "string", "database selection must be a path or nil")
+  M.state.database_path = path and path ~= "" and Path.absolute(path, M.root()) or nil
+  M.save()
+  fire_change("database", { "database" })
+  return M.last_result()
 end
 
 -- Add directory/path entries to the active scope's include list. Duplicates
@@ -455,7 +303,7 @@ function M.add_paths(paths)
   sync()
   if type(paths) == "string" then paths = { paths } end
   local scope = M.active_scope()
-  if not scope then return 0, {} end
+  if not scope then return 0, {}, unapplied("missing_scope") end
 
   local cwd = M.root()
   local added, missing = 0, {}
@@ -477,15 +325,17 @@ function M.add_paths(paths)
     if not dup then
       table.insert(scope.include, stored)
       added = added + 1
-      if not Path.is_glob(p) and not Path.is_dir(abs) then table.insert(missing, stored) end
+      if not Path.is_glob(p) and not vim.uv.fs_stat(abs) then table.insert(missing, stored) end
     end
   end
 
   if added > 0 then
     M.save()
     fire_change()
+  else
+    unapplied("unchanged")
   end
-  return added, missing
+  return added, missing, M.last_result()
 end
 
 -- Remove paths from the active scope's include list. Matches both stored
@@ -494,7 +344,7 @@ function M.remove_paths(paths)
   sync()
   if type(paths) == "string" then paths = { paths } end
   local scope = M.active_scope()
-  if not scope then return 0 end
+  if not scope then return 0, unapplied("missing_scope") end
 
   local cwd = M.root()
   local targets = {}
@@ -516,8 +366,10 @@ function M.remove_paths(paths)
   if removed > 0 then
     M.save()
     fire_change()
+  else
+    unapplied("unchanged")
   end
-  return removed
+  return removed, M.last_result()
 end
 
 -- Add exclude pattern(s) — glob strings. Returns the number added and the
@@ -527,7 +379,7 @@ function M.add_excludes(patterns)
   sync()
   if type(patterns) == "string" then patterns = { patterns } end
   local scope = M.active_scope()
-  if not scope then return 0, {} end
+  if not scope then return 0, {}, unapplied("missing_scope") end
   local added, invalid = 0, {}
   for _, p in ipairs(patterns) do
     -- Reject nil, empty, and whitespace-only patterns. The whitespace
@@ -545,15 +397,17 @@ function M.add_excludes(patterns)
   if added > 0 then
     M.save()
     fire_change()
+  else
+    unapplied(#invalid > 0 and "invalid" or "unchanged")
   end
-  return added, invalid
+  return added, invalid, M.last_result()
 end
 
 function M.remove_excludes(patterns)
   sync()
   if type(patterns) == "string" then patterns = { patterns } end
   local scope = M.active_scope()
-  if not scope then return 0 end
+  if not scope then return 0, unapplied("missing_scope") end
   local set = {}
   for _, p in ipairs(patterns) do
     set[p] = true
@@ -571,18 +425,21 @@ function M.remove_excludes(patterns)
   if removed > 0 then
     M.save()
     fire_change()
+  else
+    unapplied("unchanged")
   end
-  return removed
+  return removed, M.last_result()
 end
 
 -- Empty the active scope's includes (keeps excludes).
 function M.clear_active()
   sync()
   local scope = M.active_scope()
-  if not scope then return end
+  if not scope then return unapplied("missing_scope") end
   scope.include = {}
   M.save()
   fire_change()
+  return M.last_result()
 end
 
 -- Create a new scope (seeded with default_excludes) and switch to it.
@@ -594,165 +451,109 @@ end
 -- existing logical names remain readable on every platform.
 function M.new_scope(name)
   sync()
-  if not name or name == "" then return false, "name required" end
-  if not valid_scope_name(name) then
-    return false, "invalid name (use letters, digits, '.', '-', '_')"
+  if not name or name == "" then
+    local err = "name required"
+    return false, err, unapplied("invalid", err)
   end
-  if M.state.scopes[name] then return false, "scope already exists" end
+  if not valid_scope_name(name) then
+    local err = "invalid name (use letters, digits, '.', '-', '_')"
+    return false, err, unapplied("invalid", err)
+  end
+  if M.state.scopes[name] then
+    local err = "scope already exists"
+    return false, err, unapplied("exists", err)
+  end
   M.state.scopes[name] = fresh_scope()
   M.state.active = name
   M.save()
   fire_change()
-  return true
+  return true, nil, M.last_result()
 end
 
 function M.delete_scope(name)
   sync()
-  if not M.state.scopes[name] then return false, "no such scope" end
-  if vim.tbl_count(M.state.scopes) == 1 then return false, "cannot delete the last scope" end
+  if not M.state.scopes[name] then
+    local err = "no such scope"
+    return false, err, unapplied("missing_scope", err)
+  end
+  if vim.tbl_count(M.state.scopes) == 1 then
+    local err = "cannot delete the last scope"
+    return false, err, unapplied("last_scope", err)
+  end
   M.state.scopes[name] = nil
   if M.state.active == name then M.state.active = fallback_scope(M.state.scopes) end
   M.save()
   fire_change()
-  return true
+  return true, nil, M.last_result()
 end
 
 function M.set_active(name)
   sync()
-  if not M.state.scopes[name] then return false, "no such scope" end
+  if not M.state.scopes[name] then
+    local err = "no such scope"
+    return false, err, unapplied("missing_scope", err)
+  end
   M.state.active = name
   M.save()
   fire_change()
-  return true
+  return true, nil, M.last_result()
 end
 
 function M.set_enabled(on)
   sync()
   M.state.enabled = on == true
   M.save()
-  fire_change()
+  fire_change("enabled", { "enabled" })
+  return M.last_result()
 end
 
 function M.toggle()
   -- Read another instance's saved value before computing its inverse.
   sync()
-  M.set_enabled(not M.is_enabled())
+  return M.set_enabled(not M.is_enabled())
 end
 
 -- ---------------------------------------------------------------------------
--- The hot path: is this file in the active scope?
---
--- A file is in scope iff:
---   * it lies under at least one `include` entry that's a directory, OR
---     matches an `include` entry that's a glob, AND
---   * it does NOT match any `exclude` glob. Excludes match the path
---     relative to the cwd, or, for a file outside the cwd, relative to the
---     include directory it is in (what rg sees when searching that dir).
---
--- If scoping is disabled or includes are empty, EVERYTHING is in scope.
--- That last rule means turning Scoper on with an empty scope doesn't
--- silently hide every file — it's a no-op until you add something.
---
--- matcher(cwd) prepares the scope once and returns fn(path) → bool; the
--- clangd filter calls it for every compile_commands entry. `cwd` defaults
--- to the project root.
--- ---------------------------------------------------------------------------
-local function everything()
-  return true
-end
+-- Stateless matching remains available under the old name for compatibility.
+M.build_matcher = Scope.compile
 
 function M.matcher(cwd)
-  if not M.is_enabled() then return everything end
-  local scope = M.active_scope()
-  if not scope or #scope.include == 0 then return everything end
-  return M.build_matcher(scope, cwd or M.root())
+  local definition = M.active_scope()
+  if not M.is_enabled() or not definition or #definition.include == 0 then
+    return function()
+      return true
+    end
+  end
+  return Scope.compile(definition, cwd or M.root())
 end
 
--- The matcher for `scope` ({ include, exclude }) relative to `cwd`, without
--- reading any state, so the background filter process (scoper.cdb) builds
--- exactly the same one.
-function M.build_matcher(scope, cwd)
-  cwd = Path.normalize(cwd)
-  local aliases = {}
-  local function canonical(path)
-    return Path.expand_short(path, aliases)
-  end
-  local cwd_key = Path.fold(canonical(cwd))
-  local dirs, globs, excludes = {}, {}, {}
-  for _, entry in ipairs(scope.include) do
-    local absolute = canonical(Path.absolute(entry, cwd))
-    table.insert(dirs, Path.key(absolute))
-    local first = absolute:find("[%*%?%[{]")
-    if first then
-      -- Excludes of an outside glob are relative to its deepest complete
-      -- literal ancestor. For /build/lib*/**/*.c that is /build, whereas
-      -- /build/lib/**/*.c starts at /build/lib. Retain the slash for roots.
-      local ancestor = absolute:sub(1, first - 1):match("^(.*)/")
-      table.insert(globs, { pattern = absolute, root = Path.key((ancestor or "") .. "/") })
-    end
-  end
-  for _, pat in ipairs(scope.exclude) do
-    if Path.is_absolute(pat) then pat = canonical(pat) end
-    local m = Path.exclude_matcher(pat)
-    if m then table.insert(excludes, m) end
-  end
-
-  -- `key` relative to `base` (both folded), or nil when it isn't under it.
-  local function rel_to(key, base)
-    if not Path.key_under(key, base) then return nil end
-    if key == base then return "." end
-    return key:sub(#base + (base:sub(-1) == "/" and 1 or 2))
-  end
-
-  return function(path)
-    local abs = canonical(Path.absolute(path, cwd))
-    local key = Path.fold(abs)
-    local root_dir
-    for _, d in ipairs(dirs) do
-      if Path.key_under(key, d) then
-        root_dir = d
-        break
-      end
-    end
-    local included = root_dir ~= nil
-    if not included then
-      for _, g in ipairs(globs) do
-        if Path.match_glob(abs, g.pattern, cwd) then
-          included = true
-          if Path.key_under(key, g.root) then root_dir = g.root end
-          break
-        end
-      end
-    end
-    if not included then return false end
-    if #excludes > 0 then
-      local rel = rel_to(key, cwd_key) or (root_dir and rel_to(key, root_dir)) or key
-      for _, ex in ipairs(excludes) do
-        if ex(key, rel) then return false end
-      end
-    end
-    return true
-  end
-end
-
--- One-off check. Loops should build M.matcher() once instead.
 function M.is_in_scope(path, cwd)
   return M.matcher(cwd)(path)
 end
 
--- ---------------------------------------------------------------------------
--- Helper: list of absolute include directories that exist on disk.
--- Used by pickers to set search_dirs. Glob includes have no directory to
--- search from, so they only filter (is_in_scope, the clangd filter).
--- ---------------------------------------------------------------------------
+function M.query()
+  return Scope.query(M.active_scope(), M.root(), M.is_enabled())
+end
+
+function M.snapshot()
+  return {
+    root = M.root(),
+    scope = M.active_name(),
+    revision = revision,
+    enabled = M.is_enabled(),
+    definition = vim.deepcopy(M.active_scope()),
+    database = M.database(),
+    result = M.last_result(),
+    unsaved = dirty,
+  }
+end
+
+-- Directory-only legacy accessor. New search adapters use query().roots.
 function M.active_dirs()
-  local scope = M.active_scope()
-  if not scope then return {} end
-  local cwd = M.root()
   local out = {}
-  for _, entry in ipairs(scope.include) do
-    local abs = Path.absolute(entry, cwd)
-    if Path.is_dir(abs) then table.insert(out, abs) end
+  for _, entry in ipairs((M.active_scope() or {}).include or {}) do
+    local absolute = Path.absolute(entry, M.root())
+    if Path.is_dir(absolute) then out[#out + 1] = absolute end
   end
   return out
 end

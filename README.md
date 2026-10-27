@@ -203,6 +203,9 @@ sudo luarocks install luacheck
 An optional Git-ignored `local.lua` next to `init.lua` returns machine settings.
 It loads before maps and plugins; explicit false values and empty lists survive.
 
+Scoper provides `:ScoperReload` (`!` discards unsaved local state) and
+`:ScoperDatabase` (`!` clears build selection) independently of named scopes.
+
 ## Layout
 
 ```
@@ -306,6 +309,7 @@ nvim/
 │   ├── session_dap_spec.lua    preserve normal files with debugger-like names
 │   └── offline_seed_test.py  Python tests for scripts/offline-seed.py (make test-seed)
 ├── docs/                     Human-facing docs (not loaded by nvim)
+│   ├── scoper-core-notes.md   scope model, revisions, schema and persistence outcomes
 │   ├── audit-2026-10-21.md     findings, regressions, sources, and limits
 │   ├── audit-followup-2026-10-22.md  expanded audit and complete file coverage
 │   ├── audit-resolution.md    unresolved findings, verification and retained limits
