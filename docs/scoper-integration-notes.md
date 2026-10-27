@@ -91,8 +91,8 @@ refuse ambiguous default discovery; legacy boolean integration retains its
 previous first-match priority. Set a path to resolve ambiguity.
 
 clangd accepts a directory containing `compile_commands.json`. If a selected
-source has another filename, Scoper publishes a full immutable copy under that
-name in its cache; its entries stay unchanged. Filtering preserves each kept
+source has another filename, Scoper publishes a full immutable copy named
+`compile_commands.json` in its cache; its entries stay unchanged. Filtering preserves each kept
 entry's original arguments, command, directory and other fields, including
 relative-file semantics. An include containing only headers can produce zero
 translation units; status reports the kept/total counts. Scoper invents no
