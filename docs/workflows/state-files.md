@@ -104,6 +104,12 @@ persistent-breakpoints.nvim keeps one JSON file per project in
   `stdpath('log')`. Keep the ones you attached to a report; the rest can
   go.
 
+The startup log threshold is configurable through `retention.log_max_bytes` in
+the ignored root `local.lua`; `false` disables rotation. The view janitor's
+default 90-day cutoff is separately configurable through `retention.views_days`.
+See [retention preferences](../editing-ui-configuration.md#retention) for the
+ownership safeguards and cross-editor limits.
+
 ```powershell
 # Windows: quit every Neovim first
 Remove-Item "$env:LOCALAPPDATA\nvim-data\*.log", "$env:LOCALAPPDATA\nvim-data\lsp.log.old", "$env:LOCALAPPDATA\nvim-data\diagnostic_*.txt" -ErrorAction SilentlyContinue

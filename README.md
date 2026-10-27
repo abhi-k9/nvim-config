@@ -265,6 +265,7 @@ nvim/
 │   ├── debug_activation_spec.lua  overrides before first debugger activation
 │   ├── terminal_policy_spec.lua  inherited shells and per-project lazygit
 │   ├── editing_policy_spec.lua  trim/comment/prose/window policies
+│   ├── retention_policy_spec.lua  configured view cleanup and log rotation
 │   ├── search_policy_spec.lua  literal visibility, selector and session settings
 │   ├── minimal_init.lua
 │   ├── config_spec.lua

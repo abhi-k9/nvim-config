@@ -4,6 +4,7 @@
 -- janitor.
 
 local augroup = require("config.util").augroup
+local settings = require("config.settings")
 
 -- ---------------------------------------------------------------------------
 -- Fold persistence — remember which folds you had open/closed, per file,
@@ -159,12 +160,18 @@ vim.api.nvim_create_autocmd("CursorHold", {
 vim.api.nvim_create_autocmd("VimLeavePre", {
   group = augroup("view_janitor"),
   callback = function()
+    local days = settings.get("retention.views_days", 90)
+    if days == false then return end
+    if type(days) ~= "number" or days <= 0 or days ~= days or days == math.huge then
+      vim.notify("retention.views_days must be a positive number or false", vim.log.levels.WARN)
+      return
+    end
     -- 'viewdir' defaults to ".../view//"; strip the trailing separators so
     -- the joined paths below are clean.
     local dir = (vim.o.viewdir:gsub("[/\\]+$", ""))
     local handle = vim.uv.fs_scandir(dir)
     if not handle then return end
-    local cutoff = os.time() - 90 * 86400
+    local cutoff = os.time() - days * 86400
     while true do
       local name, t = vim.uv.fs_scandir_next(handle)
       if not name then break end
