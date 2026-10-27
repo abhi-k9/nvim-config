@@ -4,6 +4,23 @@ Newest first. New entries use one `## YYYY-MM-DD — <title>` heading per
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-10-27 — Generalize debugger width protection to fixed columns
+
+### Changed
+
+- Replace the Neo-tree-specific width guard with one based on `winfixwidth` and
+  the native split layout. Preserve independent left/right and stacked fixed
+  columns across DAP UI operations, including unwanted shrinkage. Each call uses
+  current widths, with Neovim clamping requests when space is limited.
+- Exclude DAP UI's own window IDs and horizontal panels sharing a flexible editor
+  column, so panel resizing and ordinary editing layouts retain their behavior.
+  No Neo-tree filetype/position checks or parallel compatibility path remain.
+
+### Docs
+
+- The [debugger guide](docs/debug-terminal-configuration.md#fixed-window-widths-during-debugging)
+  explains native option opt-in/opt-out, layout behavior and narrow-screen limits.
+
 ## 2026-10-27 — Keep Neo-tree width stable across debugger sessions
 
 ### Fixed
@@ -16,7 +33,7 @@ that a later change undid is marked *(Reverted in …)* where it appears.
 
 ### Docs
 
-- The [debugger guide](docs/debug-terminal-configuration.md#neo-tree-width-during-debugging)
+- The [debugger guide](docs/debug-terminal-configuration.md#fixed-window-widths-during-debugging)
   explains the cause and how to undo previously accumulated width once.
 
 ## 2026-10-26 — Broader configuration and independent Scoper build selection

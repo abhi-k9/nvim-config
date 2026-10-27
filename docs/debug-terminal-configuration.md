@@ -98,24 +98,41 @@ does not relocate breakpoint persistence or third-party session files. Launch
 files and Lua callbacks are executable/debugging inputs: use trusted project
 files and review adapter commands before launching them.
 
-## Neo-tree width during debugging
+## Fixed window widths during debugging
 
 The locked DAP UI closes its default left sidebar before the bottom console
 strip. Neovim can give that sidebar's 40 columns plus its separator to adjacent
 Neo-tree, even with `winfixwidth` enabled. Repeated sessions would grow a
 32-column tree to 73, 114, 155 and 196 columns.
 
-The config protects existing left/right Neo-tree widths around each DAP UI
-open, close and toggle call. It captures the current width per operation,
-including trees in other tabs; a manual resize while debugging is preserved.
-Closed/replaced windows and floating/current-window/horizontal trees are left
-alone. It prevents automatic widening without forcing a larger width when a
-narrow screen needs to shrink the tree. No fixed 32-column reset is applied.
+The config protects independent fixed-width columns around each DAP UI open,
+close and toggle call. Protection uses Neovim's `winfixwidth` option and split
+layout, with no plugin-name or filetype list. Neo-tree already sets this option;
+other sidebar plugins can participate by setting it on their windows. Run
+`:setlocal winfixwidth` in a sidebar to opt in, or `:setlocal nowinfixwidth` to
+let that window resize freely. A stack of fixed windows in one column is also
+protected. A bottom/top panel sharing its width with a flexible editor follows
+that editor's width instead of constraining the entire column.
+Compound grids made entirely of fixed windows, with further side-by-side splits
+inside the column, retain Neovim's native sizing; restoring their individual
+widths can impose conflicting constraints on the shared outer column.
+
+The guard captures live widths per operation, including windows in other tabs,
+then restores both unwanted growth and shrinkage. A manual resize between calls
+is preserved; there is no fixed 32-column reset or stored session target. Neovim
+can clamp restoration on narrow screens, and the next operation uses the actual
+width available. It cannot guarantee every preferred width when the screen is
+too small for all panels.
+
+DAP UI's own windows are excluded by their layout-owned window IDs, including
+custom elements with arbitrary filetypes. DAP UI retains control of its panel
+sizes and reset behavior. Floating/external windows, closed/replaced windows and
+ordinary flexible editing splits are not width targets. The same protection
+applies when session saving temporarily closes the debugger panels.
 
 After updating and restarting, undo any width growth already accumulated by
 focusing Neo-tree and running `:vertical resize 32` once (or your preferred
-width). Subsequent debugger cycles retain that choice. The same protection
-applies when session saving temporarily closes the debugger panels.
+width). Subsequent debugger cycles retain that choice when space permits.
 
 ## Shell and lazygit policies
 
