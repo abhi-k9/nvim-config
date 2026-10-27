@@ -11,7 +11,7 @@
 --
 -- Setup options:
 --   lsp.clangd        – auto-rewrite compile_commands.json on scope change
---   lsp.clangd_args   – extra clangd flags (here: --query-driver for MinGW/MSYS2)
+--   lsp.query_drivers – explicit trusted compiler paths (no auto-trust globs)
 --   default_excludes  – seed every new scope, including a fresh project's default scope
 
 local config_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h:h")
@@ -22,33 +22,26 @@ return {
     -- Loaded eagerly so :Scoper* commands are registered up front. The
     -- heavy modules inside scoper itself are still lazy-required on demand.
     lazy = false,
-    config = function()
-      -- MinGW/MSYS2 gcc reports its system headers to clangd only if the
-      -- driver matches --query-driver (MSVC needs nothing). clangd runs
-      -- whatever matches, so list the drivers rather than a catch-all glob.
-      local drivers = {}
-      for _, exe in ipairs({ "gcc", "g++", "cc", "c++" }) do
-        local path = vim.fn.exepath(exe)
-        if path ~= "" then
-          -- clangd matches case-sensitively; exepath() spells the extension
-          -- as $PATHEXT does (".EXE"), compile databases write ".exe".
-          drivers[#drivers + 1] = (path:gsub("\\", "/"):gsub("%.[eE][xX][eE]$", "")) .. "*"
+    opts = function()
+      local settings = require("config.settings")
+      local opts = settings.get("scoper", {})
+      opts.lsp = opts.lsp or {}
+      -- Preserve the shipped automatic-filtering behavior. An explicit mode
+      -- or the legacy boolean wins; compiler execution trust is opt-in.
+      if opts.lsp.mode == nil and opts.lsp.clangd == nil then opts.lsp.clangd = true end
+      if opts.default_excludes == nil then
+        opts.default_excludes = { "**/node_modules/**", "**/.git/**", "**/target/**" }
+      end
+      opts.project = opts.project or {}
+      if opts.project.root == nil then
+        opts.project.root = function()
+          return settings.project_root()
         end
       end
-      if vim.fn.has("win32") == 1 then
-        vim.list_extend(drivers, { "C:/msys64/*/bin/*gcc*", "C:/msys64/*/bin/*g++*" })
-      end
-      require("scoper").setup({
-        lsp = {
-          clangd = true, -- auto-rebuild compile_commands.json
-          clangd_args = #drivers > 0 and { "--query-driver=" .. table.concat(drivers, ",") } or nil,
-        },
-        default_excludes = { -- seed every new scope, including the default one
-          "**/node_modules/**",
-          "**/.git/**",
-          "**/target/**",
-        },
-      })
+      return opts
+    end,
+    config = function(_, opts)
+      require("scoper").setup(opts)
     end,
   },
 }

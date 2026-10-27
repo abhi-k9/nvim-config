@@ -235,18 +235,16 @@ function M.dump(opts)
     table.insert(out, "(scoper not loaded)")
   else
     local ok_sc, err = pcall(function()
-      local State = require("scoper.state")
-      local cfg = require("scoper").config or {}
-      local scope = State.active_scope() or { include = {}, exclude = {} }
+      local snapshot = require("scoper").snapshot()
+      local scope = snapshot.definition or { include = {}, exclude = {} }
       table.insert(
         out,
-        ("root = %s\nenabled = %s, active = %s (%d include, %d exclude)\nclangd integration = %s"):format(
-          State.root(),
-          tostring(State.is_enabled()),
-          State.active_name(),
+        ("root = %s\nenabled = %s, active = %s (%d include, %d exclude)"):format(
+          snapshot.root,
+          tostring(snapshot.enabled),
+          snapshot.scope,
           #scope.include,
-          #scope.exclude,
-          tostring(cfg.lsp and cfg.lsp.clangd or false)
+          #scope.exclude
         )
       )
       local lsp = package.loaded["scoper.lsp"]
@@ -254,17 +252,7 @@ function M.dump(opts)
         table.insert(out, "(scoper.lsp not loaded)")
         return
       end
-      local f, w = lsp._last_filter, lsp._last_worker
-      table.insert(
-        out,
-        ("reloading = %s, pending = %s\napplied cmd = %s\nlast filter = %s\nlast background run = %s"):format(
-          tostring(lsp._reloading),
-          vim.inspect(lsp._pending),
-          lsp._applied_cmd and lsp._applied_cmd:gsub("%z", " ") or "(none)",
-          f and ("%s [%s]%s"):format(f.info, f.at, f.changed and " (changed)" or "") or "(none yet)",
-          w and ("%s after %d ms"):format(w.outcome, w.ms) or "(none yet)"
-        )
-      )
+      table.insert(out, "clangd integration = " .. vim.inspect(lsp.status()))
     end)
     if not ok_sc then table.insert(out, "(failed: " .. tostring(err) .. ")") end
   end

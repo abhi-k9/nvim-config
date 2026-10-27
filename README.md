@@ -310,6 +310,7 @@ nvim/
 │   └── offline_seed_test.py  Python tests for scripts/offline-seed.py (make test-seed)
 ├── docs/                     Human-facing docs (not loaded by nvim)
 │   ├── scoper-core-notes.md   scope model, revisions, schema and persistence outcomes
+│   ├── scoper-integration-notes.md  build selection, clangd modes, startup and source refresh
 │   ├── audit-2026-10-21.md     findings, regressions, sources, and limits
 │   ├── audit-followup-2026-10-22.md  expanded audit and complete file coverage
 │   ├── audit-resolution.md    unresolved findings, verification and retained limits

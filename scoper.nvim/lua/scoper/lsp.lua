@@ -1,435 +1,63 @@
--- lua/scoper/lsp.lua
---
--- LSP integration. Goal: speed up clangd indexing on big C/C++ projects
--- by feeding it a filtered compile_commands.json that only contains
--- translation units inside the active scope.
---
--- Three operating modes, picked per call:
---
---   1. **Filter applies.** Scoping ON, non-empty include list, a
---      compile_commands.json is found, and it parses as valid JSON.
---      Steps:
---        a. Locate compile_commands.json (cwd, ./build, ./out,
---           ./cmake-build-*)
---        b. Parse and filter entries where `file` is in the active
---           scope (scoper.cdb; reloads run it in a background Neovim
---           process so big databases don't freeze the editor)
---        c. Write the filtered JSON to:
---             stdpath("cache")/scoper/<cwd-hash>/<scope>/<scope-hash>/objects/<digest>/compile_commands.json
---        d. Configure clangd via vim.lsp.config with --compile-commands-dir
---           pointing at that cache dir, alongside the default flags
---        e. Restart this project's running clangd clients so they pick
---           up the new cmd
---
---   2. **No filter, but the unfiltered file is located.** Scoping OFF,
---      or empty include list, or the JSON failed to parse. Steps b-c
---      are skipped; step d configures clangd with --compile-commands-dir
---      pointing at the *unfiltered* directory found in step a — NOT
---      just removing the flag. The reason: clangd's own discovery walks
---      up from the source file and respects a project-level `.clangd`
---      file's `CompileFlags.CompilationDatabase` setting. If those
---      disagree with where the database actually lives, clangd
---      silently falls back to ad-hoc fixed flags and every project
---      header becomes a "file not found" error. Always-explicit
---      removes that whole class of failure.
---
---   3. **No compile_commands.json anywhere.** Step a returns nil.
---      Step d configures clangd with default flags only (no
---      --compile-commands-dir). This is the only case where clangd's
---      built-in discovery and any `.clangd` config get to decide where
---      the database lives — if scoper can't find one, neither can it
---      point clangd at one.
---
--- Step e (restart) runs in all three modes so the swap takes effect
--- immediately, without a Neovim restart. The restart is ASYNCHRONOUS:
--- the old clients get a graceful shutdown that Client:stop() turns into
--- a forced one after 2 s, and a libuv timer (50 ms) polls for them to
--- exit before re-attaching. Only if one is still alive 1.5 s after that
--- is the re-attach skipped (to avoid duplicate clients), with a hint to
--- :ScoperLspReload.
---
--- One project per Neovim instance (State.root()), but vim.lsp.config is
--- global: the configured cmd is a function, so a clangd started for a
--- root outside this project gets the plain flags rather than this
--- project's --compile-commands-dir, and restarts leave such clients alone.
---
--- Net behaviour:
---   * `:ScoperToggle` on  → mode 1 (filtered cache)
---   * `:ScoperToggle` off → mode 2 (unfiltered project file)
---   * no CC.json anywhere → mode 3 (built-in discovery)
---
--- Setup integration (opt-in): require("scoper").setup({ lsp = { clangd = true } })
--- will hook scope changes to auto-rerun this. Otherwise the user calls
--- :ScoperLspReload manually.
---
--- Why bother filtering at all? clangd's index walks every TU in
--- compile_commands.json on startup, which is the actual slow part on
--- big projects. Slimming the JSON cuts that walk linearly with TU
--- count.
-
+-- Optional clangd adapter. Database preparation/worker delivery lives in pipeline.lua.
 local State = require("scoper.state")
 local Path = require("scoper.path")
-local Util = require("scoper.util")
+local Pipeline = require("scoper.pipeline")
 local Cdb = require("scoper.cdb")
-
 local M = {}
-
--- ---------------------------------------------------------------------------
--- Find the project's compile_commands.json. Returns the absolute path or
--- nil. Search order matches what cmake / build tools commonly produce.
--- ---------------------------------------------------------------------------
-local function find_compile_commands(start_dir)
-  -- Forward slashes on every OS: the result is compared as a string by
-  -- the freshness cache below.
-  start_dir = Path.normalize(start_dir or State.root())
-  local candidates = {
-    start_dir .. "/compile_commands.json",
-    start_dir .. "/build/compile_commands.json",
-    start_dir .. "/out/compile_commands.json",
-  }
-  -- cmake-build-debug / cmake-build-release / etc. (CLion-style)
-  local handle = vim.uv.fs_scandir(start_dir)
-  if handle then
-    while true do
-      local name, t = vim.uv.fs_scandir_next(handle)
-      if not name then break end
-      if t == "directory" and name:match("^cmake%-build%-") then
-        table.insert(candidates, start_dir .. "/" .. name .. "/compile_commands.json")
-      end
-    end
-  end
-
-  for _, cand in ipairs(candidates) do
-    if vim.uv.fs_stat(cand) then return Path.normalize(cand) end
-  end
-  return nil
-end
-
--- ---------------------------------------------------------------------------
--- Compute the cache directory for the filtered output. Per-project (cwd
--- hash), scope name, and scope contents. Two Neovim instances may retain
--- different includes/excludes under the same name; their clangd clients
--- must never watch a shared file that either instance can overwrite.
--- ---------------------------------------------------------------------------
-local function cache_dir(fingerprint)
-  -- Same identity as state.store_path: util.cwd_hash of Path.key(root)
-  -- (case-insensitive on Windows), so the state file and this cache
-  -- always agree on which project they belong to.
-  local hash = Util.cwd_hash(Path.key(State.root()))
-  -- Preserve readable cache paths for ordinary names. Legacy logical names
-  -- such as CON or frontend. must remain loadable, but Windows rejects those
-  -- components (including device names with extensions); long names also
-  -- exceed the component limit on Unix. Encode only those cache components.
-  local name = State.active_name()
-  local scope = name:gsub("[^%w_%-%.]", "_")
-  local stem = (scope:match("^[^%.]+") or ""):upper()
-  if
-    #scope > 255
-    or scope:sub(-1) == "."
-    or stem == "CON"
-    or stem == "PRN"
-    or stem == "AUX"
-    or stem == "NUL"
-    or stem:match("^COM[1-9]$")
-    or stem:match("^LPT[1-9]$")
-  then
-    scope = "scope-" .. vim.fn.sha256(name):sub(1, 32)
-  end
-  return Path.normalize(
-    vim.fn.stdpath("cache") .. "/scoper/" .. hash .. "/" .. scope .. "/" .. fingerprint:sub(1, 32)
-  )
-end
-
--- Extra flags from the last clangd_cmd(extra_args) call. Reloads rebuild
--- the cmd without arguments, so they must be remembered here.
+Pipeline.bind(M)
 M._extra_args = nil
-
--- ---------------------------------------------------------------------------
--- The baseline clangd cmd. Both the filtered path (scope on, valid
--- compile_commands.json) and the unfiltered path (scope off / empty /
--- missing CC.json) build on this — the filtered path additionally
--- prepends `--compile-commands-dir=<cache>`. Centralising the flag set
--- here is what guarantees the two paths can't disagree about which
--- clangd options we want.
---
--- The flags themselves come from setup()'s `lsp.clangd_args` (defaults
--- in scoper/init.lua), NOT from a hardcoded list here: which tidy /
--- completion / header-insertion behaviour a project wants is a user
--- style choice, and a plugin shouldn't bake one in. require("scoper")
--- at call time is safe — init.lua is always loaded before any LSP
--- entry point runs (setup() or a :Scoper* command got us here).
--- ---------------------------------------------------------------------------
-local function base_clangd_cmd()
-  local cfg = require("scoper").config or {}
-  local cmd = { "clangd" }
-  vim.list_extend(cmd, (cfg.lsp and cfg.lsp.clangd_args) or {})
-  vim.list_extend(cmd, M._extra_args or {})
-  return cmd
+M._worker_cmd = Pipeline._worker_cmd
+M._worker_timeout = Pipeline._worker_timeout
+function M.write_filtered_compile_commands(opts)
+  return Pipeline.write_filtered_compile_commands(opts)
 end
-
--- ---------------------------------------------------------------------------
--- Decide which compile_commands entries fall inside the active scope, given
--- the project root `cwd`. Extracted (underscore = internal) so lsp_spec can
--- assert cdb.filter's path-resolution rule without touching the filesystem.
--- ---------------------------------------------------------------------------
+function M._filter_async(cb, opts)
+  return Pipeline._filter_async(cb, opts)
+end
 function M._filter_entries(entries, cwd)
   return Cdb.filter(entries, State.matcher(cwd))
 end
-
-local function read_json(path)
-  local ok, v = pcall(function()
-    return vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
-  end)
-  return ok and type(v) == "table" and v or nil
+local function find_compile_commands()
+  return Pipeline.resolve().path
 end
-
-local prepare, finish
-
--- ---------------------------------------------------------------------------
--- Filter compile_commands.json, write the result, return either:
---   * out_dir, info, changed — filter applied. out_dir is the path to
---                     pass to clangd via --compile-commands-dir; `changed`
---                     says whether the database clangd reads differs from
---                     what was there before.
---   * nil, info     — no filter applied (by design or by impossibility).
---                     `info` says ONLY why; the caller (clangd_cmd) is
---                     responsible for deciding what to do next (point
---                     clangd at the unfiltered file vs. fall back to
---                     built-in discovery) and appending that decision
---                     to the message.
---
--- With `opts.stale_ok`, nothing is filtered: an out-of-date filtered file
--- is returned as it is, and without one the result is nil, "filter
--- pending"; the fourth value (true) tells the caller to refresh later.
---
--- The `info` strings carry no "Scoper LSP: " prefix and no
--- speculation about clangd's behavior; the notify path adds the prefix
--- once and clangd_cmd appends the actual disposition.
---
--- Runs the filter in THIS Neovim; reloads use M._filter_async instead.
--- ---------------------------------------------------------------------------
-function M.write_filtered_compile_commands(opts)
-  for _ = 1, 2 do
-    local res, job = prepare(opts)
-    res = res or Cdb.run(job)
-    if
-      not res.stale_source
-      and (not job or not res.dir or Cdb.same_stamp(job.meta.source, Cdb.stamp(job.cc)))
-    then
-      return finish(res)
-    end
-  end
-  return finish({ info = "compile_commands.json kept changing while filtering" })
-end
-
--- The cheap half of the filter: the state checks and the freshness cache.
--- Returns a finished result ({ dir, info, changed, stale }, as returned
--- by cdb.run) or nil plus the job for cdb.run.
-function prepare(opts)
-  -- Cheap state checks first — no point reading the file off disk if
-  -- the active scope already implies "no filter".
-  if not State.is_enabled() then return { info = "disabled" } end
-  local scope = State.active_scope()
-  if not scope or #scope.include == 0 then return { info = "active scope is empty" } end
-
-  local cc = find_compile_commands()
-  if not cc then
-    return {
-      info = "compile_commands.json not found (looked in ./, ./build, ./out, ./cmake-build-*)",
-    }
-  end
-
-  -- -------------------------------------------------------------------
-  -- Freshness cache. setup() applies the clangd cmd at startup, so
-  -- without a cache every launch would readfile + decode + filter +
-  -- rewrite the compile database (~400-500 ms for 10k entries / 20 MB)
-  -- even though nothing changed — the overwhelmingly common case.
-  --
-  -- The filtered output only depends on two inputs: the SOURCE
-  -- compile_commands.json (identified by path, timestamps, inode and size)
-  -- and the SCOPE CONTENT (include + exclude lists — fingerprinted,
-  -- because :ScoperAdd/:ScoperExclude mutate a scope without renaming
-  -- it; the scope NAME and cwd are already part of cache_dir's path).
-  -- A tiny meta file next to the output records those inputs and a
-  -- sha256 of the output; when the inputs match and the output still
-  -- exists, skip everything. Any cmake regen (mtime/size), scope edit
-  -- (fingerprint), scope switch (different dir), or deleted cache
-  -- (missing output) invalidates naturally. Kept/total counts are stored
-  -- too so the skip path can report the same message as a real run.
-  -- -------------------------------------------------------------------
-  local fingerprint = vim.fn.sha256(vim.json.encode({
-    -- Output objects and source/output generation checks changed. Keep older
-    -- versions from sharing their mutable output/metadata with this layout.
-    3,
-    Path.key(State.root()),
-    scope.include,
-    scope.exclude,
-  }))
-  local out_dir = cache_dir(fingerprint)
-  local meta_path = out_dir .. "/.scoper-meta.json"
-  local source = Cdb.stamp(cc)
-  local meta = read_json(meta_path)
-  local digest = meta and meta.digest
-  local valid_meta = type(digest) == "string"
-    and #digest == 64
-    and digest:match("^[0-9a-f]+$")
-    and type(meta.kept) == "number"
-    and meta.kept >= 0
-    and meta.kept % 1 == 0
-    and type(meta.total) == "number"
-    and meta.total >= meta.kept
-    and meta.total % 1 == 0
-    and meta.fingerprint == fingerprint
-  local result_dir = valid_meta and out_dir .. "/objects/" .. digest or nil
-  local out_path = result_dir and result_dir .. "/compile_commands.json" or nil
-  -- Ordinary same-size rewrites also change mtime/ctime or inode identity.
-  -- Keep warm hits stat-only; the publisher hashes each object when reusing it.
-  local have_intact_out = out_path and Cdb.same_stamp(meta.out_stamp, Cdb.stamp(out_path))
-  if have_intact_out and meta.src == cc and Cdb.same_stamp(meta.source, source) then
-    return {
-      dir = result_dir,
-      info = ("%d/%d entries kept → %s (cached)"):format(
-        meta.kept or 0,
-        meta.total or 0,
-        out_path
-      ),
-      changed = false,
-    }
-  end
-  if opts and opts.stale_ok then
-    if not have_intact_out then return { info = "filter pending", stale = true } end
-    return {
-      dir = result_dir,
-      info = ("previous filter result → %s (refresh pending)"):format(out_path),
-      changed = false,
-      stale = true,
-    }
-  end
-
-  return nil,
-    {
-      cc = cc,
-      root = State.root(),
-      scope = { include = scope.include, exclude = scope.exclude },
-      out_dir = out_dir,
-      -- The inputs that produced the output (see the cache block above).
-      meta = {
-        src = cc,
-        source = source,
-        fingerprint = fingerprint,
-      },
-      old_digest = have_intact_out and meta.digest or nil,
-    }
-end
-
--- For :DiagnosticDump-style reports: the last filter result, and how the
--- last background run ended.
-M._last_filter, M._last_worker = nil, nil
-
-function finish(res)
-  M._last_filter = { info = res.info, changed = res.changed, at = os.date("%Y-%m-%d %H:%M:%S") }
-  if res.warn then vim.notify(res.warn, vim.log.levels.WARN) end
-  return res.dir, res.info, res.changed, res.stale
-end
-
--- ---------------------------------------------------------------------------
--- Background filter: cdb.run in a separate `nvim --clean --headless`
--- process, so reading, filtering and writing a big database never freezes
--- the editor. The job goes in and the result comes back as JSON files next
--- to the output. If the process can't run, the job runs here instead (one
--- warning per session); a run that times out leaves clangd on the
--- unfiltered database.
--- ---------------------------------------------------------------------------
-local worker_script =
-  Path.normalize(vim.fs.dirname(debug.getinfo(1, "S").source:sub(2)) .. "/cdb_worker.lua")
-
--- A function so lsp_spec can make the process fail.
-function M._worker_cmd(job_path, result_path)
-  return { vim.v.progpath, "--clean", "--headless", "-l", worker_script, job_path, result_path }
-end
-
-M._worker_timeout = 120000
-
-local job_seq, warned_fallback = 0, false
-
--- Calls cb(result) on the main loop, exactly once.
-local function run_in_background(job, cb)
-  job_seq = job_seq + 1
-  local base = ("%s/.scoper-job-%d-%d"):format(job.out_dir, vim.fn.getpid(), job_seq)
-  local job_path, result_path = base .. ".json", base .. ".result.json"
-  local started = vim.uv.hrtime()
-  local function cleanup(outcome)
-    os.remove(job_path)
-    os.remove(result_path)
-    M._last_worker = { outcome = outcome, ms = math.floor((vim.uv.hrtime() - started) / 1e6) }
-  end
-  local function run_here(why)
-    cleanup("failed (" .. why .. "), filtered in this Neovim")
-    if not warned_fallback then
-      warned_fallback = true
-      vim.notify(
-        "Scoper LSP: background filter failed (" .. why .. "); filtering in this Neovim instead",
-        vim.log.levels.WARN
-      )
-    end
-    local ok, res = pcall(Cdb.run, job)
-    cb(ok and res or { info = "filter failed: " .. tostring(res) })
-  end
-
-  local made, mkdir_error = pcall(vim.fn.mkdir, job.out_dir, "p")
-  if not made then
-    cleanup("failed (cannot create cache directory)")
-    return cb({
-      info = "cannot create filter cache: " .. tostring(mkdir_error),
-      warn = "Scoper LSP: cannot create filter cache: " .. tostring(mkdir_error),
-    })
-  end
-  local wrote, write_result = pcall(vim.fn.writefile, { vim.json.encode(job) }, job_path)
-  if not wrote or write_result ~= 0 then return run_here("can't write " .. job_path) end
-  local ok, err = pcall(
-    vim.system,
-    M._worker_cmd(job_path, result_path),
-    { text = true, timeout = M._worker_timeout },
-    function(proc)
-      vim.schedule(function()
-        local res = proc.code == 0 and read_json(result_path)
-        if res then
-          cleanup("ok")
-          return cb(res)
-        end
-        if proc.code == 124 then
-          cleanup("timed out")
-          return cb({ info = ("filter timed out after %d s"):format(M._worker_timeout / 1000) })
-        end
-        run_here(("exit %d: %s"):format(proc.code, vim.trim(proc.stderr or "")))
-      end)
-    end
+local function base_clangd_cmd()
+  local cfg = require("scoper").config.lsp or {}
+  local configured = cfg.cmd or M._base_cmd or { "clangd" }
+  if type(configured) == "string" then configured = { configured } end
+  assert(
+    type(configured) == "table" and vim.islist(configured) and #configured > 0,
+    "Scoper lsp.cmd must be a nonempty argv list"
   )
-  if not ok then run_here(tostring(err)) end
-end
-
--- write_filtered_compile_commands without blocking: calls
--- cb(dir, info, changed, stale) once the background filter is done, or
--- right away (synchronously) when there is nothing to filter.
-function M._filter_async(cb, opts)
-  local function attempt(retries)
-    local res, job = prepare(opts)
-    if res then return cb(finish(res)) end
-    run_in_background(job, function(r)
-      if r.stale_source or (r.dir and not Cdb.same_stamp(job.meta.source, Cdb.stamp(job.cc))) then
-        if retries > 0 then return attempt(retries - 1) end
-        return cb(finish({ info = "compile_commands.json kept changing while filtering" }))
-      end
-      cb(finish(r))
-    end)
+  local cmd = vim.deepcopy(configured)
+  vim.list_extend(cmd, cfg.clangd_args or {})
+  vim.list_extend(cmd, cfg.extra_args or {})
+  if cfg.query_drivers and #cfg.query_drivers > 0 then
+    cmd[#cmd + 1] = "--query-driver=" .. table.concat(cfg.query_drivers, ",")
   end
-  attempt(1)
+  vim.list_extend(cmd, M._extra_args or {})
+  for _, arg in ipairs(cmd) do
+    assert(type(arg) == "string", "clangd argv must contain strings")
+  end
+  return cmd
 end
-
--- The clangd cmd for a filter result (what write_filtered_compile_commands
--- returns); passes `stale` through as the fourth value.
 local function cmd_from(filtered_dir, info, changed, stale)
   local cmd = base_clangd_cmd()
+  local mode = Pipeline.mode()
+  if mode == "native" or mode == "disabled" then return cmd, info, false, false end
+
+  -- A selected database replaces only this argument. All other user flags
+  -- (including compiler trust) remain intact.
+  local i = 2
+  while i <= #cmd do
+    if cmd[i] == "--compile-commands-dir" then
+      table.remove(cmd, i)
+      table.remove(cmd, i)
+    elseif cmd[i]:match("^%-%-compile%-commands%-dir=") then
+      table.remove(cmd, i)
+    else
+      i = i + 1
+    end
+  end
 
   if filtered_dir then
     -- Scoped path: point clangd at the filtered cache.
@@ -445,6 +73,12 @@ local function cmd_from(filtered_dir, info, changed, stale)
   -- calling it again is cheap (a handful of fs_stat() calls,
   -- debounced 500 ms by attach_auto in practice).
   local raw = find_compile_commands()
+  if raw and vim.fs.basename(raw) ~= "compile_commands.json" then
+    return cmd,
+      info .. "; selected source has no prepared copy; clangd will use built-in discovery",
+      nil,
+      stale
+  end
   if raw then
     local raw_dir = Path.normalize(vim.fs.dirname(raw))
     table.insert(cmd, 2, "--compile-commands-dir=" .. raw_dir)
@@ -537,11 +171,14 @@ local C_FAMILY = { c = true, cpp = true, objc = true, objcpp = true, cuda = true
 -- (autocmds for one event run oldest first).
 function M._apply(cmd)
   M._cmd = cmd
+  if not M._ownership then M._ownership = { cmd = (vim.lsp.config.clangd or {}).cmd } end
   if vim.fn.executable(cmd[1]) == 1 then
     vim.lsp.config("clangd", { cmd = spawn })
+    M._owned_cmd = spawn
     return
   end
   vim.lsp.config("clangd", { cmd = cmd })
+  M._owned_cmd = cmd
   local group = vim.api.nvim_create_augroup("scoper_clangd_cmd", { clear = true })
   vim.api.nvim_create_autocmd("FileType", {
     group = group,
@@ -549,6 +186,7 @@ function M._apply(cmd)
     callback = function()
       if vim.fn.executable(M._cmd[1]) ~= 1 then return end
       vim.lsp.config("clangd", { cmd = spawn })
+      M._owned_cmd = spawn
       -- one autocmd per pattern: returning true would delete only this one
       vim.api.nvim_clear_autocmds({ group = group })
     end,
@@ -649,6 +287,7 @@ local function queue_reload(opts)
 end
 
 function M.reload_clangd(opts)
+  if Pipeline.mode() == "disabled" or Pipeline.mode() == "native" then return end
   opts = vim.tbl_extend("force", {}, opts or {})
   if opts.auto then
     opts._generation = opts._generation or (M._auto_generation or 0)
@@ -716,12 +355,13 @@ M._timing = { poll = 50, grace = 2000, kill = 1500 }
 -- old one: it is dropped and the reload replayed for the new project.
 function M._start_reload(done, opts)
   local root = Path.key(State.root())
-  M._filter_async(function(dir, info, changed)
+  local context = Pipeline.context_key()
+  M._filter_async(function(dir, info, changed, _, obsolete)
     if stale_auto(opts) then
       done()
       return
     end
-    if Path.key(State.root()) ~= root then
+    if Path.key(State.root()) ~= root or obsolete or Pipeline.context_key() ~= context then
       queue_reload(opts)
       done()
       return
@@ -740,6 +380,7 @@ end
 -- `cmd` is guaranteed non-nil; `info` describes whether we filtered (and
 -- by how much) or whether we restored the baseline cmd.
 function restart(done, opts, cmd, info, changed)
+  local context = Pipeline.context_key()
   local key = table.concat(cmd, "\0")
   local clients = our_clients()
   if opts.auto and not changed and key == M._applied_cmd and #clients > 0 then
@@ -776,6 +417,10 @@ function restart(done, opts, cmd, info, changed)
   local waited = 0
   local function tick()
     if stale_auto(opts) then return true end
+    if Pipeline.context_key() ~= context then
+      queue_reload(opts)
+      return true
+    end
     waited = waited + t.poll
     local remaining = 0
     for _, id in ipairs(ids) do
@@ -835,9 +480,11 @@ end
 -- here then restarts clangd only if the filtered database really changed.
 -- ---------------------------------------------------------------------------
 function M.apply_initial()
+  if Pipeline.mode() == "disabled" or Pipeline.mode() == "native" then return end
   local cmd, _, _, stale = build_cmd({ stale_ok = true })
   M._apply(cmd)
   M._applied_cmd = table.concat(cmd, "\0")
+  if (require("scoper").config.lsp or {}).startup == "prepare" then return end
   if not stale then return end
   local generation = M._auto_generation
   vim.schedule(function()
@@ -859,14 +506,73 @@ function M.detach_auto()
     M._timer:close()
   end
   M._timer = nil
+  if M._watcher and not M._watcher:is_closing() then
+    M._watcher:stop()
+    M._watcher:close()
+  end
+  M._watcher, M._watch_path, M._watch_stamp = nil, nil, nil
 end
 
 function M.attach_auto()
   M.detach_auto()
   local generation = M._auto_generation
+  local group = vim.api.nvim_create_augroup("scoper_lsp_auto", { clear = true })
+  local function debounce()
+    if M._timer and not M._timer:is_closing() then
+      M._timer:stop()
+      M._timer:close()
+    end
+    local timer
+    timer = vim.defer_fn(function()
+      if M._timer ~= timer or generation ~= M._auto_generation then return end
+      M._timer = nil
+      M.reload_clangd({ auto = true })
+    end, (require("scoper").config.lsp or {}).debounce_ms or 500)
+    M._timer = timer
+  end
+  M._debounce = debounce
+
+  local function check_source(force, initial)
+    local selection = Pipeline.resolve()
+    local path = selection.path or selection.requested
+    local changed_path = path ~= M._watch_path
+    local stamp = path and Cdb.stamp(path)
+    local changed = changed_path or not vim.deep_equal(stamp, M._watch_stamp)
+    if changed_path or (path and not M._watcher) then
+      if M._watcher and not M._watcher:is_closing() then
+        M._watcher:stop()
+        M._watcher:close()
+      end
+      M._watcher = nil
+      M._watch_path = path
+      if path and (require("scoper").config.lsp or {}).watch ~= false then
+        local watcher = vim.uv.new_fs_event()
+        if watcher then
+          local ok = watcher:start(
+            vim.fs.dirname(path),
+            {},
+            vim.schedule_wrap(function(err, filename)
+              if err or generation ~= M._auto_generation then return end
+              if not filename or filename == vim.fs.basename(path) then check_source(false) end
+            end)
+          )
+          if ok then
+            M._watcher = watcher
+          else
+            watcher:close()
+          end
+        end
+      end
+    end
+    M._watch_stamp = stamp
+    if not initial and (force or changed) then debounce() end
+  end
+  M.check_source = check_source
+  -- Bind without scheduling a redundant initial reload.
+  check_source(false, true)
   vim.api.nvim_create_autocmd("User", {
     pattern = "ScoperChanged",
-    group = vim.api.nvim_create_augroup("scoper_lsp_auto", { clear = true }),
+    group = group,
     callback = function()
       -- Throttle: scope changes can fire rapidly during multi-add; debounce
       -- by 500ms so we only reload once after the last change.
@@ -874,19 +580,192 @@ function M.attach_auto()
       -- vim.defer_fn returns a uv_timer that auto-closes itself when it
       -- fires. If we cancel it before it fires, we must close it manually
       -- or the libuv handle leaks — one per cancelled debounce.
-      if M._timer and not M._timer:is_closing() then
-        M._timer:stop()
-        M._timer:close()
-      end
-      local timer
-      timer = vim.defer_fn(function()
-        if M._timer ~= timer or generation ~= M._auto_generation then return end
-        M._timer = nil
-        M.reload_clangd({ auto = true })
-      end, 500)
-      M._timer = timer
+      check_source(true)
     end,
   })
+  vim.api.nvim_create_autocmd("FocusGained", {
+    group = group,
+    callback = function()
+      check_source(false)
+    end,
+  })
+end
+
+-- A bounded asynchronous startup gate for vim.lsp.enable(). The root callback
+-- contract allows preparation without blocking UI or launching unfiltered first.
+-- A timeout keeps the buffer unattached; manual reload can retry afterwards.
+local function install_prepare_gate()
+  local current = vim.lsp.config.clangd or {}
+  local provider = current.root_dir
+  M._ownership = M._ownership or { cmd = current.cmd }
+  M._ownership.root_dir = provider
+  local generation = M._auto_generation
+  local function gate(buf, on_dir)
+    local function resolved(root)
+      if not ours(root) or not Path.is_under(vim.api.nvim_buf_get_name(buf), State.root()) then
+        return on_dir(root)
+      end
+      local finished = false
+      local timeout = (require("scoper").config.lsp or {}).prepare_timeout_ms or 5000
+      local timer = vim.defer_fn(function()
+        if finished then return end
+        finished = true
+        if generation ~= M._auto_generation then return end
+        M._startup =
+          { state = "timed_out", reason = "preparation timed out; run :ScoperLspReload to retry" }
+        vim.notify("Scoper LSP: " .. M._startup.reason, vim.log.levels.WARN)
+      end, timeout)
+      M._startup = { state = "preparing" }
+      local function complete()
+        finished = true
+        if not timer:is_closing() then
+          timer:stop()
+          timer:close()
+        end
+      end
+      local attempt
+      attempt = function()
+        if finished then return end
+        if generation ~= M._auto_generation or not vim.api.nvim_buf_is_valid(buf) then
+          return complete()
+        end
+        if not Path.is_under(vim.api.nvim_buf_get_name(buf), State.root()) then
+          complete()
+          return on_dir(root)
+        end
+        local context = Pipeline.context_key()
+        M.prepare(function(dir, info, changed, _, obsolete)
+          if finished then return end
+          if generation ~= M._auto_generation then return complete() end
+          if obsolete or context ~= Pipeline.context_key() then
+            -- Retry the current selection without resetting the original
+            -- timeout budget. Old work can never strand the waiting buffer.
+            return vim.schedule(attempt)
+          end
+          complete()
+          if not vim.api.nvim_buf_is_valid(buf) then return end
+          local selection = Pipeline.resolve()
+          local selected_ready = Pipeline.mode() == "selected"
+            and selection.path
+            and vim.fs.basename(selection.path) == "compile_commands.json"
+          if not dir and not selected_ready then
+            M._startup = { state = "unavailable", reason = info }
+            vim.notify("Scoper LSP: database startup unavailable: " .. info, vim.log.levels.WARN)
+            return
+          end
+          local cmd = cmd_from(dir, info, changed)
+          M._apply(cmd)
+          M._applied_cmd = table.concat(cmd, "\0")
+          M._startup = { state = "ready" }
+          on_dir(root)
+        end)
+      end
+      attempt()
+    end
+    if type(provider) == "function" then return provider(buf, resolved) end
+    local root = provider
+    if root == nil then
+      local markers = (vim.lsp.config.clangd or {}).root_markers
+      root = markers and vim.fs.root(buf, markers) or nil
+    end
+    resolved(root)
+  end
+  M._owned_root = gate
+  vim.lsp.config("clangd", { root_dir = gate })
+end
+
+function M.configure()
+  local cfg = require("scoper").config.lsp or {}
+  M._startup = { state = cfg.startup == "prepare" and "waiting" or "fallback" }
+  local mode = Pipeline.mode()
+  assert(
+    vim.tbl_contains({ "disabled", "native", "selected", "filtered" }, mode),
+    "invalid Scoper lsp.mode"
+  )
+  if mode == "disabled" or mode == "native" then
+    M._startup = { state = mode }
+    return
+  end
+  local current = (vim.lsp.config.clangd or {}).cmd
+  assert(
+    type(current) ~= "function" or cfg.cmd ~= nil,
+    "selected/filtered integration with a function-valued clangd cmd requires explicit lsp.cmd argv"
+  )
+  if type(current) == "table" and current ~= M._owned_cmd then
+    M._base_cmd = vim.deepcopy(current)
+  end
+  if mode ~= "native" then M.attach_auto() end
+  M.apply_initial()
+  if cfg.startup == "prepare" then install_prepare_gate() end
+end
+
+-- Multiple C-family buffers opening together share one captured preparation.
+function M.prepare(callback)
+  local context = Pipeline.context_key()
+  if M._preparing and M._preparing.context == context then
+    M._preparing.callbacks[#M._preparing.callbacks + 1] = callback
+    return
+  end
+  local pending = { context = context, callbacks = { callback } }
+  M._preparing = pending
+  M._filter_async(function(...)
+    if M._preparing == pending then M._preparing = nil end
+    for _, cb in ipairs(pending.callbacks) do
+      local ok, err = pcall(cb, ...)
+      if not ok then
+        vim.notify(
+          "Scoper LSP: preparation callback failed: " .. tostring(err),
+          vim.log.levels.ERROR
+        )
+      end
+    end
+  end, { no_sync = true })
+end
+
+function M.dispose()
+  M.detach_auto()
+  M._preparing = nil
+  M._startup, M._cmd = nil, nil
+  pcall(vim.api.nvim_del_augroup_by_name, "scoper_clangd_cmd")
+  if not M._ownership then return end
+  local current = vim.lsp.config.clangd or {}
+  local restore = vim.deepcopy(current)
+  local changed = false
+  if
+    current.cmd == M._owned_cmd
+    or (type(current.cmd) == "table" and vim.deep_equal(current.cmd, M._owned_cmd))
+  then
+    restore.cmd, changed = M._ownership.cmd, true
+  end
+  if current.root_dir == M._owned_root then
+    restore.root_dir, changed = M._ownership.root_dir, true
+  end
+  if changed then
+    local configs = vim.lsp.config
+    -- Replacement is Neovim's public API; merge cannot remove an owned key.
+    configs.clangd = restore -- luacheck: ignore 122
+  end
+  M._ownership, M._owned_cmd, M._owned_root, M._base_cmd = nil, nil, nil, nil
+end
+
+-- Reconcile final server options before activation, without reloading scopes.
+function M.reconfigure()
+  M.dispose()
+  local cfg = require("scoper").config.lsp or {}
+  if cfg.mode ~= nil or cfg.clangd then M.configure() end
+end
+
+function M.status()
+  local result = Pipeline.status()
+  result.startup = vim.deepcopy(M._startup or { state = "fallback" })
+  result.automatic = result.mode ~= "disabled"
+    and result.mode ~= "native"
+    and (
+      (require("scoper").config.lsp or {}).mode ~= nil
+      or (require("scoper").config.lsp or {}).clangd == true
+    )
+  result.effective = M._owned_cmd and M._cmd and vim.deepcopy(M._cmd) or nil
+  return result
 end
 
 return M

@@ -73,4 +73,37 @@ describe("diagnostic dump log I/O", function()
     assert.are.equal(vim.log.levels.ERROR, messages[#messages][2])
     assert.is_truthy(messages[#messages][1]:find("FAILED", 1, true))
   end)
+
+  it("uses copied public Scoper status without reading private integration fields", function()
+    local scoper, integration = package.loaded.scoper, package.loaded["scoper.lsp"]
+    package.loaded.scoper = {
+      snapshot = function()
+        return {
+          root = "/public/project",
+          scope = "headers",
+          enabled = true,
+          definition = { include = { "include" }, exclude = {} },
+        }
+      end,
+    }
+    package.loaded["scoper.lsp"] = setmetatable({
+      status = function()
+        return { mode = "selected", selection = { path = "/external/compile_commands.json" } }
+      end,
+    }, {
+      __index = function(_, name)
+        error("Private field accessed: " .. name)
+      end,
+    })
+    local ok, result = pcall(function()
+      local dump = diagnostics.dump()
+      local contents = table.concat(vim.fn.readfile(dump), "\n")
+      assert.is_truthy(contents:find("/public/project", 1, true))
+      assert.is_truthy(contents:find("/external/compile_commands.json", 1, true))
+      assert.is_truthy(contents:find('mode = "selected"', 1, true))
+      assert.is_nil(contents:find("Private field accessed", 1, true))
+    end)
+    package.loaded.scoper, package.loaded["scoper.lsp"] = scoper, integration
+    assert.is_true(ok, tostring(result))
+  end)
 end)

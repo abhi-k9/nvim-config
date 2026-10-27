@@ -7,7 +7,7 @@
 -- background process lsp.lua starts (cdb_worker.lua) to keep the main loop
 -- free on big databases (~400-500 ms for 10k entries / 20 MB).
 
-local State = require("scoper.state")
+local Scope = require("scoper.scope")
 local Path = require("scoper.path")
 local Util = require("scoper.util")
 
@@ -134,7 +134,8 @@ function M.run(job)
   local bad = M.invalid(entries)
   if bad then return { info = "compile_commands.json is not a compilation database: " .. bad } end
 
-  local kept = M.filter(entries, State.build_matcher(job.scope, job.root))
+  local kept = job.kind == "copy" and entries
+    or M.filter(entries, Scope.compile(job.scope, job.root))
   local encoded = vim.json.encode(kept)
   -- Did the database clangd will read actually change? Source-database
   -- edits affecting only entries outside this scope rewrite nothing, so
@@ -199,6 +200,11 @@ function M.run(job)
 
   return {
     dir = result_dir,
+    reason = job.kind == "copy" and "selected" or "filtered",
+    source = job.cc,
+    kept = #kept,
+    total = #entries,
+    context = job.context,
     info = ("%d/%d entries kept → %s"):format(#kept, #entries, out_path),
     changed = changed,
   }
