@@ -123,6 +123,11 @@ An empty project `tools.executables = {}` also clears a machine compiler overrid
 For the native Telescope sorter, an explicit compiler uses CMake with literal
 `-DCMAKE_C_COMPILER=...` argv when CMake is present, including paths with spaces.
 On Unix, a compiler without spaces can also use the Makefile's `CC` interface.
+Paths containing shell/Make/CMake metacharacters (such as `$`, `;`, `&` or `%`)
+skip this optional native build and retain the Lua sorter: these backends generate
+command text after the initial process launch. The compiler remains available to
+tools with a literal executable-path interface. An explicit trusted build override
+can provide a different supported backend.
 Windows Make is selected automatically only for its own `gcc` default: that
 Makefile overrides environment `CC`. CMake/MSVC remains the fallback. Existing
 CMake build-directory caches retain CMake's own compiler rules; rebuild or clear

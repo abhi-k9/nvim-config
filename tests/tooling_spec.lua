@@ -268,6 +268,23 @@ describe("optional tool prerequisites", function()
     assert.equals("prefer_rust_with_warning", tools.blink_implementation())
   end)
 
+  it("does not pass executable-path metacharacters into native build command text", function()
+    for _, name in ipairs({
+      "compiler;printf>OWNED",
+      "compiler$(probe)",
+      "compiler&other",
+      "compiler%VALUE%",
+    }) do
+      local compiler = "/toolchain/" .. name
+      available = { [compiler] = true, make = true }
+      require("config.settings").configure({ tools = { executables = { compiler = compiler } } })
+      assert.is_true(tools.compiler())
+      assert.is_false(tools.native_sorter_build())
+      available.cmake = true
+      assert.is_false(tools.native_sorter_build())
+    end
+  end)
+
   it("recognizes an absolute compiler and uses literal CMake argv for paths with spaces", function()
     local compiler = "/tools/my compiler/clang"
     available = { [compiler] = true, cmake = true, make = true }

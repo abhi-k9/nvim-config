@@ -106,6 +106,15 @@ function M.native_sorter_build()
     return override
   end
   local explicit = setting("tools.executables.compiler", vim.env.CC)
+  -- These build backends generate shell/Make/CMake command text later. An
+  -- executable pathname is data; do not let its characters become syntax.
+  if type(explicit) == "string" and explicit:find("[;&|<>$`\"'!(){}%[%]*?%%^\r\n]") then
+    M.record(
+      "Telescope native sorter build",
+      { "compiler path supported by native build backends" }
+    )
+    return false
+  end
   if explicit and have("cmake") and M.compiler() then
     -- CMAKE_C_COMPILER is a single argv element, including spaces. Passing
     -- it through Make's unquoted $(CC) recipe would split a valid path.
