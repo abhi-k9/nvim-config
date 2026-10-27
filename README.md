@@ -262,6 +262,7 @@ nvim/
 │       └── scoper.lua        local spec for bundled scoper.nvim
 ├── tests/                    plenary specs: config smoke + leader maps, behaviour
 │   ├── settings_spec.lua      local values, project isolation and option precedence
+│   ├── settings_startup_spec.lua  real local-file startup and plugin overrides
 │   ├── debug_policy_spec.lua  idempotent adapters and custom launch providers
 │   ├── debug_activation_spec.lua  overrides before first debugger activation
 │   ├── terminal_policy_spec.lua  inherited shells and per-project lazygit
@@ -278,6 +279,7 @@ nvim/
 │   ├── config_runtime_spec.lua  checkout discovery after a cold plugin install
 │   ├── lsp_initialization_spec.lua  first-client settings and capabilities
 │   ├── fixtures/
+│   │   ├── settings_startup.lua  controlled real machine-local startup profile
 │   │   ├── lsp_initialization.lua  real Lazy startup with controlled Mason boundary
 │   │   └── windows_dap_spawn.lua  native Windows adapter process and argv checks
 │   ├── escape_float_lifecycle_spec.lua  popup closure under reentrant window hooks
@@ -321,6 +323,7 @@ nvim/
 │   ├── session_dap_spec.lua    preserve normal files with debugger-like names
 │   └── offline_seed_test.py  Python tests for scripts/offline-seed.py (make test-seed)
 ├── docs/                     Human-facing docs (not loaded by nvim)
+│   ├── generalization-verification.md  test environment, acceptance cases and platform limits
 │   ├── tooling-configuration.md  selected languages, executable discovery and offline intent
 │   ├── scoper-core-notes.md   scope model, revisions, schema and persistence outcomes
 │   ├── scoper-integration-notes.md  build selection, clangd modes, startup and source refresh
