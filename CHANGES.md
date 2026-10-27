@@ -4,6 +4,21 @@ Newest first. New entries use one `## YYYY-MM-DD — <title>` heading per
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-10-27 — Keep Neo-tree width stable across debugger sessions
+
+### Fixed
+
+- DAP UI could give its closing left panel's 41 columns to Neo-tree on every
+  session exit, even with `winfixwidth` enabled. Preserve each existing sidebar's
+  current width around DAP UI operations, including partial closes and temporary
+  session-save closures. Manual widths and independent tab sidebars survive;
+  constrained windows can still shrink when needed.
+
+### Docs
+
+- The [debugger guide](docs/debug-terminal-configuration.md#neo-tree-width-during-debugging)
+  explains the cause and how to undo previously accumulated width once.
+
 ## 2026-10-26 — Broader configuration and independent Scoper build selection
 
 ### Fixed

@@ -236,6 +236,7 @@ nvim/
 │   │   │   ├── lsplog.lua        LSP log rotation
 │   │   │   └── swap.lua          swap guard, :SwapGuardToggle, :SwapDelete
 │   │   ├── dap.lua           nvim-dap setup: adapters, fallback configs, signs
+│   │   ├── dap_ui_layout.lua  prevent Neo-tree width growth during debugger layout changes
 │   │   ├── diagnostics.lua   :DiagnosticDump (hang triage)
 │   │   ├── lsp_format.lua    asynchronous LSP formatting with buffer lifecycle guards
 │   │   ├── health.lua        :checkhealth config (external toolchain check)
@@ -317,6 +318,7 @@ nvim/
 │   ├── buffer_menu_split_spec.lua  buffer menu splits from file windows
 │   ├── session_ui_visibility_spec.lua  preserve visible debugger layouts on save
 │   ├── dap_ui_lifecycle_spec.lua  shared debugger UI across sessions
+│   ├── dap_sidebar_width_spec.lua  real debugger layout cycles and manual sidebar widths
 │   ├── search_literal_paths_spec.lua  literal environment-like file names
 │   ├── navigation_paths_spec.lua  Telescope picker-relative clipboard paths
 │   ├── lsp_lifecycle_spec.lua  LSP attachment and per-buffer capabilities

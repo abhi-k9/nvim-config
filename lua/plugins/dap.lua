@@ -317,6 +317,7 @@ return {
     config = function(_, opts)
       local dap, dapui = require("dap"), require("dapui")
       dapui.setup(opts)
+      require("config.dap_ui_layout").attach(dapui)
 
       -- Auto-close the UI when the debuggee exits?
       --   true  (default) — close on terminate/exit for a clean session end.

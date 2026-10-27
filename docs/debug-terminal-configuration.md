@@ -98,6 +98,25 @@ does not relocate breakpoint persistence or third-party session files. Launch
 files and Lua callbacks are executable/debugging inputs: use trusted project
 files and review adapter commands before launching them.
 
+## Neo-tree width during debugging
+
+The locked DAP UI closes its default left sidebar before the bottom console
+strip. Neovim can give that sidebar's 40 columns plus its separator to adjacent
+Neo-tree, even with `winfixwidth` enabled. Repeated sessions would grow a
+32-column tree to 73, 114, 155 and 196 columns.
+
+The config protects existing left/right Neo-tree widths around each DAP UI
+open, close and toggle call. It captures the current width per operation,
+including trees in other tabs; a manual resize while debugging is preserved.
+Closed/replaced windows and floating/current-window/horizontal trees are left
+alone. It prevents automatic widening without forcing a larger width when a
+narrow screen needs to shrink the tree. No fixed 32-column reset is applied.
+
+After updating and restarting, undo any width growth already accumulated by
+focusing Neo-tree and running `:vertical resize 32` once (or your preferred
+width). Subsequent debugger cycles retain that choice. The same protection
+applies when session saving temporarily closes the debugger panels.
+
 ## Shell and lazygit policies
 
 `terminal.shell` now inherits `vim.o.shell` by default on every platform. This
