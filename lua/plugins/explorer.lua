@@ -29,6 +29,8 @@
 -- the OS clipboard or any register. Bound to <C-S-c> and Y in
 -- window.mappings below. (state.tree:get_node() is the node under the
 -- cursor; for the filesystem source its id is the absolute path.)
+local icons = require("config.settings").get("ui.icons", true)
+
 local function copy_node_path(state)
   local node = state.tree:get_node()
   if not node then return end
@@ -80,8 +82,10 @@ return {
   -- Auto-open neo-tree if Neovim is launched with a directory argument
   -- (e.g. `nvim .`). Without this, you'd get an empty buffer instead.
   init = function()
+    local group = vim.api.nvim_create_augroup("user_neotree_dir", { clear = true })
+    if not require("config.settings").get("explorer.auto_open", true) then return end
     vim.api.nvim_create_autocmd("BufEnter", {
-      group = vim.api.nvim_create_augroup("user_neotree_dir", { clear = true }),
+      group = group,
       desc = "Open neo-tree when nvim is launched on a directory",
       once = true, -- ← only fires once: at startup, or after a reload
       callback = function(ev)
@@ -145,14 +149,35 @@ return {
     -- Visual tweaks. Symbols are Nerd Font glyphs — they render as boxes if
     -- you don't have a Nerd Font set in your terminal.
     default_component_configs = {
-      indent = { with_markers = true, with_expanders = true },
-      modified = { symbol = "●" },
+      icon = icons and {} or {
+        provider = false,
+        default = "*",
+        folder_closed = "+",
+        folder_open = "-",
+        folder_empty = "+",
+        folder_empty_open = "-",
+        selected = "[x]",
+      },
+      indent = { with_markers = icons, with_expanders = icons },
+      modified = { symbol = icons and "●" or "*" },
+      diagnostics = icons and {}
+        or { symbols = { error = "E", warn = "W", info = "I", hint = "H" } },
       git_status = {
-        symbols = {
+        symbols = icons and {
           -- gitsigns already shows +/-/~ in the buffer's sign column, so
           -- we leave neo-tree's `added` blank to avoid duplication. The
           -- other symbols keep neo-tree's defaults.
           added = "",
+        } or {
+          added = "",
+          deleted = "-",
+          modified = "~",
+          renamed = "R",
+          untracked = "?",
+          ignored = "!",
+          unstaged = "*",
+          staged = "+",
+          conflict = "!",
         },
       },
     },
@@ -194,9 +219,9 @@ return {
       -- keeps the tree readable in JS projects without affecting fuzzy
       -- finding (telescope/fzf-lua have their own ignore rules).
       filtered_items = {
-        hide_dotfiles = false,
-        hide_gitignored = false,
-        hide_by_name = { ".DS_Store", "thumbs.db", "node_modules" },
+        hide_dotfiles = not require("config.search").visibility("explorer", "find").hidden,
+        hide_gitignored = require("config.search").visibility("explorer", "find").respect_gitignore,
+        hide_by_name = require("config.search").visibility("explorer", "find").exclude_dirs,
       },
       -- Keep the tree's cursor on the file you're currently editing.
       follow_current_file = { enabled = true },

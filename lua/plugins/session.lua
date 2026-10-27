@@ -26,10 +26,19 @@
 -- /private/var symlink, while getcwd() reports the long / resolved path.
 local suppressed_dirs = {}
 do
+  local configured = require("config.settings").get("sessions.suppressed_dirs")
   local is_win = vim.fn.has("win32") == 1
   local function add(p)
     if not p or p == "" then return end
-    p = vim.fn.expand(p)
+    -- Shipped defaults accept conventional home/env paths. Configured paths
+    -- are literal except a leading home shorthand (no $NAME expansion).
+    if configured == nil then
+      p = vim.fn.expand(p)
+    else
+      p = require("config.settings").resolve(function()
+        return p
+      end)
+    end
     p = vim.uv.fs_realpath(p) or p
     local variants = { p }
     -- Both separator styles on Windows: getcwd() is backslashed normally
@@ -39,17 +48,28 @@ do
       if not vim.tbl_contains(suppressed_dirs, v) then table.insert(suppressed_dirs, v) end
     end
   end
-  add("~")
-  add("~/Downloads")
-  add(vim.env.TEMP)
-  add(vim.env.TMP)
-  add(vim.env.TMPDIR)
-  if is_win then
-    add((vim.env.SystemDrive or "C:") .. "\\")
+  if configured ~= nil then
+    assert(type(configured) == "table", "sessions.suppressed_dirs must be a list")
+    for _, path in ipairs(configured) do
+      add(path)
+    end
   else
-    add("/tmp")
-    table.insert(suppressed_dirs, "/")
+    add("~")
+    add("~/Downloads")
+    add(vim.env.TEMP)
+    add(vim.env.TMP)
+    add(vim.env.TMPDIR)
+    if is_win then
+      add((vim.env.SystemDrive or "C:") .. "\\")
+    else
+      add("/tmp")
+      table.insert(suppressed_dirs, "/")
+    end
   end
+end
+
+local function global_buffers()
+  return require("config.settings").get("sessions.global_buffers", false)
 end
 
 -- Only layouts that a mid-session save actually closed are reopened.
@@ -61,6 +81,11 @@ local RESCUE_SKIP_FT = { gitcommit = true, gitrebase = true, gittag = true }
 return {
   "rmagatti/auto-session",
   lazy = false, -- must hook into VimEnter early
+  config = function(_, opts)
+    local session = require("auto-session")
+    session.setup(opts)
+    require("config.session").attach(session)
+  end,
   keys = {
     -- stylua: ignore start
     { "<leader>wf", "<cmd>AutoSession search<cr>",  desc = "Find session" },
@@ -85,26 +110,42 @@ return {
     -- Only the :AutoSession command; the Session* aliases print a
     -- deprecation notice on every use.
     legacy_cmds = false,
-    auto_save = true,
-    auto_restore = true,
+    auto_save = require("config.settings").get("sessions.auto_save", true),
+    auto_restore = require("config.settings").get("sessions.auto_restore", true),
     -- Launched with files (`nvim foo.c`)? auto-session's default is to
     -- never auto-save then. We save only when the work grew into
     -- something worth keeping — 2+ real file buffers or 2+ tabs — so a
     -- quick one-file edit never overwrites the project's session.
     args_allow_files_auto_save = function()
-      if #vim.api.nvim_list_tabpages() > 1 then return true end
+      local settings = require("config.settings")
+      local min_tabs, min_files =
+        settings.get("sessions.min_tabs", 2), settings.get("sessions.min_files", 2)
+      assert(
+        min_tabs == false or type(min_tabs) == "number" and min_tabs >= 1,
+        "sessions.min_tabs must be a positive number or false"
+      )
+      assert(
+        min_files == false or type(min_files) == "number" and min_files >= 1,
+        "sessions.min_files must be a positive number or false"
+      )
+      if min_tabs ~= false and #vim.api.nvim_list_tabpages() >= min_tabs then return true end
       local files = 0
       for _, b in ipairs(vim.api.nvim_list_bufs()) do
         if vim.bo[b].buflisted and require("config.util").is_file_buffer(b) then
           files = files + 1
         end
       end
-      return files >= 2
+      return min_files ~= false and files >= min_files
     end,
     -- Don't auto-restore in the home directory or a temp dir; restoring a
     -- random session because you ran `nvim` with no args is annoying. The
     -- list (including the platform temp dir) is built above.
     suppressed_dirs = suppressed_dirs,
+    pre_restore_cmds = {
+      function(session_name)
+        return not require("config.session").suppressed(session_name)
+      end,
+    },
 
     -- Session picker (:AutoSession search / <leader>wf). load_on_setup
     -- would require telescope at startup just to register
@@ -201,6 +242,10 @@ return {
       -- after the dap-buffer wipe above, so the saved map can't reference
       -- buffers we're about to delete.
       function()
+        if global_buffers() then
+          vim.g.ScopeState = nil
+          return
+        end
         vim.cmd("ScopeSaveState")
         -- scope.nvim serializes its handle-keyed cache with pairs(), whose
         -- order need not match the tab order recorded by :mksession (for
@@ -264,6 +309,7 @@ return {
     },
     post_restore_cmds = {
       function()
+        if global_buffers() then return end
         if vim.g.ScopeState == nil then return end
         vim.cmd("ScopeLoadState")
         -- ScopeLoadState rebuilds the cache as a list in saved-tab order,
@@ -287,6 +333,7 @@ return {
         core.on_tab_enter()
       end,
       function()
+        if global_buffers() then return end
         local ok, core = pcall(require, "scope.core")
         if not ok then return end
         -- NOTE: core.cache is scope.nvim INTERNAL state (tabpage →

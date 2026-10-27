@@ -11,6 +11,18 @@
 -- Telescope buffers-picker delete action (<C-d> / <M-d>). Collect the
 -- targets, hand them to the shared helper, then drop exactly the rows
 -- whose buffers are gone (skipped/dirty ones stay listed).
+local function telescope_search(method, kind)
+  return function()
+    require("telescope.builtin")[method](require("config.search").telescope_options(kind))
+  end
+end
+
+local function fzf_search(method, kind)
+  return function()
+    require("fzf-lua")[method](require("config.search").fzf_options(kind))
+  end
+end
+
 local function picker_delete_buffers(prompt_bufnr)
   local state = require("telescope.actions.state")
   local picker = state.get_current_picker(prompt_bufnr)
@@ -71,9 +83,15 @@ return {
     -- ui-select from the start: the first call loads telescope (its config
     -- replaces vim.ui.select) and is then handed to the new function.
     init = function()
+      local provider = require("config.settings").get("selector.provider", "telescope")
+      if provider == false or provider == "native" then return end
       local builtin_select = vim.ui.select
       local function stub(...)
-        require("lazy").load({ plugins = { "telescope.nvim" } })
+        if provider == "fzf" then
+          if vim.fn.executable("fzf") == 1 then require("fzf-lua").register_ui_select() end
+        else
+          require("lazy").load({ plugins = { "telescope.nvim" } })
+        end
         if vim.ui.select == stub then vim.ui.select = builtin_select end
         return vim.ui.select(...)
       end
@@ -82,9 +100,9 @@ return {
     keys = {
       -- Files / text
       -- stylua: ignore start
-      { "<leader>ff", "<cmd>Telescope find_files<cr>",                desc = "Find files" },
-      { "<leader>fg", "<cmd>Telescope live_grep<cr>",                 desc = "Live grep" },
-      { "<leader>fw", "<cmd>Telescope grep_string<cr>",               desc = "Grep word under cursor" },
+      { "<leader>ff", telescope_search("find_files", "find"),                desc = "Find files" },
+      { "<leader>fg", telescope_search("live_grep", "grep"),                 desc = "Live grep" },
+      { "<leader>fw", telescope_search("grep_string", "grep"),               desc = "Grep word under cursor" },
       { "<leader>fr", "<cmd>Telescope oldfiles<cr>",                  desc = "Recent files" },
       { "<leader>fb", "<cmd>Telescope buffers<cr>",                   desc = "Buffers (this tab)" },
       -- stylua: ignore end
@@ -94,8 +112,12 @@ return {
       {
         "<leader>fB",
         function()
-          require("telescope").load_extension("scope")
-          vim.cmd("Telescope scope buffers")
+          if require("config.settings").get("sessions.global_buffers", false) then
+            require("telescope.builtin").buffers()
+          else
+            require("telescope").load_extension("scope")
+            vim.cmd("Telescope scope buffers")
+          end
         end,
         desc = "Buffers (all tabs)",
       },
@@ -124,6 +146,7 @@ return {
       local actions = require("telescope.actions")
       return {
         defaults = {
+          disable_devicons = not require("config.settings").get("ui.icons", true),
           prompt_prefix = require("config.icons").misc.search .. " ",
           -- selection_caret drives the leading column on the SELECTED row.
           -- Telescope lays out every row assuming the caret occupies the
@@ -222,7 +245,9 @@ return {
           -- from grep. Keep only the two that are never useful in
           -- interactive finding; [/\\] because Windows paths use either
           -- separator.
-          file_ignore_patterns = { "%.git[/\\]", "node_modules[/\\]" },
+          file_ignore_patterns = require("config.search").component_patterns(
+            require("config.search").visibility("telescope", "find").exclude_dirs
+          ),
         },
         pickers = {
           -- Dotfiles are shown, but .git/ is excluded AT THE SOURCE: with
@@ -231,17 +256,12 @@ return {
           -- thousands of entries on a large repo). nil command = telescope's
           -- own default search when neither tool is installed.
           find_files = {
-            hidden = true,
-            find_command = (function()
-              for _, fd in ipairs({ "fd", "fdfind" }) do
-                if vim.fn.executable(fd) == 1 then
-                  return { fd, "--type", "f", "--hidden", "--exclude", ".git", "--color", "never" }
-                end
-              end
-              if vim.fn.executable("rg") == 1 then
-                return { "rg", "--files", "--hidden", "--glob", "!**/.git/*" }
-              end
-            end)(),
+            hidden = require("config.search").visibility("telescope", "find").hidden,
+            no_ignore = not require("config.search").visibility("telescope", "find").respect_gitignore,
+            follow = require("config.search").visibility("telescope", "find").follow_links,
+            find_command = require("config.search").find_command(
+              require("config.search").visibility("telescope", "find")
+            ),
           },
           buffers = {
             -- <Tab>/<S-Tab> multi-select, then <C-d> deletes every selected
@@ -284,7 +304,9 @@ return {
     config = function(_, opts)
       local ts = require("telescope")
       ts.setup(opts)
-      ts.load_extension("ui-select")
+      if require("config.settings").get("selector.provider", "telescope") == "telescope" then
+        ts.load_extension("ui-select")
+      end
       -- The native sorter is a build artefact: when the make/cmake build
       -- failed, telescope still works with its Lua sorter.
       pcall(ts.load_extension, "fzf")
@@ -300,9 +322,9 @@ return {
     dependencies = { "nvim-tree/nvim-web-devicons" },
     keys = {
       -- stylua: ignore start
-      { "<leader>Ff", "<cmd>FzfLua files<cr>",          desc = "Files (fzf)" },
-      { "<leader>Fg", "<cmd>FzfLua live_grep<cr>",      desc = "Live grep (fzf)" },
-      { "<leader>Fw", "<cmd>FzfLua grep_cword<cr>",     desc = "Grep cword (fzf)" },
+      { "<leader>Ff", fzf_search("files", "find"),          desc = "Files (fzf)" },
+      { "<leader>Fg", fzf_search("live_grep", "grep"),      desc = "Live grep (fzf)" },
+      { "<leader>Fw", fzf_search("grep_cword", "grep"),     desc = "Grep cword (fzf)" },
       { "<leader>Fb", "<cmd>FzfLua buffers<cr>",        desc = "Buffers (fzf)" },
       { "<leader>Fr", "<cmd>FzfLua oldfiles<cr>",       desc = "Recent (fzf)" },
       { "<leader>Fh", "<cmd>FzfLua help_tags<cr>",      desc = "Help (fzf)" },
@@ -323,6 +345,7 @@ return {
       -- stick on telescope's buffers picker. The other valid value is
       -- `"path.dirname_first"` for the inverse layout.
       defaults = {
+        file_icons = require("config.settings").get("ui.icons", true),
         formatter = "path.filename_first",
       },
       winopts = {

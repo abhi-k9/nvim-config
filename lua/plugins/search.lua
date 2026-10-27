@@ -4,6 +4,11 @@
 -- Think VS Code's "search across files" view, but inside Neovim and backed
 -- by ripgrep / ast-grep. Far more pleasant than `:cdo s/foo/bar/g | update`.
 
+local function open(prefills)
+  local opts = require("config.search").replace_options(prefills)
+  if opts then require("grug-far").open(opts) end
+end
+
 return {
   "MagicDuck/grug-far.nvim",
   cmd = { "GrugFar" },
@@ -19,7 +24,7 @@ return {
     {
       "<leader>sr",
       function()
-        require("grug-far").open()
+        open()
       end,
       desc = "Search/Replace (project)",
     },
@@ -31,7 +36,7 @@ return {
     {
       "<leader>sw",
       function()
-        require("grug-far").open({ prefills = { search = vim.fn.expand("<cword>") } })
+        open({ search = vim.fn.expand("<cword>") })
       end,
       desc = "Search/Replace word under cursor",
     },
@@ -83,7 +88,7 @@ return {
     {
       "<leader>sr",
       function()
-        require("grug-far").open()
+        open()
       end,
       mode = "x",
       desc = "Search/Replace selection",
