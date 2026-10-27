@@ -628,9 +628,11 @@
       <kbd>&lt;Esc&gt;</kbd> goes straight to lazygit and the window keys aren't mapped (leave terminal mode with
       <kbd>&lt;C-\&gt;&lt;C-n&gt;</kbd>). In every other terminal, <kbd class="green">&lt;C-h/j/k/l&gt;</kbd> jump to
       splits, on Windows too.</td></tr>
-    <tr><td colspan="2" class="note">Shell: on Windows, terminals run PowerShell 7 (<code>pwsh -NoLogo</code>)
-      when it's installed; <code>'shell'</code> itself stays cmd.exe for <code>:!</code>, <code>system()</code> and
-      plugins. Elsewhere they use <code>'shell'</code>.</td></tr>
+    <tr><td colspan="2" class="note">Terminals inherit <code>'shell'</code> on every platform.
+      Set <code>terminal.shell</code> in <code>local.lua</code> for a custom shell;
+      <code>"legacy"</code> restores the previous Windows preference for installed
+      PowerShell 7 (<code>pwsh -NoLogo</code>). See the
+      <a href="../debug-terminal-configuration.md">debugger/terminal guide</a>.</td></tr>
   </table>
 </div>
 

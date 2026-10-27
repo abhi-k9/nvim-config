@@ -3,9 +3,10 @@
 -- toggleterm — float / horizontal / vertical terminals and named
 -- terminals you can summon (e.g. a "lazygit" terminal).
 
--- One lazygit Terminal for the whole session, so <leader>tg toggles it
--- instead of spawning another lazygit on every press.
-local lazygit_term
+local Settings = require("config.settings")
+-- Keep separate handles only when requested. Existing processes are never
+-- killed merely because the editor moves to another project.
+local lazygit_terms = {}
 
 local function toggle(direction)
   return function()
@@ -39,6 +40,9 @@ return {
             vim.notify("lazygit is not on PATH", vim.log.levels.WARN)
             return
           end
+          local key = Settings.get("terminal.lazygit_per_project", false)
+              and Settings.project_root() or "session"
+          local lazygit_term = lazygit_terms[key]
           if not lazygit_term then
             lazygit_term = require("toggleterm.terminal").Terminal:new({
               cmd = "lazygit",
@@ -55,8 +59,11 @@ return {
               -- Quitting lazygit (q) ends the job; drop the handle so the
               -- next press starts a fresh one rather than toggling a
               -- dead terminal.
-              on_exit = function() lazygit_term = nil end,
+              on_exit = function()
+                if lazygit_terms[key] == lazygit_term then lazygit_terms[key] = nil end
+              end,
             })
+            lazygit_terms[key] = lazygit_term
           end
           lazygit_term:toggle()
         end, desc = "Lazygit" },
@@ -78,13 +85,20 @@ return {
       -- declared in `keys = { ... }` above; setting both made toggleterm
       -- register the mapping twice and made the source of truth ambiguous.
       --
-      -- Terminals run PowerShell 7 on Windows when it's installed, without
-      -- changing 'shell' (cmd.exe), which :!, system() and plugins use.
+      -- Inherit the configured shell unless explicitly overridden. "legacy"
+      -- retains the earlier Windows PowerShell preference for users who want it.
       shell = function()
-        if vim.fn.has("win32") == 1 and vim.fn.executable("pwsh") == 1 then
-          return "pwsh -NoLogo"
+        local shell = Settings.get("terminal.shell")
+        if type(shell) == "function" then shell = shell() end
+        if shell == "legacy" then
+          shell = vim.fn.has("win32") == 1 and vim.fn.executable("pwsh") == 1 and "pwsh -NoLogo"
+            or nil
         end
-        return vim.o.shell
+        assert(
+          shell == nil or type(shell) == "string" and shell ~= "",
+          "terminal.shell must be a nonempty string"
+        )
+        return shell or vim.o.shell
       end,
       -- Navigate OUT of a terminal window with the same <C-h/j/k/l> keys
       -- you use everywhere else. Set per terminal here, not from a

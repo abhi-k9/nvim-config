@@ -261,6 +261,7 @@ nvim/
 │   ├── settings_spec.lua      local values, project isolation and option precedence
 │   ├── debug_policy_spec.lua  idempotent adapters and custom launch providers
 │   ├── debug_activation_spec.lua  overrides before first debugger activation
+│   ├── terminal_policy_spec.lua  inherited shells and per-project lazygit
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager
@@ -313,6 +314,7 @@ nvim/
 ├── docs/                     Human-facing docs (not loaded by nvim)
 │   ├── scoper-core-notes.md   scope model, revisions, schema and persistence outcomes
 │   ├── scoper-integration-notes.md  build selection, clangd modes, startup and source refresh
+│   ├── debug-terminal-configuration.md  adapters, launch files, shells and lazygit
 │   ├── audit-2026-10-21.md     findings, regressions, sources, and limits
 │   ├── audit-followup-2026-10-22.md  expanded audit and complete file coverage
 │   ├── audit-resolution.md    unresolved findings, verification and retained limits
