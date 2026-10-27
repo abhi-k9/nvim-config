@@ -645,7 +645,12 @@ local function install_prepare_gate()
           complete()
           if not vim.api.nvim_buf_is_valid(buf) then return end
           local selection = Pipeline.resolve()
-          local selected_ready = Pipeline.mode() == "selected"
+          local snapshot = State.snapshot()
+          local restricted = Pipeline.mode() == "filtered"
+            and snapshot.enabled
+            and snapshot.definition
+            and #snapshot.definition.include > 0
+          local selected_ready = not restricted
             and selection.path
             and vim.fs.basename(selection.path) == "compile_commands.json"
           if not dir and not selected_ready then

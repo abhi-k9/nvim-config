@@ -179,6 +179,24 @@ describe("Scoper compilation integration policy", function()
     assert.equals("--compile-commands-dir=" .. root .. "/filtered", LSP._cmd[2])
     vim.api.nvim_buf_delete(buf, { force = true })
   end)
+  it("accepts full database preparation when filtering is off or its includes are empty", function()
+    for _, enabled in ipairs({ false, true }) do
+      State.clear_active()
+      State.set_enabled(enabled)
+      mode("filtered", { lsp = { startup = "prepare" } })
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_name(buf, root .. "/src/a.c")
+      local attached = false
+      vim.lsp.config.clangd.root_dir(buf, function()
+        attached = true
+      end)
+      assert.is_true(attached)
+      assert.equals("ready", LSP.status().startup.state)
+      assert.equals("--compile-commands-dir=" .. root, LSP._cmd[2])
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end
+  end)
+
   it("bounds strict preparation without starting on an unfiltered database", function()
     LSP._filter_async = function() end
     mode("filtered", { lsp = { startup = "prepare", prepare_timeout_ms = 1 } })
