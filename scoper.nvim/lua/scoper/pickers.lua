@@ -24,12 +24,13 @@
 local State = require("scoper.state")
 local Path = require("scoper.path")
 local Util = require("scoper.util")
+local Scope = require("scoper.scope")
 
 local M = {}
 
 -- ---------------------------------------------------------------------------
 -- Helper: get scope context as a single struct, or nil with a notify when
--- the active scope has includes but none of them is an existing directory
+-- the active scope has includes but none has an existing file/search root
 -- (so the user gets a clear error, not silent "search everything"
 -- behavior). `dirs` is nil when the whole cwd is in scope.
 -- ---------------------------------------------------------------------------
@@ -40,13 +41,10 @@ local function get_context()
     return nil
   end
   local cwd = State.root()
-  if not State.is_enabled() or #scope.include == 0 then
-    return { name = "all", cwd = cwd, excludes = {}, in_scope = State.matcher(cwd) }
-  end
-  local dirs = State.active_dirs()
-  if #dirs == 0 then
+  local query = Scope.query(scope, cwd, State.is_enabled())
+  if query.restricted and #query.roots == 0 then
     vim.notify(
-      ("Scoper: scope %q has no existing directories. Use :ScoperAdd first."):format(
+      ("Scoper: scope %q has no existing search roots. Use :ScoperAdd first."):format(
         State.active_name()
       ),
       vim.log.levels.WARN
@@ -54,11 +52,13 @@ local function get_context()
     return nil
   end
   return {
-    name = State.active_name(),
+    name = query.restricted and State.active_name() or "all",
     cwd = cwd,
-    dirs = dirs,
-    excludes = vim.deepcopy(scope.exclude),
-    in_scope = State.matcher(cwd),
+    dirs = query.roots,
+    excludes = query.excludes,
+    restricted = query.restricted,
+    in_scope = query.matches,
+    context = State.context(),
   }
 end
 M._context = get_context
@@ -269,6 +269,27 @@ local function follow_links()
   return vim.g.scoper_follow_links ~= false
 end
 
+-- A query may include individual files/globs, whose literal search roots
+-- are intentionally broader than the exact include predicate. Filter raw
+-- backend rows before decorating them, using the captured scope. Closures
+-- stay in this editor: fzf-lua's subprocess serializer cannot retain them.
+function M._fzf_transform(ctx, grep)
+  return function(line, opts)
+    local path = line
+    if grep then path = require("fzf-lua.path").entry_to_file(line, { cwd = ctx.cwd }).path end
+    if type(path) ~= "string" or not ctx.in_scope(path) then return nil end
+    return require("fzf-lua.make_entry").file(line, opts)
+  end
+end
+
+local function exact_fzf(opts, ctx, grep)
+  if ctx.restricted then
+    opts.multiprocess = false
+    opts.fn_transform = M._fzf_transform(ctx, grep)
+  end
+  return opts
+end
+
 -- ---------------------------------------------------------------------------
 -- :ScoperFind
 -- ---------------------------------------------------------------------------
@@ -314,7 +335,7 @@ function M._fzf_files_opts(ctx, escape)
       table.insert(parts, escape(Path.relative(d, cwd)))
     end
     opts.cmd = table.concat(parts, " ")
-    return opts
+    return exact_fzf(opts, ctx, false)
   end
   -- Setting fd_opts REPLACES fzf-lua's default fd options wholesale (it
   -- doesn't merge), so the essentials are rebuilt around our excludes,
@@ -325,12 +346,19 @@ function M._fzf_files_opts(ctx, escape)
   end
   opts.fd_opts = table.concat(parts, " ")
   opts.search_paths = ctx.dirs
-  return opts
+  return exact_fzf(opts, ctx, false)
 end
 
 function M.find()
   local ctx = get_context()
   if not ctx then return end
+  -- fd accepts only directory roots. With individual-file includes and no
+  -- ripgrep, retain the exact native lookup instead of handing fd bad roots.
+  local files_without_rg = vim.fn.executable("rg") ~= 1
+    and vim.iter(ctx.dirs or {}):any(function(root)
+      local stat = vim.uv.fs_stat(root)
+      return stat and stat.type == "file"
+    end)
 
   -- fzf-lua first (snappier on big trees). We search ALL of the scope's
   -- directories, not just the first.
@@ -340,12 +368,12 @@ function M.find()
   --
   -- To force the telescope backend instead, set
   -- `vim.g.scoper_picker = "telescope"`.
-  if Util.prefer_fzf() then
+  if not files_without_rg and Util.prefer_fzf() then
     require("fzf-lua").files(M._fzf_files_opts(ctx, require("fzf-lua.libuv").shellescape))
     return
   end
 
-  if has("telescope.builtin") then
+  if not files_without_rg and has("telescope.builtin") then
     if not telescope_literal_paths(ctx) then return end
     local config = require("telescope.config")
     local opts = {
@@ -387,11 +415,31 @@ end
 -- called `name` below the scope's dirs that the scope's excludes don't
 -- hide (or nil), and how many files of that name there were in all.
 function M._find_in_scope(ctx, name)
-  local found = vim.fn.findfile(name, M._find_path(ctx.dirs or { ctx.cwd or State.root() }), -1)
-  local in_scope = #ctx.excludes > 0 and (ctx.in_scope or State.matcher()) or nil
+  local dirs, found, seen = {}, {}, {}
+  for _, root in ipairs(ctx.dirs or { ctx.cwd or State.root() }) do
+    local stat = vim.uv.fs_stat(root)
+    if stat and stat.type == "file" then
+      if
+        name == vim.fs.basename(root) or Path.key(Path.absolute(name, ctx.cwd)) == Path.key(root)
+      then
+        found[#found + 1], seen[Path.key(root)] = root, true
+      end
+    else
+      dirs[#dirs + 1] = root
+    end
+  end
+  if #dirs > 0 then
+    for _, file in ipairs(vim.fn.findfile(name, M._find_path(dirs), -1)) do
+      local key = Path.key(Path.absolute(file, ctx.cwd))
+      if not seen[key] then
+        found[#found + 1], seen[key] = file, true
+      end
+    end
+  end
+  local in_scope = ctx.in_scope or State.matcher(ctx.cwd)
   for _, f in ipairs(found) do
     local full = vim.fn.fnamemodify(f, ":p")
-    if not in_scope or in_scope(full) then return full, #found end
+    if in_scope(full) then return full, #found end
   end
   return nil, #found
 end
@@ -414,13 +462,13 @@ function M._fzf_grep_opts(ctx, query, escape)
     table.insert(parts, M._rg_exclude(ex, escape))
   end
   table.insert(parts, "-e")
-  return {
+  return exact_fzf({
     prompt = ("Grep [%s]> "):format(ctx.name),
     cwd = cwd,
     search_paths = ctx.dirs,
     query = query or "",
     rg_opts = table.concat(parts, " "),
-  }
+  }, ctx, true)
 end
 
 -- `pattern` for :vimgrep /…/: every "/" not already escaped gets a
@@ -480,7 +528,8 @@ function M.grep(initial_query)
   end
   local files = {}
   for _, d in ipairs(ctx.dirs or {}) do
-    table.insert(files, vim.fn.fnameescape(d) .. "/**/*")
+    local stat = vim.uv.fs_stat(d)
+    table.insert(files, vim.fn.fnameescape(d) .. (stat and stat.type == "file" and "" or "/**/*"))
   end
   if not ctx.dirs then files = { vim.fn.fnameescape(ctx.cwd) .. "/**/*" } end
   -- nvim_cmd with bar = false: a "|" or '"' in the pattern is part of it,
@@ -501,7 +550,7 @@ function M.grep(initial_query)
   end
   -- vimgrep can't take excludes; apply the scope's excludes to the result
   -- so this backend agrees with the fzf-lua / telescope ones.
-  if #ctx.excludes > 0 then
+  if ctx.restricted or #ctx.excludes > 0 then
     local in_scope = ctx.in_scope or State.matcher()
     local kept = vim.tbl_filter(function(item)
       return item.bufnr == 0 or in_scope(vim.api.nvim_buf_get_name(item.bufnr))
