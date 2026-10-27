@@ -259,6 +259,8 @@ nvim/
 │       └── scoper.lua        local spec for bundled scoper.nvim
 ├── tests/                    plenary specs: config smoke + leader maps, behaviour
 │   ├── settings_spec.lua      local values, project isolation and option precedence
+│   ├── debug_policy_spec.lua  idempotent adapters and custom launch providers
+│   ├── debug_activation_spec.lua  overrides before first debugger activation
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
 │   ├── bootstrap_spec.lua     locked first-boot plugin manager

@@ -1,10 +1,12 @@
 describe("DAP UI session ownership", function()
-  local saved_dap, saved_ui, saved_preference, spec, dap, roots, current, closed, completion
+  local Settings = require("config.settings")
+  local saved_dap, saved_ui, saved_preference, spec, dap, roots, current, opened, closed, completion
 
   before_each(function()
     saved_dap, saved_ui = package.loaded.dap, package.loaded.dapui
     saved_preference = vim.g.dap_autoclose_ui
-    roots, current, closed, completion = {}, nil, 0, nil
+    Settings.reset()
+    roots, current, opened, closed, completion = {}, nil, 0, 0, nil
     dap = {
       listeners = {
         before = { attach = {}, launch = {}, event_terminated = {}, event_exited = {} },
@@ -23,7 +25,9 @@ describe("DAP UI session ownership", function()
     package.loaded.dap = dap
     package.loaded.dapui = {
       setup = function() end,
-      open = function() end,
+      open = function()
+        opened = opened + 1
+      end,
       close = function()
         closed = closed + 1
       end,
@@ -36,6 +40,7 @@ describe("DAP UI session ownership", function()
   after_each(function()
     package.loaded.dap, package.loaded.dapui = saved_dap, saved_ui
     vim.g.dap_autoclose_ui = saved_preference
+    Settings.reset()
   end)
 
   local function terminate_key()
@@ -44,6 +49,26 @@ describe("DAP UI session ownership", function()
     end
     error("terminate mapping not found")
   end
+
+  it("honors auto-open policy on first launch and attach", function()
+    Settings.configure({ debug = { auto_open_ui = false } })
+    dap.listeners.before.launch.dapui_config({ on_close = {} })
+    dap.listeners.before.attach.dapui_config({ on_close = {} })
+    assert.equals(0, opened)
+    Settings.configure({ debug = { auto_open_ui = true } })
+    dap.listeners.before.launch.dapui_config({ on_close = {} })
+    assert.equals(1, opened)
+  end)
+
+  it("seeds auto-close policy without overwriting an existing preference", function()
+    Settings.configure({ debug = { auto_close_ui = false } })
+    vim.g.dap_autoclose_ui = nil
+    spec[3].config(nil, {})
+    assert.is_false(vim.g.dap_autoclose_ui)
+    vim.g.dap_autoclose_ui = true
+    spec[3].config(nil, {})
+    assert.is_true(vim.g.dap_autoclose_ui)
+  end)
 
   it("preserves another root session's UI on exit and termination", function()
     local a, b = {}, {}

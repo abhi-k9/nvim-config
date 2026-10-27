@@ -33,12 +33,15 @@ local function close_ui_if_idle(dap)
   end)
 end
 
+local Settings = require("config.settings")
+
 return {
   -- -------------------------------------------------------------------------
   -- nvim-dap — core
   -- -------------------------------------------------------------------------
   {
     "mfussenegger/nvim-dap",
+    dependencies = { "mason-org/mason.nvim" }, -- resolve its configured root before adapter defaults
     keys = {
       -- ---- Breakpoints ----------------------------------------------------
       -- These use persistent-breakpoints.nvim's wrappers so the breakpoint
@@ -325,7 +328,9 @@ return {
       -- config BEFORE this plugin loads (e.g. `vim.g.dap_autoclose_ui = false`).
       -- We only seed the default when the user hasn't already set one, so a
       -- pre-set preference is never clobbered.
-      if vim.g.dap_autoclose_ui == nil then vim.g.dap_autoclose_ui = true end
+      if vim.g.dap_autoclose_ui == nil then
+        vim.g.dap_autoclose_ui = Settings.get("debug.auto_close_ui", true)
+      end
 
       -- Adapter crashes and transport disconnects can close a session
       -- without an exited/terminated event. on_close may run inside a libuv
@@ -336,7 +341,7 @@ return {
             close_ui_if_idle(dap)
           end)
         end
-        dapui.open()
+        if Settings.get("debug.auto_open_ui", true) ~= false then dapui.open() end
       end
       dap.listeners.before.attach.dapui_config = open_ui
       dap.listeners.before.launch.dapui_config = open_ui

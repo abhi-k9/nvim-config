@@ -9,16 +9,102 @@
 --   * fallback configurations for C/C++/Rust, Python and Bash
 
 local M = {}
+local Settings = require("config.settings")
+local instances = setmetatable({}, { __mode = "k" })
+
+function M.root()
+  return Settings.resolve(Settings.get("debug.root", "cwd"))
+end
+
+function M.launch_file(root)
+  root = root or M.root()
+  local path = Settings.get("debug.launch_file", ".vscode/launch.json")
+  if type(path) == "function" then path = path(root, vim.api.nvim_get_current_buf()) end
+  if path == false then return nil end
+  assert(type(path) == "string" and path ~= "", "debug.launch_file must return a path or false")
+  path = vim.fs.normalize(path, { expand_env = false })
+  if path:sub(1, 1) ~= "/" and not path:match("^%a:[/\\]") and path:sub(1, 2) ~= "\\\\" then
+    path = vim.fs.joinpath(root, path)
+  end
+  return vim.fs.normalize(path, { expand_env = false })
+end
+
+-- Bind only workspace variables; nvim-dap retains ownership of file/env/input
+-- expansion. A callable VS Code configuration keeps its input prompt behavior.
+local function bind_workspace(value, root)
+  if type(value) == "string" then
+    return (
+      value
+        :gsub("%${workspaceFolderBasename}", function()
+          return vim.fs.basename(root)
+        end)
+        :gsub("%${workspaceFolder}", function()
+          return root
+        end)
+    )
+  end
+  if type(value) ~= "table" then return value end
+  local result = {}
+  for key, item in pairs(value) do
+    result[key] = bind_workspace(item, root)
+  end
+  local mt = getmetatable(value)
+  if mt and mt.__call then
+    local wrapped = vim.tbl_extend("force", mt, {
+      __call = function(_, ...)
+        return bind_workspace(value(...), root)
+      end,
+    })
+    return setmetatable(result, wrapped)
+  end
+  return setmetatable(result, mt)
+end
+
+local function configure_launch_provider(dap, owned)
+  local providers = dap.providers and dap.providers.configs
+  if not providers then return end -- also supports minimal adapter-only hosts
+  -- Install once even when the initial project has no override. Trusted
+  -- project overlays can change later, so root/source policy is resolved on
+  -- invocation. A user replacing our provider takes ownership permanently;
+  -- repeated setup must not silently replace that later customization.
+  if owned.provider then return end
+  owned.previous_provider = providers["dap.launch.json"]
+  owned.provider = function(...)
+    local configured = Settings.get("debug.root") ~= nil or Settings.get("debug.launch_file") ~= nil
+    if not configured then
+      if owned.previous_provider then return owned.previous_provider(...) end
+      return {}
+    end
+    local root = M.root()
+    local path = M.launch_file(root)
+    if not path then return {} end
+    local ok, configs = pcall(require("dap.ext.vscode").getconfigs, path)
+    if not ok then
+      vim.notify_once(
+        "Cannot read debugger launch file: " .. tostring(configs),
+        vim.log.levels.WARN
+      )
+      return {}
+    end
+    return bind_workspace(configs, root)
+  end
+  providers["dap.launch.json"] = owned.provider
+end
 
 function M.setup()
   local dap = require("dap")
+  local owned = instances[dap]
+  if not owned then
+    owned = { adapters = {}, fallbacks = {} }
+    instances[dap] = owned
+  end
+  local adapters, fallbacks = {}, { cpp = {}, python = {}, sh = {}, bash = {} }
 
   -- -----------------------------------------------------------------------
   -- Pause without the "which thread?" picker (with an escape hatch).
   --
   -- DAP's `pause` request targets a single threadId, so nvim-dap prompts
-  -- you to choose when a session has multiple threads — painful with the
-  -- ~30 a GUI/ACIS app spawns. codelldb (like most native debuggers) is
+  -- you to choose when a session has multiple threads. codelldb is
   -- ALL-STOP: pausing any one thread halts the whole program, so the
   -- choice is meaningless and we just grab the first thread.
   --
@@ -28,9 +114,12 @@ function M.setup()
   -- Threads panel's own pause action — bypasses both paths and pauses
   -- exactly that thread regardless of the toggle.
   -- -----------------------------------------------------------------------
-  vim.g.dap_pause_pick_thread = false
-  local _pause = dap.pause
-  dap.pause = function(thread_id)
+  if vim.g.dap_pause_pick_thread == nil then
+    vim.g.dap_pause_pick_thread = Settings.get("debug.pause_pick_thread", false)
+  end
+  local _pause = dap.pause == owned.pause and owned.previous_pause or dap.pause
+  owned.previous_pause = _pause
+  owned.pause = function(thread_id)
         -- stylua: ignore start
         if thread_id then return _pause(thread_id) end          -- explicit id wins
         if vim.g.dap_pause_pick_thread then return _pause() end  -- restore picker
@@ -48,18 +137,24 @@ function M.setup()
     end)
   end
 
+  dap.pause = owned.pause
+
   -- Pretty signs for breakpoints, the stopped line, etc.
   local sign = vim.fn.sign_define
+  local icons = Settings.get("ui.icons", true) ~= false
+  local function glyph(symbol, ascii)
+    return icons and symbol or ascii
+  end
       -- stylua: ignore start
-      sign("DapBreakpoint",          { text = "●",  texthl = "DiagnosticError", linehl = "", numhl = "" })
-      sign("DapBreakpointCondition", { text = "◆",  texthl = "DiagnosticError", linehl = "", numhl = "" })
-      sign("DapLogPoint",            { text = "◆",  texthl = "DiagnosticInfo",  linehl = "", numhl = "" })
-      sign("DapStopped",             { text = "▶",  texthl = "DiagnosticWarn",
+      sign("DapBreakpoint",          { text = glyph("●", "B"),  texthl = "DiagnosticError", linehl = "", numhl = "" })
+      sign("DapBreakpointCondition", { text = glyph("◆", "*"),  texthl = "DiagnosticError", linehl = "", numhl = "" })
+      sign("DapLogPoint",            { text = glyph("◆", "*"),  texthl = "DiagnosticInfo",  linehl = "", numhl = "" })
+      sign("DapStopped",             { text = glyph("▶", ">"),  texthl = "DiagnosticWarn",
                                        linehl = "DapStoppedLine", numhl = "DiagnosticWarn" })
   -- stylua: ignore end
   sign(
     "DapBreakpointRejected",
-    { text = "○", texthl = "DiagnosticError", linehl = "", numhl = "" }
+    { text = glyph("○", "?"), texthl = "DiagnosticError", linehl = "", numhl = "" }
   )
 
   -- -----------------------------------------------------------------------
@@ -79,13 +174,17 @@ function M.setup()
   -- `load_launchjs()` (which still works but emits a warning since it
   -- duplicates what the provider does).
   --
-  -- Note: ${workspaceFolder} resolves to vim.fn.getcwd() at the moment
-  -- dap.continue() is invoked. Use :cd / :tcd / :lcd to change it.
+  -- The provider and this validator use the same resolved root/source. With
+  -- no override, nvim-dap keeps its normal invocation-time cwd behavior.
   vim.api.nvim_create_user_command("DapLoadLaunchJSON", function()
-    local path = ".vscode/launch.json"
-    local cwd = vim.fn.getcwd()
+    local cwd = M.root()
+    local path = M.launch_file(cwd)
+    if not path then
+      vim.notify("Project launch files are disabled", vim.log.levels.INFO)
+      return
+    end
     if vim.fn.filereadable(path) == 0 then
-      vim.notify(("No %s in cwd (%s)"):format(path, cwd), vim.log.levels.WARN)
+      vim.notify(("No %s in debug root (%s)"):format(path, cwd), vim.log.levels.WARN)
       return
     end
     local ok, vscode = pcall(require, "dap.ext.vscode")
@@ -117,6 +216,8 @@ function M.setup()
   end, { desc = "Validate & preview .vscode/launch.json" })
 
   -- -----------------------------------------------------------------------
+  configure_launch_provider(dap, owned)
+
   -- Adapters
   -- -----------------------------------------------------------------------
   -- Every adapter is registered here, so this file is the list of `type`
@@ -128,7 +229,8 @@ function M.setup()
   -- image/runtime with an argv list there, keeping literal spaces and shell
   -- metacharacters out of a command interpreter. Unix keeps Mason's shims.
   local settings = package.loaded["mason.settings"]
-  local mason_root = settings and settings.current and settings.current.install_root_dir
+  local mason_root = Settings.get("debug.mason_root")
+    or settings and settings.current and settings.current.install_root_dir
     or vim.fs.joinpath(vim.fn.stdpath("data"), "mason")
   local mason_bin = vim.fs.joinpath(mason_root, "bin")
   local mason_packages = vim.fs.joinpath(mason_root, "packages")
@@ -141,7 +243,7 @@ function M.setup()
   -- cpptools / OpenDebugAD7 — Microsoft's C/C++ debug adapter.
   -- nvim-dap spawns adapters detached by default; keep Windows starts in
   -- this process group instead of opening a separate console.
-  dap.adapters.cppdbg = {
+  adapters.cppdbg = {
     id = "cppdbg",
     type = "executable",
     command = mason_exe(
@@ -158,7 +260,7 @@ function M.setup()
   -- codelldb — alternate C/C++/Rust adapter (LLDB-based, often snappier).
   -- Uses the `server` type because codelldb starts a TCP server and
   -- nvim-dap connects to it; the port is filled in dynamically.
-  dap.adapters.codelldb = {
+  adapters.codelldb = {
     type = "server",
     port = "${port}",
     -- nvim-dap retries the TCP connect 14 × 250 ms (3.5 s) by default.
@@ -181,7 +283,7 @@ function M.setup()
   -- spawning an unrelated stdio adapter leaves it waiting for a debug
   -- server that will never connect. Launch, PID attach and reverse-listen
   -- attach still need their own stdio adapter.
-  dap.adapters.python = function(callback, config)
+  adapters.python = function(callback, config)
     local connect = config.request == "attach" and (config.connect or config)
     if connect and connect.port then
       callback({
@@ -206,7 +308,7 @@ function M.setup()
   -- Unix-likes; on Windows it additionally needs bash/cat/mkfifo/
   -- pkill on PATH (e.g. Git Bash), which is why it's fallback-only.
   local node = is_windows and vim.fn.exepath("node.exe") or ""
-  dap.adapters.bashdb = {
+  adapters.bashdb = {
     type = "executable",
     command = is_windows and (node ~= "" and node or "node.exe") or mason_exe("bash-debug-adapter"),
     args = is_windows
@@ -231,7 +333,7 @@ function M.setup()
   -- Linux/Windows (Windows requires gdb to be on PATH — install via
   -- mingw/msys2 if missing). macOS prefers lldb because Apple stopped
   -- signing gdb a decade ago and getting it to attach is a chore.
-  local default_mimode = vim.fn.has("mac") == 1 and "lldb" or "gdb"
+  local default_mimode = Settings.get("debug.mimode", vim.fn.has("mac") == 1 and "lldb" or "gdb")
 
   -- "Path to executable" prompt shared by the fallbacks below. <Esc>
   -- (empty input) or accepting the pre-filled directory returns
@@ -239,18 +341,17 @@ function M.setup()
   -- session anyway: cppdbg failed with "property 'program' is missing
   -- or empty" and codelldb with "'<cwd>' is not a valid executable".
   local function ask_program()
-    local p = vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/", "file")
+    local p = vim.fn.input("Path to executable: ", M.root() .. "/", "file")
     if p == "" or vim.fn.isdirectory(p) == 1 then return dap.ABORT end
     return p
   end
 
-  dap.configurations.cpp = dap.configurations.cpp or {}
-  table.insert(dap.configurations.cpp, {
+  table.insert(fallbacks.cpp, {
     name = "‹fallback› Pick executable (cppdbg)",
     type = "cppdbg",
     request = "launch",
     program = ask_program,
-    cwd = "${workspaceFolder}",
+    cwd = M.root,
     stopAtEntry = false,
     MIMode = default_mimode,
     setupCommands = default_mimode == "gdb" and {
@@ -261,7 +362,7 @@ function M.setup()
       },
     } or nil,
   })
-  table.insert(dap.configurations.cpp, {
+  table.insert(fallbacks.cpp, {
     name = "‹fallback› Attach to process (cppdbg)",
     type = "cppdbg",
     request = "attach",
@@ -281,17 +382,17 @@ function M.setup()
   --     ("integrated") can trigger. The field and value behave the same
   --     on Linux / macOS / Windows, so this stays cross-platform.
   --   * attach uses `pid` (cppdbg uses processId).
-  table.insert(dap.configurations.cpp, {
+  table.insert(fallbacks.cpp, {
     name = "‹fallback› Pick executable (codelldb)",
     type = "codelldb",
     request = "launch",
     program = ask_program,
-    cwd = "${workspaceFolder}",
+    cwd = M.root,
     stopOnEntry = false,
-    terminal = "console",
+    terminal = Settings.get("debug.codelldb_terminal", "console"),
     -- Defer symbol-table parsing until a module is actually needed.
-    -- For large native binaries (e.g. an ACIS/OpenGL app with many big
-    -- DLLs) LLDB otherwise preloads every module's debug info at launch,
+    -- For large native binaries with many libraries, LLDB otherwise
+    -- preloads every module's debug info at launch,
     -- which a dap trace showed eating 1–2 MINUTES of cold start. This
     -- is the long-standing, always-safe setting. If your codelldb's LLDB
     -- is recent enough you can add the more aggressive
@@ -300,14 +401,17 @@ function M.setup()
     -- left out here because it errors on older LLDB. The other half of
     -- the fix is OS-side: exclude your build-output and the Mason
     -- codelldb dir from Windows Defender real-time scanning.
-    initCommands = { "settings set target.preload-symbols false" },
+    initCommands = Settings.get(
+      "debug.codelldb_init_commands",
+      { "settings set target.preload-symbols false" }
+    ),
   })
-  table.insert(dap.configurations.cpp, {
+  table.insert(fallbacks.cpp, {
     name = "‹fallback› Attach to process (codelldb)",
     type = "codelldb",
     request = "attach",
     pid = require("dap.utils").pick_process,
-    cwd = "${workspaceFolder}",
+    cwd = M.root,
   })
 
       -- Use deepcopy so the three filetype tables are independent — a plain
@@ -315,22 +419,30 @@ function M.setup()
       -- .vscode/launch.json appending a Rust-only config) would silently
       -- mutate cpp and c too.
       -- stylua: ignore start
-      dap.configurations.c    = vim.deepcopy(dap.configurations.cpp)
-      dap.configurations.rust = vim.deepcopy(dap.configurations.cpp)
+      fallbacks.c    = vim.deepcopy(fallbacks.cpp)
+      fallbacks.rust = vim.deepcopy(fallbacks.cpp)
   -- stylua: ignore end
 
   -- Python fallback. `pythonPath` prefers the ACTIVE virtualenv
   -- (debugging against the project env, not the global interpreter,
   -- is nearly always what's wanted); falls back to whatever
   -- python/python3 is on PATH.
-  dap.configurations.python = dap.configurations.python or {}
-  table.insert(dap.configurations.python, {
+  table.insert(fallbacks.python, {
     name = "‹fallback› Launch current file (debugpy)",
     type = "python",
     request = "launch",
     program = "${file}",
-    cwd = "${workspaceFolder}",
+    cwd = M.root,
     pythonPath = function()
+      local python = Settings.get("debug.python")
+      if type(python) == "function" then python = python(M.root()) end
+      if python ~= nil then
+        assert(
+          type(python) == "string" and python ~= "",
+          "debug.python must return an interpreter path"
+        )
+        return python
+      end
       -- Interpreter inside an environment root (venv or conda layout).
       local function env_python(root)
         if not root or root == "" then return nil end
@@ -344,7 +456,7 @@ function M.setup()
       -- Activated env first ($VIRTUAL_ENV, then conda's $CONDA_PREFIX),
       -- then an un-activated project env in the cwd (.venv / venv — the
       -- uv / poetry / python -m venv convention), then PATH.
-      local cwd = vim.fn.getcwd()
+      local cwd = M.root()
       return env_python(os.getenv("VIRTUAL_ENV"))
         or env_python(os.getenv("CONDA_PREFIX"))
         or env_python(vim.fs.joinpath(cwd, ".venv"))
@@ -359,13 +471,12 @@ function M.setup()
   local bash_debug_dir = vim.fs.joinpath(mason_packages, "bash-debug-adapter")
   local bashdb_dir = vim.fs.joinpath(bash_debug_dir, "extension", "bashdb_dir")
   for _, ft in ipairs({ "sh", "bash" }) do
-    dap.configurations[ft] = dap.configurations[ft] or {}
-    table.insert(dap.configurations[ft], {
+    table.insert(fallbacks[ft], {
       name = "‹fallback› Run current script (bashdb)",
       type = "bashdb",
       request = "launch",
       program = "${file}",
-      cwd = "${workspaceFolder}",
+      cwd = M.root,
       pathBashdb = vim.fs.joinpath(bashdb_dir, "bashdb"),
       pathBashdbLib = bashdb_dir,
       pathBash = "bash",
@@ -375,6 +486,58 @@ function M.setup()
       env = {},
       args = {},
     })
+  end
+
+  local adapter_overrides = Settings.get("debug.adapters", {})
+  for name, adapter in pairs(adapters) do
+    local override = adapter_overrides[name]
+    if override == false then
+      dap.adapters[name], owned.adapters[name] = nil, nil
+    elseif
+      override ~= nil
+      or dap.adapters[name] == nil
+      or dap.adapters[name] == owned.adapters[name]
+    then
+      adapter = override ~= nil and override or adapter
+      dap.adapters[name], owned.adapters[name] = adapter, adapter
+    end
+  end
+  for name, adapter in pairs(adapter_overrides) do
+    if adapters[name] == nil then dap.adapters[name] = adapter ~= false and adapter or nil end
+  end
+
+  -- Remove only this module's old fallback objects, never user configurations.
+  for _, configurations in pairs(dap.configurations) do
+    for i = #configurations, 1, -1 do
+      if owned.fallbacks[configurations[i]] then table.remove(configurations, i) end
+    end
+  end
+  owned.fallbacks = {}
+  if Settings.get("debug.fallbacks", true) ~= false then
+    for ft, configurations in pairs(fallbacks) do
+      dap.configurations[ft] = dap.configurations[ft] or {}
+      for _, config in ipairs(configurations) do
+        local present = vim.tbl_contains(dap.configurations[ft], function(existing)
+          return existing.name == config.name
+        end, { predicate = true })
+        if not present and dap.adapters[config.type] ~= nil then
+          table.insert(dap.configurations[ft], config)
+          owned.fallbacks[config] = true
+        end
+      end
+    end
+  end
+  for ft, configurations in pairs(Settings.get("debug.configurations", {})) do
+    assert(
+      configurations == false or vim.islist(configurations),
+      "debug.configurations entries must be lists or false"
+    )
+    dap.configurations[ft] = configurations == false and {} or configurations
+  end
+  local configure = Settings.get("debug.configure")
+  if configure ~= nil then
+    assert(type(configure) == "function", "debug.configure must be a function")
+    configure(dap)
   end
 end
 
