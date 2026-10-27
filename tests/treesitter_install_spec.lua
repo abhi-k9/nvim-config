@@ -41,7 +41,7 @@ describe("on-demand parser installation", function()
       end,
     }
     local spec = dofile(vim.fn.getcwd() .. "/lua/plugins/treesitter.lua")[1]
-    spec.config(nil, { parsers = {} })
+    spec.config(nil, { parsers = { "lua" } })
     -- Drain the deferred eager install before counting on-demand attempts.
     vim.wait(20, function()
       return false
@@ -86,6 +86,12 @@ describe("on-demand parser installation", function()
     dofile(vim.fn.getcwd() .. "/lua/plugins/treesitter.lua")[1].config(nil, {
       parsers = { "audit_parser" },
     })
+    filetype()
+    assert.equals(0, attempts)
+  end)
+
+  it("does not provision on first use when the selected parser list is empty", function()
+    dofile(vim.fn.getcwd() .. "/lua/plugins/treesitter.lua")[1].config(nil, { parsers = {} })
     filetype()
     assert.equals(0, attempts)
   end)

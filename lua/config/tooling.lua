@@ -2,6 +2,12 @@
 -- health checks retain the reasons. Explicit installer commands still work.
 local M = {}
 local skipped, msvc, python_cache = {}, nil, {}
+local assigned_cc, previous_cc
+local msvc_key
+
+local function setting(path, default)
+  return require("config.settings").get(path, default)
+end
 
 local function have(bin)
   return vim.fn.executable(bin) == 1
@@ -27,10 +33,13 @@ end
 -- expensive probe; installing Build Tools takes a restart to be discovered.
 function M.msvc_install_path()
   if vim.fn.has("win32") == 0 then return nil end
-  if msvc ~= nil then return msvc or nil end
-  msvc = false
-  local vswhere = (vim.env["ProgramFiles(x86)"] or "C:\\Program Files (x86)")
-    .. "\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+  local vswhere = setting(
+    "tools.executables.vswhere",
+    (vim.env["ProgramFiles(x86)"] or "C:\\Program Files (x86)")
+      .. "\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+  )
+  if msvc_key == vswhere and msvc ~= nil then return msvc or nil end
+  msvc_key, msvc = vswhere, false
   if not have(vswhere) then return nil end
   local ok, result = pcall(function()
     return vim
@@ -54,10 +63,30 @@ function M.msvc_install_path()
 end
 
 function M.compiler()
+  M.configure_build_environment()
+  local explicit = setting("tools.executables.compiler", vim.env.CC)
+  if explicit then return type(explicit) == "string" and have(explicit) end
   return any({ "cc", "clang", "gcc", "cl" }) or M.msvc_install_path() ~= nil
 end
 
+-- tree-sitter and CMake consume CC; the Unix sorter Makefile does too.
+-- Windows' sorter Makefile hard-codes gcc, so an explicit different compiler
+-- selects CMake (or the user's explicit build command) instead.
+function M.configure_build_environment()
+  local compiler = setting("tools.executables.compiler")
+  if type(compiler) == "string" and have(compiler) then
+    if assigned_cc == nil or vim.env.CC ~= assigned_cc then previous_cc = vim.env.CC end
+    vim.env.CC, assigned_cc = compiler, compiler
+  elseif assigned_cc ~= nil then
+    -- A project overlay must not leave its compiler behind in the next
+    -- project. Preserve an intervening environment change by its owner.
+    if vim.env.CC == assigned_cc then vim.env.CC = previous_cc end
+    assigned_cc, previous_cc = nil, nil
+  end
+end
+
 function M.parsers_ready()
+  M.configure_build_environment()
   local missing = {}
   for _, bin in ipairs({ "tree-sitter", "curl", "tar" }) do
     if not have(bin) then missing[#missing + 1] = bin end
@@ -67,9 +96,43 @@ function M.parsers_ready()
 end
 
 function M.native_sorter_build()
+  M.configure_build_environment()
+  local override = setting("tools.native_sorter_build")
+  if override ~= nil then
+    assert(
+      override == false or type(override) == "string" or type(override) == "function",
+      "tools.native_sorter_build must be false, a command or build function"
+    )
+    return override
+  end
+  local explicit = setting("tools.executables.compiler", vim.env.CC)
+  if explicit and have("cmake") and M.compiler() then
+    -- CMAKE_C_COMPILER is a single argv element, including spaces. Passing
+    -- it through Make's unquoted $(CC) recipe would split a valid path.
+    M.record("Telescope native sorter build", {})
+    return function(plugin)
+      for _, args in ipairs({
+        {
+          "cmake",
+          "-S.",
+          "-Bbuild",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_C_COMPILER=" .. explicit,
+        },
+        { "cmake", "--build", "build", "--config", "Release", "--target", "install" },
+      }) do
+        local result = vim.system(args, { cwd = plugin.dir, text = true }):wait()
+        assert(result.code == 0, result.stderr or result.stdout or "CMake build failed")
+      end
+    end
+  end
   if
     have("make")
-    and (vim.fn.has("win32") == 1 and have("gcc") or vim.fn.has("win32") == 0 and have("cc"))
+    and (
+      vim.fn.has("win32") == 1 and not explicit and have("gcc")
+      or vim.fn.has("win32") == 0
+        and (explicit and not explicit:find("%s") and have(explicit) or not explicit and have("cc"))
+    )
   then
     M.record("Telescope native sorter build", {})
     return "make"
@@ -107,24 +170,15 @@ local npm = {
   ["css-lsp"] = true,
   prettierd = true,
 }
-local servers = {
-  bashls = "bash-language-server",
-  lua_ls = "lua-language-server",
-  clangd = "clangd",
-  pyright = "pyright",
-  ruff = "ruff",
-  ts_ls = "typescript-language-server",
-  rust_analyzer = "rust-analyzer",
-  jsonls = "json-lsp",
-  yamlls = "yaml-language-server",
-  html = "html-lsp",
-  cssls = "css-lsp",
-  marksman = "marksman",
-  taplo = "taplo",
-}
+function M.uses_node(package)
+  return npm[package] == true or package == "bash-debug-adapter"
+end
 
 local function python()
-  for _, bin in ipairs({ "python3", "python" }) do
+  -- Mason's PyPI installer resolves these names itself. A custom runtime
+  -- probe cannot substitute for an installer interpreter available on PATH.
+  local candidates = vim.fn.has("win32") == 1 and { "python", "python3" } or { "python3", "python" }
+  for _, bin in ipairs(candidates) do
     -- Windows Store execution aliases look executable but are not Python.
     local path = vim.fn.exepath(bin)
     if have(bin) and not path:find("[/\\]WindowsApps[/\\]") then
@@ -204,12 +258,17 @@ end
 
 function M.configure_servers(opts)
   opts = vim.deepcopy(opts)
-  local installs = {}
+  local intent = require("config.tool_intent")
+  local servers = intent.mapping()
+  local installs, selected = {}, {}
   for _, server in ipairs(opts.ensure_installed or {}) do
     -- mason-lspconfig accepts server@version; keep the requested pin while
     -- checking the same prerequisites as the unversioned server.
-    local name = server:match("^([^@]+)") or server
-    if M.install_supported(servers[name] or name) then installs[#installs + 1] = server end
+    local name = intent.identity(server)
+    selected[name] = setting("lsp.servers." .. name) ~= false
+    if setting("lsp.servers." .. name) ~= false and M.install_supported(servers[name] or name) then
+      installs[#installs + 1] = server
+    end
   end
   opts.ensure_installed = installs
   -- This gates installed servers too: a copied Mason wrapper may still exist
@@ -224,7 +283,8 @@ function M.configure_servers(opts)
   end
   for server, package in pairs(servers) do
     local missing = M.runtime_missing(package)
-    if not M.record("LSP runtime: " .. server, missing) then
+    if selected[server] then M.record("LSP runtime: " .. server, missing) end
+    if #missing > 0 then
       if allowed then
         for i = #allowed, 1, -1 do
           if allowed[i] == server then table.remove(allowed, i) end
@@ -234,7 +294,43 @@ function M.configure_servers(opts)
       end
     end
   end
+  for name, override in pairs(setting("lsp.servers", {})) do
+    if override == false then
+      if allowed then
+        for i = #allowed, 1, -1 do
+          if allowed[i] == name then table.remove(allowed, i) end
+        end
+      elseif not vim.tbl_contains(automatic.exclude, name) then
+        automatic.exclude[#automatic.exclude + 1] = name
+      end
+    end
+  end
   return opts
 end
+
+function M.python_formatters()
+  local policy = require("config.tool_intent").python_policy()
+  local result = { "ruff_format" }
+  if policy.organize_imports == "ruff" then result[#result + 1] = "ruff_organize_imports" end
+  return result
+end
+
+function M.formatters(defaults)
+  for ft, value in pairs(setting("tools.formatters", {})) do
+    assert(type(value) == "table", "tools.formatters values must be formatter lists")
+    defaults[ft] = vim.deepcopy(value)
+  end
+  return defaults
+end
+
+-- CC is process-wide, so reconcile synchronously when project identity
+-- changes, before a terminal/LSP/task can inherit a previous project's value.
+vim.api.nvim_create_autocmd("DirChanged", {
+  group = vim.api.nvim_create_augroup("user_tooling_environment", { clear = true }),
+  pattern = "global",
+  callback = function()
+    require("config.tooling").configure_build_environment()
+  end,
+})
 
 return M

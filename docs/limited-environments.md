@@ -4,6 +4,9 @@ Neovim 0.12+ and Git are enough to obtain and run the plugin configuration.
 No separate Lua, LuaRocks, or Rust installation is required. Plugin cloning still
 needs network access, or a prepared offline seed. A Nerd Font affects glyphs,
 not whether the editor works.
+Set `ui.icons=false` in the ignored root `local.lua` for ASCII indicators.
+See [customization](customization.md) and [tool selection](tooling-configuration.md)
+to choose languages, explicit executables or deliberate provisioning opt-outs.
 
 Automatic tool installation remains enabled when prerequisites are available.
 The config checks the prerequisites for its configured packages before queuing
@@ -57,11 +60,11 @@ focus returns, including in an editor kept open for more than a month. The
 prompt appears even when no startup prerequisite check recorded a missing tool,
 so it does not imply that a full health review has passed.
 
-Customize the interval in `lua/config/options.lua`:
+Customize the interval in the root `local.lua`:
 
 ```lua
-vim.g.tooling_reminder_days = 7 -- weekly; default is 30
--- vim.g.tooling_reminder_days = 0 -- disable reminders
+return { globals = { tooling_reminder_days = 7 } } -- weekly; default is 30
+-- Use 0 to disable reminders.
 ```
 
 The last reminder time is saved as `tooling-reminder` under `stdpath('state')`,
@@ -95,7 +98,7 @@ startup/first use, MSVC discovery, and automatic-enable exclusions/allowlists.
 Windows prerequisite behavior is tested at the executable/process API boundary;
 the reduced-PATH integration runs were on Linux.
 
-`make ci` passed **534 tests** locally: 229 configuration, 261 portable Scoper,
+At introduction, `make ci` passed **534 tests** locally: 229 configuration, 261 portable Scoper,
 and 44 Python tests. One additional Windows API test is skipped on Linux.
 Lint, formatting, and documentation checks passed as well.
 Eleven reminder regressions cover default/custom cadence, restart

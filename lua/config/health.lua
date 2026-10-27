@@ -87,9 +87,9 @@ end
 -- Python 3 for Mason's PyPI packages. On Windows, python3/python under
 -- ...\WindowsApps\ may be the Microsoft Store alias stub: on PATH, but every
 -- call fails, so a PATH test alone passes falsely.
-local function check_python(why)
+local function check_python(why, explicit)
   local stub
-  for _, b in ipairs({ "python3", "python" }) do
+  for _, b in ipairs(explicit and { explicit } or { "python3", "python" }) do
     local v = version(b)
     if v and v:match("Python 3") then
       h.ok(("Python 3 — %s (%s)"):format(v, b))
@@ -151,6 +151,21 @@ function M.check()
   -- PATH probes below also see the clangd / clang-format / stylua it
   -- installed (and on Windows the tar shim is in place).
   local mason_ok = pcall(require, "mason")
+  local intent = require("config.tool_intent")
+  local declared = intent.resolved()
+  local intent_ok, requested = pcall(intent.packages, declared.servers, declared.packages)
+  local intent_error
+  if not intent_ok then
+    intent_error = tostring(requested)
+    requested = {}
+  end
+  local function selected(name)
+    return requested[name] and requested[name].enabled
+  end
+  local parser_builds = intent.parser_provisioning(declared.parsers)
+  for name, item in pairs(requested) do
+    if item.enabled then require("config.tooling").install_supported(name) end
+  end
 
   -- ── Neovim itself ─────────────────────────────────────────────────────────
   h.start("Neovim")
@@ -175,53 +190,73 @@ function M.check()
       "'exrc' is ON: .nvim.lua/.exrc files in the cwd and its parent directories "
         .. "run once you :trust them (revoke with :trust ++remove). A trusted file "
         .. "in a parent applies to every project below it. Disable in "
-        .. "lua/config/options.lua."
+        .. "local.lua with options.exrc=false."
     )
   end
 
   -- ── Core system prerequisites Mason cannot provide ────────────────────────
   h.start("Core prerequisites (must be on PATH — Mason cannot supply these)")
   check("git", "git", "error", { "Required by lazy.nvim to clone/update plugins and by Mason." })
-  local msvc = msvc_install_path()
-  if msvc then
-    h.ok("C compiler — MSVC Build Tools (" .. msvc .. ")")
-  else
-    check_any({ "cc", "clang", "gcc", "cl" }, "C compiler", "error", {
-      "nvim-treesitter compiles parsers from source; without a compiler the",
-      "parser build fails. Any of cc / clang / gcc will do; on Windows the",
-      "MSVC Build Tools are found automatically (cl need not be on PATH).",
-    })
-  end
-  -- nvim-treesitter's `main` branch builds EVERY parser with
-  -- `tree-sitter build` — there are no prebuilt downloads. Without the CLI,
-  -- every entry in treesitter.lua's PARSERS fails with
-  -- "ENOENT … 'tree-sitter'" and only Neovim's bundled parsers (c, lua,
-  -- markdown, query, vim, vimdoc) highlight. The minimum matches
-  -- nvim-treesitter's own health check.
-  local ts_why = {
-    "Required by nvim-treesitter (main) to build parsers; a C compiler alone",
-    "is not enough. Install tree-sitter 0.26.1+ (see README: Installing the",
-    "tree-sitter CLI): package manager (scoop/brew/pacman when new enough),",
-    "`cargo install --locked tree-sitter-cli`, or a release binary from",
-    "https://github.com/tree-sitter/tree-sitter/releases — not npm.",
-  }
-  if check("tree-sitter", "tree-sitter CLI", "error", ts_why) then
-    local tv = vim.version.parse(version("tree-sitter") or "", { strict = false })
-    if tv and not vim.version.ge(tv, { 0, 26, 1 }) then
-      h.error(("tree-sitter CLI %s is older than 0.26.1"):format(tostring(tv)), ts_why)
-    elseif vim.fn.exepath("tree-sitter"):find("node_modules", 1, true) then
-      h.info(
-        "tree-sitter CLI comes from npm; nvim-treesitter's README asks for a "
-          .. "package-manager, cargo or release build instead."
+  if parser_builds then
+    local msvc = msvc_install_path()
+    local explicit_cc = require("config.settings").get("tools.executables.compiler", vim.env.CC)
+    if explicit_cc then
+      check(
+        explicit_cc,
+        "Configured C compiler",
+        "error",
+        { "Used through CC by tree-sitter, CMake and the Unix sorter Makefile." }
       )
+    elseif msvc then
+      h.ok("C compiler — MSVC Build Tools (" .. msvc .. ")")
+    else
+      check_any({ "cc", "clang", "gcc", "cl" }, "C compiler", "error", {
+        "nvim-treesitter compiles parsers from source; without a compiler the",
+        "parser build fails. Any of cc / clang / gcc will do; on Windows the",
+        "MSVC Build Tools are found automatically (cl need not be on PATH).",
+      })
     end
+    -- nvim-treesitter's `main` branch builds EVERY parser with
+    -- `tree-sitter build` — there are no prebuilt downloads. Without the CLI,
+    -- every entry in treesitter.lua's PARSERS fails with
+    -- "ENOENT … 'tree-sitter'" and only Neovim's bundled parsers (c, lua,
+    -- markdown, query, vim, vimdoc) highlight. The minimum matches
+    -- nvim-treesitter's own health check.
+    local ts_why = {
+      "Required by nvim-treesitter (main) to build parsers; a C compiler alone",
+      "is not enough. Install tree-sitter 0.26.1+ (see README: Installing the",
+      "tree-sitter CLI): package manager (scoop/brew/pacman when new enough),",
+      "`cargo install --locked tree-sitter-cli`, or a release binary from",
+      "https://github.com/tree-sitter/tree-sitter/releases — not npm.",
+    }
+    if check("tree-sitter", "tree-sitter CLI", "error", ts_why) then
+      local tv = vim.version.parse(version("tree-sitter") or "", { strict = false })
+      if tv and not vim.version.ge(tv, { 0, 26, 1 }) then
+        h.error(("tree-sitter CLI %s is older than 0.26.1"):format(tostring(tv)), ts_why)
+      elseif vim.fn.exepath("tree-sitter"):find("node_modules", 1, true) then
+        h.info(
+          "tree-sitter CLI comes from npm; nvim-treesitter's README asks for a "
+            .. "package-manager, cargo or release build instead."
+        )
+      end
+    end
+    check_any({ "curl", "wget" }, "curl or wget", "warn", {
+      "Used by Mason and nvim-treesitter to download sources.",
+    })
+    check("tar", "tar", "warn", {
+      "nvim-treesitter (main) unpacks downloaded parser sources with tar.",
+    })
+  else
+    h.info("Automatic parser builds are disabled or no parser languages are selected.")
   end
-  check_any({ "curl", "wget" }, "curl or wget", "warn", {
-    "Used by Mason and nvim-treesitter to download sources.",
-  })
-  check("tar", "tar", "warn", {
-    "nvim-treesitter (main) unpacks downloaded parser sources with tar.",
-  })
+  if next(requested) and not parser_builds then
+    check_any(
+      { "curl", "wget" },
+      "curl or wget",
+      "warn",
+      { "Needed for requested Mason package downloads." }
+    )
+  end
   -- Windows: Mason needs a tar that accepts `--no-same-owner` and C:\ paths.
   -- util.windows_tar_shim() puts System32's bsdtar first on PATH when Mason
   -- loads; report which tar Neovim's child processes actually get.
@@ -292,49 +327,90 @@ function M.check()
 
   -- ── C/C++ toolchain (this config's primary focus) ─────────────────────────
   h.start("C/C++ toolchain")
-  check("clangd", "clangd", "warn", {
-    "The C/C++ language server. Mason installs it (lua/plugins/lsp.lua);",
-    "a system LLVM on PATH works too.",
-  })
-  check("clang-format", "clang-format", "warn", {
-    "Drives <leader>cf and format-on-save for C/C++ (conform's clang_format).",
-  })
-  check("clang-tidy", "clang-tidy", "warn", {
-    "Powers the .clang-tidy diagnostics (standalone, and via clangd).",
-  })
-  h.info(
-    "The bundled docs/templates/cpp/.clang-tidy is written for a recent "
-      .. "clang-tidy. An older clangd/clang-tidy may warn about unknown check "
-      .. "options — trim them to match your installed version."
-  )
+  if
+    selected("clangd")
+    or selected("clang-format")
+    or selected("cpptools")
+    or selected("codelldb")
+  then
+    if selected("clangd") then
+      check(
+        "clangd",
+        "clangd",
+        "warn",
+        { "Selected C/C++ language server; Mason or a system LLVM can supply it." }
+      )
+    end
+    if selected("clang-format") then
+      check("clang-format", "clang-format", "warn", { "Selected C/C++ formatter." })
+    end
+    check(
+      "clang-tidy",
+      "clang-tidy",
+      "warn",
+      { "Optional standalone Clang-Tidy; clangd includes its own tidy support." }
+    )
+  else
+    h.info("C/C++ tools are not selected for automatic installation.")
+  end
 
-  -- ── Language runtimes for the configured servers ──────────────────────────
   h.start("Language runtimes")
-  check("node", "Node.js", "warn", {
-    "Mason installs the npm-based packages from the ensure_installed lists in",
-    "lua/plugins/lsp.lua and lua/plugins/formatting.lua (pyright, bashls, ts_ls,",
-    "jsonls, yamlls, prettierd, …); all of them run on Node.js.",
-  })
-  check_python({
-    "Mason installs clang-format and debugpy from PyPI, which needs Python 3",
-    "(`python` on Windows). debugpy is the Python debug adapter.",
-  })
-  check("cargo", "cargo (Rust)", "warn", {
-    "rust_analyzer locates the project with `cargo metadata`; without cargo",
-    'it logs "cargo not found" and never attaches. Install via rustup.',
-    "(Ignore if you don't write Rust.)",
-  })
+  local node = false
+  for name, item in pairs(requested) do
+    if item.enabled and require("config.tooling").uses_node(name) then node = true end
+  end
+  if node then
+    check(
+      "node",
+      "Node.js",
+      "warn",
+      { "Required by selected JavaScript-based servers, formatters or adapters." }
+    )
+  else
+    h.info("No Node-based tools are selected.")
+  end
+  if selected("clang-format") or selected("debugpy") then
+    check_python({ "Selected Mason PyPI tools need Python 3 with venv/ensurepip." })
+    local explicit = require("config.settings").get("tools.executables.python")
+    if explicit then
+      check_python({ "Configured interpreter for the optional runtime probe." }, explicit)
+      h.info(
+        "The configured Python path is a runtime probe. Mason's PyPI installer independently resolves python/python3 on PATH."
+      )
+    end
+  else
+    h.info("No Python-based Mason packages are selected.")
+  end
+  if selected("rust-analyzer") then
+    check(
+      "cargo",
+      "cargo (Rust)",
+      "warn",
+      { "rust-analyzer runs cargo metadata; install the Rust toolchain via rustup." }
+    )
+  else
+    h.info("Rust language-server tooling is not selected.")
+  end
 
-  -- ── Optional: dev / test tooling ──────────────────────────────────────────
   h.start("Dev & test tooling (optional)")
-  check("luacheck", "luacheck", "warn", { "`make lint` / the pre-commit hook and CI use it." })
-  check("stylua", "stylua", "warn", {
-    "Lua formatter (conform). `make check` and CI also run `stylua --check`;",
-    "CI and Mason use the latest release; align your local version if formatting differs.",
-  })
+  if
+    require("config.settings").get(
+      "tools.development",
+      selected("lua-language-server") or selected("stylua")
+    )
+  then
+    check("luacheck", "luacheck", "warn", { "make lint and the pre-commit hook use it." })
+    check("stylua", "stylua", "warn", { "Lua formatting and make check use it." })
+  else
+    h.info("Lua config-development checks are not selected.")
+  end
 
   -- ── Mason-managed tooling (delegated) ─────────────────────────────────────
   h.start("Mason-managed servers / formatters / debug adapters")
+  if intent_error then h.error("Cannot resolve selected tool requirements: " .. intent_error) end
+  for name, item in pairs(requested) do
+    if not item.enabled then h.info("Intentionally disabled Mason package: " .. name) end
+  end
   if mason_ok then
     h.ok("mason.nvim is available")
     h.info(

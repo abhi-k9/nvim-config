@@ -90,14 +90,19 @@ return {
     "nvim-treesitter/nvim-treesitter",
     branch = "main",
     lazy = false, -- REQUIRED — see top-of-file comment.
-    build = function()
-      if vim.g.treesitter_auto_install ~= false and require("config.tooling").parsers_ready() then
+    build = function(plugin)
+      local parsers = plugin and require("lazy.core.plugin").values(plugin, "opts", false).parsers
+        or require("config.tool_intent").option("parsers", PARSERS)
+      if
+        require("config.tool_intent").parser_provisioning(parsers)
+        and require("config.tooling").parsers_ready()
+      then
         vim.cmd.TSUpdate()
       end
     end,
     -- Not setup() options: config() installs them, and
     -- scripts/offline-seed-check.lua reads them from the resolved spec.
-    opts = { parsers = PARSERS },
+    opts = { parsers = require("config.tool_intent").option("parsers", PARSERS) },
     config = function(_, opts)
       -- setup() MUST be called first; it's what attaches the install
       -- function to the module table. No options needed for our use.
@@ -111,7 +116,10 @@ return {
       -- Skip builds without the CLI, compiler, curl, or tar rather than
       -- failing for every parser on each launch. :checkhealth config keeps
       -- the missing-prerequisite report available without startup popups.
-      if vim.g.treesitter_auto_install ~= false and require("config.tooling").parsers_ready() then
+      if
+        require("config.tool_intent").parser_provisioning(opts.parsers)
+        and require("config.tooling").parsers_ready()
+      then
         vim.defer_fn(function()
           require("nvim-treesitter").install(opts.parsers)
         end, 0)
@@ -151,7 +159,13 @@ return {
       local function maybe_install(buf)
         local ft = vim.bo[buf].filetype
         local lang = vim.treesitter.language.get_lang(ft)
-        if not lang or vim.g.treesitter_auto_install == false then return end
+        if
+          not lang
+          or not require("config.tool_intent").parser_provisioning(opts.parsers)
+          or require("config.settings").get("tools.parsers_on_demand", true) == false
+        then
+          return
+        end
         local s = state[lang]
         if s and not (s.status == "failed" and os.time() - s.at >= RETRY_AFTER) then return end
         if vim.treesitter.language.add(lang) then return end -- already available

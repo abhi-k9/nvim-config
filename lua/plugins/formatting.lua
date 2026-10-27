@@ -74,7 +74,7 @@ return {
       -- order. Conform skips ones that aren't installed; see `:Mason` ->
       -- "Formatter", or rely on the mason-tool-installer spec below.
       -- ------------------------------------------------------------------
-      formatters_by_ft = {
+      formatters_by_ft = require("config.tooling").formatters({
         lua = { "stylua" },
         -- C / C++: conform's formatter name is `clang_format` (underscore);
         -- the Mason PACKAGE is `clang-format` (dash — see the installer
@@ -84,7 +84,7 @@ return {
         -- stylua: ignore start
         c          = { "clang_format" },
         cpp        = { "clang_format" },
-        python     = { "ruff_format", "ruff_organize_imports" }, -- ruff is faster than black+isort
+        python     = require("config.tooling").python_formatters(), -- ruff is faster than black+isort
         javascript = { "prettierd", "prettier", stop_after_first = true },
         typescript = { "prettierd", "prettier", stop_after_first = true },
         -- stylua: ignore end
@@ -110,7 +110,7 @@ return {
         -- "prefer", not the default "fallback": trim_whitespace is always
         -- available, so "fallback" would never reach the LSP.
         ["_"] = { "trim_whitespace", lsp_format = "prefer" },
-      },
+      }),
 
       -- Run on save? Off by default. To enable it with the :FormatToggle
       -- escape hatches, uncomment:
@@ -213,7 +213,7 @@ return {
     -- before VimEnter, so the hook fires. You can always trigger it by
     -- hand with :MasonToolsInstall / :MasonToolsUpdate regardless.
     opts = {
-      ensure_installed = {
+      ensure_installed = require("config.tool_intent").option("packages", {
         "stylua", -- Lua
         "clang-format", -- C / C++ (dash — this is the Mason package name)
         -- ruff is NOT listed here even though conform uses it (ruff_format /
@@ -240,7 +240,7 @@ return {
         "codelldb",
         "cpptools",
         "bash-debug-adapter",
-      },
+      }),
       -- The list above uses MASON PACKAGE NAMES, so no name translation is
       -- needed. With the mason-lspconfig integration on (the default),
       -- setup() does pcall(require, "mason-lspconfig"), and lazy.nvim's
@@ -261,15 +261,21 @@ return {
       -- stylua: ignore end
     },
     config = function(_, opts)
+      require("config.tool_intent").validate_installation("packages", opts)
       opts = vim.deepcopy(opts)
       local supported = false
       for i, item in ipairs(opts.ensure_installed) do
         local entry = type(item) == "string" and { item } or item
-        local package, condition = entry[1], entry.condition
-        supported = require("config.tooling").install_supported(package) or supported
+        local package, pin = require("config.tool_intent").package(entry)
+        entry[1], entry.version = package, pin
+        local condition = entry.condition
+        local enabled = require("config.tool_intent").enabled(entry)
+        supported = enabled and require("config.tooling").install_supported(package) or supported
         entry.condition = function()
-          return (not condition or condition())
-            and require("config.tooling").install_supported(package)
+          local selected = condition == nil
+            or condition == true
+            or type(condition) == "function" and condition() == true
+          return selected and require("config.tooling").install_supported(package)
         end
         opts.ensure_installed[i] = entry
       end

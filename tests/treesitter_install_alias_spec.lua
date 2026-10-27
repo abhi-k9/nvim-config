@@ -39,7 +39,7 @@ describe("parser installation completion", function()
       end,
     }
     local spec = dofile(vim.fn.getcwd() .. "/lua/plugins/treesitter.lua")[1]
-    spec.config(nil, { parsers = {} })
+    spec.config(nil, { parsers = { "lua" } })
     vim.wait(20, function()
       return false
     end)

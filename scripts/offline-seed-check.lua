@@ -27,27 +27,22 @@ local function check()
     return p and Plugin.values(p, "opts", false) or {}
   end
 
-  local wanted = {}
-  for _, pkg in ipairs(opts_of("mason-tool-installer.nvim").ensure_installed or {}) do
-    wanted[type(pkg) == "table" and pkg[1] or pkg] = true
-  end
+  local intent = require("config.tool_intent")
+  local mapping = intent.server_packages
   local servers = opts_of("mason-lspconfig.nvim").ensure_installed or {}
   if #servers > 0 then
     require("lazy").load({ plugins = { "mason-lspconfig.nvim" } })
-    local map = require("mason-lspconfig").get_mappings().lspconfig_to_package
-    for _, server in ipairs(servers) do
-      wanted[map[server] or server] = true
-    end
+    mapping = require("mason-lspconfig").get_mappings().lspconfig_to_package
   end
+  local wanted =
+    intent.packages(servers, opts_of("mason-tool-installer.nvim").ensure_installed or {}, mapping)
   if next(wanted) then
     local registry = require("mason-registry")
-    for pkg in pairs(wanted) do
-      if not registry.is_installed(pkg) then missing("mason", pkg) end
-    end
+    vim.list_extend(out, intent.missing_packages(wanted, registry))
   end
 
   local parsers = opts_of("nvim-treesitter").parsers or {}
-  if #parsers > 0 then
+  if intent.parser_provisioning(parsers) then
     local installed = {}
     for _, lang in ipairs(require("nvim-treesitter.config").get_installed("parsers")) do
       installed[lang] = true

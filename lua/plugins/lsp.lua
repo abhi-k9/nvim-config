@@ -71,7 +71,7 @@ return {
       -- Each server here is installed by Mason on first launch and
       -- automatically enabled. Edit freely; if you don't write a given
       -- language, drop it.
-      ensure_installed = {
+      ensure_installed = require("config.tool_intent").option("servers", {
         "lua_ls", -- Lua
         "bashls", -- Bash
         "clangd", -- C / C++ / Objective-C
@@ -94,9 +94,10 @@ return {
         "cssls",
         "marksman", -- Markdown
         "taplo", -- TOML
-      },
+      }),
     },
     config = function(_, opts)
+      require("config.tool_intent").validate_installation("servers", opts)
       require("mason-lspconfig").setup(require("config.tooling").configure_servers(opts))
     end,
   },
@@ -192,7 +193,11 @@ return {
           -- multi-client picker or merge both. Silence ruff's hover so pyright
           -- is the single, authoritative hover source. (Guarded by name so this
           -- only touches ruff; every other server keeps its hover.)
-          if client and client.name == "ruff" then
+          if
+            client
+            and client.name == "ruff"
+            and not require("config.tool_intent").python_policy().ruff_hover
+          then
             client.server_capabilities.hoverProvider = false
           end
 
@@ -448,7 +453,8 @@ return {
         settings = {
           pyright = {
             -- Let ruff be the single source of truth for import order.
-            disableOrganizeImports = true,
+            disableOrganizeImports = require("config.tool_intent").python_policy().organize_imports
+              ~= "pyright",
           },
           python = {
             analysis = {
@@ -456,7 +462,7 @@ return {
               -- flood "strict" produces on most untyped code. Bump to
               -- "strict" per-project via a `.nvim.lua` (exrc, see options.lua)
               -- or a pyrightconfig.json at the project root.
-              typeCheckingMode = "basic",
+              typeCheckingMode = require("config.tool_intent").python_policy().type_checking,
             },
           },
         },
@@ -473,6 +479,18 @@ return {
           settings = {},
         },
       })
+      -- Resolve custom policies after shipped defaults and before Mason can
+      -- enable the first client. False excludes activation in configure_servers.
+      for name, override in pairs(require("config.settings").get("lsp.servers", {})) do
+        if override ~= false then
+          assert(type(override) == "table", "lsp.servers overrides must be tables or false")
+          vim.lsp.config(name, override)
+        end
+      end
+      -- Scoper loads eagerly, before this plugin. Capture the final user argv,
+      -- environment and root provider before Mason enables the first client.
+      local scoper_lsp = package.loaded["scoper.lsp"]
+      if scoper_lsp and scoper_lsp.reconfigure then scoper_lsp.reconfigure() end
     end,
   },
 }

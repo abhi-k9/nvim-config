@@ -216,6 +216,7 @@ nvim/
 │   │   ├── settings.lua      early machine settings, trusted overlays and root intents
 │   │   ├── search.lua        literal visibility policies and backend root resolution
 │   │   ├── session.lua       automatic-save veto before layout/scope cleanup
+│   │   ├── tool_intent.lua   selected package identities, pins and intentional opt-outs
 │   │   ├── options.lua       vim.opt settings
 │   │   ├── keymaps.lua       Global keymaps
 │   │   ├── autocmds/         Autocommands, one module per topic
@@ -264,6 +265,8 @@ nvim/
 │   ├── debug_policy_spec.lua  idempotent adapters and custom launch providers
 │   ├── debug_activation_spec.lua  overrides before first debugger activation
 │   ├── terminal_policy_spec.lua  inherited shells and per-project lazygit
+│   ├── tool_intent_spec.lua  disabled/pinned tools and strict offline requirements
+│   ├── health_tool_intent_spec.lua  selected versus intentionally disabled tools
 │   ├── editing_policy_spec.lua  trim/comment/prose/window policies
 │   ├── retention_policy_spec.lua  configured view cleanup and log rotation
 │   ├── ui_policy_spec.lua    stock-theme/no-icons/reduced-motion startup
@@ -318,6 +321,7 @@ nvim/
 │   ├── session_dap_spec.lua    preserve normal files with debugger-like names
 │   └── offline_seed_test.py  Python tests for scripts/offline-seed.py (make test-seed)
 ├── docs/                     Human-facing docs (not loaded by nvim)
+│   ├── tooling-configuration.md  selected languages, executable discovery and offline intent
 │   ├── scoper-core-notes.md   scope model, revisions, schema and persistence outcomes
 │   ├── scoper-integration-notes.md  build selection, clangd modes, startup and source refresh
 │   ├── search-session-configuration.md  roots, visibility, selectors and persistence policies

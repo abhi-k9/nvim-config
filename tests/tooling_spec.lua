@@ -1,8 +1,11 @@
 describe("optional tool prerequisites", function()
-  local previous, executable, has, exepath, system, tools, available
+  local previous, executable, has, exepath, system, tools, available, cc, cwd, fixture
 
   before_each(function()
     previous = package.loaded["config.tooling"]
+    require("config.settings").reset()
+    cwd, fixture = vim.fn.getcwd(-1, -1), nil
+    cc, vim.env.CC = vim.env.CC, nil
     executable, has, exepath, system = vim.fn.executable, vim.fn.has, vim.fn.exepath, vim.system
     available = {}
     vim.fn.executable = function(bin)
@@ -26,7 +29,11 @@ describe("optional tool prerequisites", function()
   end)
 
   after_each(function()
+    require("config.settings").reset()
+    vim.cmd.cd(cwd)
+    if fixture then vim.fn.delete(fixture, "rf") end
     package.loaded["config.tooling"] = previous
+    vim.env.CC = cc
     vim.fn.executable, vim.fn.has, vim.fn.exepath, vim.system = executable, has, exepath, system
   end)
 
@@ -173,6 +180,32 @@ describe("optional tool prerequisites", function()
     assert.same({ "lua_ls@3.19.2" }, opts.ensure_installed)
   end)
 
+  it("resolves custom aliases from current loaded metadata before checking installers", function()
+    local registry, bridge, supported =
+      package.loaded["mason-registry"], package.loaded["mason-lspconfig"], tools.install_supported
+    local name, observed = "dockerfile-language-server", {}
+    package.loaded["mason-lspconfig"] = nil
+    package.loaded["mason-registry"] = {
+      get_all_package_specs = function()
+        return { { name = name, neovim = { lspconfig = "dockerls" } } }
+      end,
+    }
+    tools.install_supported = function(package)
+      observed[#observed + 1] = package
+      return true
+    end
+    local ok, err = pcall(function()
+      local opts = tools.configure_servers({ ensure_installed = { "dockerls@0.14.1" } })
+      assert.same({ "dockerls@0.14.1" }, opts.ensure_installed)
+      name = "custom-docker-server"
+      tools.configure_servers({ ensure_installed = { "dockerls@0.14.1" } })
+      assert.same({ "dockerfile-language-server", "custom-docker-server" }, observed)
+    end)
+    package.loaded["mason-registry"], package.loaded["mason-lspconfig"], tools.install_supported =
+      registry, bridge, supported
+    assert.is_true(ok, tostring(err))
+  end)
+
   it("preserves Mason tool versions and caller conditions", function()
     local old = package.loaded["mason-tool-installer"]
     local observed, enabled
@@ -233,6 +266,143 @@ describe("optional tool prerequisites", function()
     assert.equals("lua", tools.blink_implementation())
     available = { curl = true, sha256sum = true, shasum = true, sha256 = true }
     assert.equals("prefer_rust_with_warning", tools.blink_implementation())
+  end)
+
+  it("recognizes an absolute compiler and uses literal CMake argv for paths with spaces", function()
+    local compiler = "/tools/my compiler/clang"
+    available = { [compiler] = true, cmake = true, make = true }
+    require("config.settings").configure({ tools = { executables = { compiler = compiler } } })
+    assert.is_true(tools.compiler())
+    local calls = {}
+    vim.system = function(args, opts)
+      calls[#calls + 1] = { args = args, cwd = opts.cwd }
+      return {
+        wait = function()
+          return { code = 0 }
+        end,
+      }
+    end
+    local build = tools.native_sorter_build()
+    assert.is_function(build)
+    build({ dir = "/plugin with spaces" })
+    assert.equals("-DCMAKE_C_COMPILER=" .. compiler, calls[1].args[5])
+    assert.equals("/plugin with spaces", calls[1].cwd)
+    assert.equals(2, #calls)
+    assert.equals(compiler, vim.env.CC)
+    available.cmake = nil
+    assert.is_false(tools.native_sorter_build())
+  end)
+
+  it("recognizes inherited absolute CC without assuming Windows Make uses it", function()
+    vim.env.CC = "/toolchain/clang"
+    available = { [vim.env.CC] = true, make = true }
+    assert.is_true(tools.compiler())
+    assert.equals("make", tools.native_sorter_build())
+    vim.fn.has = function(feature)
+      return feature == "win32" and 1 or has(feature)
+    end
+    assert.is_false(tools.native_sorter_build())
+  end)
+
+  it("restores the inherited compiler after leaving a project override", function()
+    vim.env.CC = "/inherited/cc"
+    available = { ["/inherited/cc"] = true, ["/project/clang"] = true }
+    require("config.settings").configure({
+      tools = { executables = { compiler = "/project/clang" } },
+    })
+    assert.is_true(tools.compiler())
+    assert.equals("/project/clang", vim.env.CC)
+    require("config.settings").reset()
+    assert.is_true(tools.compiler())
+    assert.equals("/inherited/cc", vim.env.CC)
+  end)
+
+  local function project_dirs()
+    fixture = vim.fn.tempname()
+    local a, b = fixture .. "/a", fixture .. "/b"
+    vim.fn.mkdir(a, "p")
+    vim.fn.mkdir(b, "p")
+    return a, b
+  end
+
+  it("reconciles project CC synchronously on global directory changes", function()
+    local a, b = project_dirs()
+    vim.env.CC = "/inherited/cc"
+    available = { ["/inherited/cc"] = true, ["/project/clang"] = true }
+    require("config.settings").for_project(a, {
+      tools = { executables = { compiler = "/project/clang" } },
+    })
+    vim.cmd.cd(a)
+    assert.equals("/project/clang", vim.env.CC)
+    vim.cmd.cd(b)
+    -- A terminal or task can start here, before any readiness probe runs.
+    assert.equals("/inherited/cc", vim.env.CC)
+  end)
+
+  it("preserves external CC edits across local and global directory changes", function()
+    local a, b = project_dirs()
+    vim.env.CC = "/inherited/cc"
+    available = { ["/project/clang"] = true }
+    require("config.settings").for_project(a, {
+      tools = { executables = { compiler = "/project/clang" } },
+    })
+    vim.cmd.cd(a)
+    assert.equals("/project/clang", vim.env.CC)
+    vim.env.CC = "/external/cc"
+    vim.cmd.lcd(b)
+    assert.equals(a, vim.fn.getcwd(-1, -1))
+    assert.equals("/external/cc", vim.env.CC)
+    vim.cmd.cd(b)
+    assert.equals("/external/cc", vim.env.CC)
+  end)
+
+  it("clears a machine compiler when a project replaces its executable table", function()
+    local a, b = project_dirs()
+    local settings = require("config.settings")
+    vim.env.CC = "/inherited/cc"
+    available = { ["/inherited/cc"] = true, ["/machine/clang"] = true }
+    settings.configure({ tools = { executables = { compiler = "/machine/clang" } } })
+    tools.configure_build_environment()
+    assert.equals("/machine/clang", vim.env.CC)
+    settings.for_project(a, { tools = { executables = {} } })
+    vim.cmd.cd(a)
+    assert.same({}, settings.get("tools.executables"))
+    assert.is_nil(settings.get("tools.executables.compiler"))
+    assert.equals("/inherited/cc", vim.env.CC)
+    vim.cmd.cd(b)
+    assert.equals("/machine/clang", vim.env.CC)
+  end)
+
+  it("does not mistake a custom Python probe for Mason's PATH interpreter", function()
+    require("config.settings").configure({
+      tools = { executables = { python = "/runtime/python-custom" } },
+    })
+    available = { curl = true, ["/runtime/python-custom"] = true }
+    assert.is_false(tools.install_supported("debugpy"))
+    available.python3 = true
+    assert.is_true(tools.install_supported("debugpy"))
+  end)
+
+  it("honors an explicit false installer condition and normalizes tool pins", function()
+    local old = package.loaded["mason-tool-installer"]
+    local observed
+    package.loaded["mason-tool-installer"] = {
+      setup = function(opts)
+        observed = opts
+      end,
+    }
+    local spec = dofile(vim.fn.getcwd() .. "/lua/plugins/formatting.lua")[2]
+    spec.opts.ensure_installed = { { "debugpy", condition = false }, "stylua@2.3.1" }
+    available = { curl = true, unzip = true, python3 = true }
+    local ok, err = pcall(function()
+      spec.config(nil, spec.opts)
+      assert.is_false(observed.ensure_installed[1].condition())
+      assert.equals("stylua", observed.ensure_installed[2][1])
+      assert.equals("2.3.1", observed.ensure_installed[2].version)
+      assert.is_true(observed.ensure_installed[2].condition())
+    end)
+    package.loaded["mason-tool-installer"] = old
+    assert.is_true(ok, tostring(err))
   end)
 
   it("recognizes MSVC without cl on PATH and bounds its discovery", function()
