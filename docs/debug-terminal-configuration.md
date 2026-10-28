@@ -40,7 +40,7 @@ used as given; this resolver does not install an interpreter or activate a shell
 | `debug.configurations` | Exact per-filetype configuration lists, applied after defaults. An empty list or `false` disables that filetype's configurations. |
 | `debug.mimode` | `"lldb"` on macOS, `"gdb"` elsewhere, for cppdbg fallback configurations. |
 | `debug.codelldb_terminal` | `"console"`, for the codelldb launch fallback. |
-| `debug.codelldb_init_commands` | `{ "settings set target.preload-symbols false" }`; replace with an empty list to omit this tuning. |
+| `debug.codelldb_init_commands` | `{ "settings set target.preload-symbols false" }`, for the generated launch fallback only. Replace with an empty list to omit this tuning; project `launch.json` entries supply their own `initCommands`. |
 | `debug.python` | Interpreter path or function `(root) -> path` for the Python fallback's **debuggee**. Otherwise prefer the activated virtualenv/Conda environment, then project `.venv`/`venv`, then PATH. |
 | `debug.mason_root` | Use Mason's final configured installation root, falling back to the normal data directory. |
 | `debug.configure` | Optional final callback `(dap)` after adapters and configurations have been applied, before a debug command starts. |
@@ -97,6 +97,54 @@ Persistent breakpoints use their plugin's cwd contract. A debug-root override
 does not relocate breakpoint persistence or third-party session files. Launch
 files and Lua callbacks are executable/debugging inputs: use trusted project
 files and review adapter commands before launching them.
+
+## CodeLLDB symbol loading for slow launches
+
+For large native programs with substantial debug information, reducing LLDB's
+up-front symbol work can shorten startup, including repeated launches on Windows.
+The [project launch template](templates/dap/launch.json.example) includes this
+optional tuning in its CodeLLDB launch example:
+
+```json
+"initCommands": [
+  "settings set target.preload-symbols false",
+  "settings set symbols.load-on-demand true"
+]
+```
+
+Put this field inside the relevant `"type": "codelldb"` configuration in your
+project's `.vscode/launch.json`. CodeLLDB runs `initCommands` before creating the
+target. The first command disables eager loading of symbol tables. The second
+limits expensive debug-info name/type lookups to modules you focus on, enabling
+their debug information as needed. This is module-level behavior, not
+per-compile-unit loading. It can defer work until later in the session; it does
+not guarantee faster launches when the bottleneck is elsewhere.
+
+File/line breakpoints remain supported and help enable the relevant module's
+debug information. On-demand loading has lookup tradeoffs until that information
+is enabled: function-name breakpoints can miss inline functions or functions
+absent from stripped symbol tables; expression type lookups and lookups of globals
+absent from those tables can also fail. If a breakpoint or expression regresses,
+remove `"settings set symbols.load-on-demand true"` and start a new debug session.
+Keep the first command to retain deferred symbol-table loading, or remove the
+whole field to use LLDB's defaults.
+
+These commands were accepted by CodeLLDB 1.12.3's bundled LLDB 22.1.8. Support
+depends on the LLDB used by the adapter, rather than your Neovim version or the
+system `lldb`. If it reports an unknown setting, remove the unsupported command.
+During a CodeLLDB session, run `version`, `settings show target.preload-symbols`
+and `settings show symbols.load-on-demand` in the DAP REPL to check the actual
+debugger and values; the tuned values are `false` and `true` respectively.
+
+The generated `‹fallback› Pick executable (codelldb)` configuration continues to
+use only `target.preload-symbols false`. To opt that fallback into both commands,
+set `debug.codelldb_init_commands` to the same two strings in `local.lua`.
+That list replaces the fallback's commands; it does not merge into project
+`launch.json` configurations. Keep this per-project when only some programs
+benefit from on-demand loading.
+
+References: [CodeLLDB launch sequence](https://github.com/vadimcn/codelldb/blob/v1.12.3/MANUAL.md#launch-sequence),
+[LLDB on-demand symbols and tradeoffs](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.8/lldb/docs/use/ondemand.rst).
 
 ## Fixed window widths during debugging
 

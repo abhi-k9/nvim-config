@@ -390,17 +390,11 @@ function M.setup()
     cwd = M.root,
     stopOnEntry = false,
     terminal = Settings.get("debug.codelldb_terminal", "console"),
-    -- Defer symbol-table parsing until a module is actually needed.
-    -- For large native binaries with many libraries, LLDB otherwise
-    -- preloads every module's debug info at launch,
-    -- which a dap trace showed eating 1–2 MINUTES of cold start. This
-    -- is the long-standing, always-safe setting. If your codelldb's LLDB
-    -- is recent enough you can add the more aggressive
-    --   "settings set symbols.load-on-demand true"
-    -- (loads per-compile-unit, so even breakpoint resolution is cheap) —
-    -- left out here because it errors on older LLDB. The other half of
-    -- the fix is OS-side: exclude your build-output and the Mason
-    -- codelldb dir from Windows Defender real-time scanning.
+    -- Disable eager symbol-table loading. The project launch template also
+    -- demonstrates optional symbols.load-on-demand tuning, which can affect
+    -- function-name breakpoints and type/global lookups. Keep that choice
+    -- explicit per project or through debug.codelldb_init_commands.
+    -- See docs/debug-terminal-configuration.md for tradeoffs and compatibility.
     initCommands = Settings.get(
       "debug.codelldb_init_commands",
       { "settings set target.preload-symbols false" }

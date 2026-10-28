@@ -4,6 +4,19 @@ Newest first. New entries use one `## YYYY-MM-DD — <title>` heading per
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-10-28 — Document on-demand CodeLLDB symbols for slow launches
+
+### Docs
+
+- Include both symbol-loading commands in the CodeLLDB project launch example
+  as optional tuning for large native programs and repeated slow launches.
+  Explain module-level loading, breakpoint/expression tradeoffs, compatibility
+  checks and rollback in the debugger guide and cheatsheet.
+- Correct earlier per-compile-unit/always-safe claims and remove broad antivirus
+  exclusion advice from the active performance guidance. The generated launch
+  fallback retains its existing preload-only default; project configurations
+  continue to own their `initCommands`.
+
 ## 2026-10-27 — Generalize debugger width protection to fixed columns
 
 ### Changed

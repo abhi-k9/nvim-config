@@ -311,10 +311,10 @@
     </tr>
     <tr>
       <td><code>"program" / "args" / "cwd"</code></td><td>Same shapes as cppdbg</td>
-      <td><code>"initCommands": [...]</code></td><td>LLDB startup cmds — codelldb's analogue of <code>setupCommands</code> (no <code>MIMode</code>). <strong>Slow first launch?</strong> add <code>settings set target.preload-symbols false</code> here (lazy symbols)</td>
+      <td><code>"initCommands": [...]</code></td><td>LLDB startup cmds, before target creation (no <code>MIMode</code>). <strong>Slow launches?</strong> the project template includes <code>settings set target.preload-symbols false</code> and <code>settings set symbols.load-on-demand true</code> as optional tuning.</td>
     </tr>
     <tr>
-      <td class="note">perf</td><td class="note">A 3-min cold start on a big native app is usually symbol loading, not the adapter. Lazy symbols (left) + excluding the build dir &amp; Mason codelldb folder from Windows Defender are the two big wins.</td>
+      <td class="note">perf</td><td class="note">On-demand module symbols can help repeated launches too. File/line breakpoints work; some function-name breakpoints and type/global lookups may fail until debug info is enabled. Remove the second command and restart the session if needed. See <a href="../debug-terminal-configuration.md#codelldb-symbol-loading-for-slow-launches">details and compatibility checks</a>. The generated fallback keeps only the first command.</td>
       <td><code>"sourceLanguages": ["rust"]</code></td><td>Nicer Rust enum/Option/Result rendering</td>
     </tr>
     <tr>

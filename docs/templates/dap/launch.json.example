@@ -285,18 +285,19 @@
       // preferred on Windows (see the `terminal` notes above).
       "terminal": "console",
 
-      // SLOW FIRST LAUNCH? Defer symbol parsing. For large native binaries
-      // (e.g. an ACIS/OpenGL app with many big DLLs) LLDB preloads every
-      // module's debug info at launch — a dap trace showed this costing
-      // 1–2 MINUTES of cold start. This loads symbols lazily instead and is
-      // always safe. On a recent-enough LLDB you can add a second line
-      //   "settings set symbols.load-on-demand true"
-      // for per-compile-unit loading (so even breakpoint resolution is
-      // cheap) — drop it if it errors on an older LLDB. The other half of
-      // the win is OS-side: exclude your build output and the Mason
-      // codelldb folder from Windows Defender real-time scanning.
+      // OPTIONAL: reduce symbol-loading work for large native programs.
+      // This can help slow launches on any OS, including repeated launches.
+      // The first command disables eager symbol-table loading; the second
+      // enables module debug info on demand. Work can move to later lookups.
+      // File/line breakpoints remain supported, but inline function-name
+      // breakpoints, type lookups and stripped global-name lookups may fail
+      // until the relevant module's debug info is enabled. If that happens,
+      // or LLDB rejects the setting, remove the second line and start a new
+      // session. These are project choices, not injected into every launch.
+      // Details: docs/debug-terminal-configuration.md#codelldb-symbol-loading-for-slow-launches
       "initCommands": [
-        "settings set target.preload-symbols false"
+        "settings set target.preload-symbols false",
+        "settings set symbols.load-on-demand true"
       ]
 
       // Rust users: uncomment for nicer enum/Option/Result rendering and
