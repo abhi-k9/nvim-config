@@ -54,7 +54,7 @@ end
 -- must never watch a shared file that either instance can overwrite.
 -- ---------------------------------------------------------------------------
 local function cache_dir(fingerprint)
-  -- Same identity as state.store_path: util.cwd_hash of Path.key(root)
+  -- Same identity as store.lua's state path: util.cwd_hash of Path.key(root)
   -- (case-insensitive on Windows), so the state file and this cache
   -- always agree on which project they belong to.
   local hash = Util.cwd_hash(Path.key(State.root()))
@@ -104,9 +104,9 @@ local prepare, finish
 --                     built-in discovery) and appending that decision
 --                     to the message.
 --
--- With `opts.stale_ok`, nothing is filtered: an out-of-date filtered file
--- is returned as it is, and without one the result is nil, "filter
--- pending"; the fourth value (true) tells the caller to refresh later.
+-- With `opts.stale_ok`, preparation does not parse the database: a previous
+-- intact object can be returned with a pending refresh. With no intact object,
+-- the result is nil, "filter pending"; the fourth value requests a later refresh.
 --
 -- The `info` strings carry no "Scoper LSP: " prefix and no
 -- speculation about clangd's behavior; the notify path adds the prefix
@@ -155,18 +155,15 @@ function prepare(opts)
 
   -- -------------------------------------------------------------------
   -- Freshness cache. setup() applies the clangd cmd at startup, so
-  -- without a cache every launch would readfile + decode + filter +
-  -- rewrite the compile database (~400-500 ms for 10k entries / 20 MB)
-  -- even though nothing changed — the overwhelmingly common case.
+  -- without a cache repeated preparation would readfile + decode + filter +
+  -- rewrite the compile database even when nothing changed.
   --
-  -- The filtered output only depends on two inputs: the SOURCE
-  -- compile_commands.json (identified by path, timestamps, inode and size)
-  -- and the SCOPE CONTENT (include + exclude lists — fingerprinted,
-  -- because :ScoperAdd/:ScoperExclude mutate a scope without renaming
-  -- it; the scope NAME and cwd are already part of cache_dir's path).
+  -- Identity includes the project, source path, integration mode and scope
+  -- contents. Source generation is checked by timestamps, inode and size;
+  -- include/exclude lists are fingerprinted because scope edits retain names.
   -- A tiny meta file next to the output records those inputs and a
-  -- sha256 of the output; when the inputs match and the output still
-  -- exists, skip everything. Any cmake regen (mtime/size), scope edit
+  -- sha256 of the output; matching input/output generation stamps allow a
+  -- stat-only warm hit. Any ordinary source rewrite, scope edit
   -- (fingerprint), scope switch (different dir), or deleted cache
   -- (missing output) invalidates naturally. Kept/total counts are stored
   -- too so the skip path can report the same message as a real run.
@@ -295,12 +292,11 @@ function M.status()
 end
 
 -- ---------------------------------------------------------------------------
--- Background filter: cdb.run in a separate `nvim --clean --headless`
--- process, so reading, filtering and writing a big database never freezes
--- the editor. The job goes in and the result comes back as JSON files next
--- to the output. If the process can't run, the job runs here instead (one
--- warning per session); a run that times out leaves clangd on the
--- unfiltered database.
+-- Background preparation normally runs cdb.run in a separate headless editor.
+-- The job and result travel as JSON files next to the cache. Legacy reloads
+-- may fall back to synchronous work after worker startup/failure, warning once.
+-- opts.no_sync (used by the strict startup gate) reports failure instead.
+-- A worker timeout reports no prepared output; lsp.lua chooses the fallback.
 -- ---------------------------------------------------------------------------
 local worker_script =
   Path.normalize(vim.fs.dirname(debug.getinfo(1, "S").source:sub(2)) .. "/cdb_worker.lua")
@@ -376,9 +372,9 @@ local function run_in_background(job, cb, opts)
   if not ok then run_here(tostring(err)) end
 end
 
--- write_filtered_compile_commands without blocking: calls
--- cb(dir, info, changed, stale) once the background filter is done, or
--- right away (synchronously) when there is nothing to filter.
+-- Normally prepares in a worker, with the compatibility fallback described
+-- above. Calls cb(dir, info, changed, stale) when done, or immediately for a
+-- warm/no-preparation result. Obsolete context results add a fifth true value.
 function M._filter_async(cb, opts)
   local function attempt(retries)
     local res, job = prepare(opts)

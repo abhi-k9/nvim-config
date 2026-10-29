@@ -1,11 +1,12 @@
 -- lua/scoper/init.lua
 --
--- Scoper — scope your searches (and clangd indexing) to a subset of
--- directories. The public API lives here; everything else is internal.
+-- Scoper — scope searches to directories, files or globs, and optionally
+-- select/filter clangd's compilation database. The main public API lives here;
+-- the state/scope guides document the supported lower-level interfaces.
 --
 -- USAGE
 --   require("scoper").setup({
---     lsp = { clangd = true },   -- auto-rewrite compile_commands.json on scope change
+--     lsp = { mode = "filtered" }, -- auto-refresh an immutable scoped database
 --   })
 --
 -- See plugin/scoper.lua for the user commands registered automatically.
@@ -53,7 +54,7 @@ local defaults = {
     startup = "fallback",
     watch = true,
     debounce_ms = 500,
-    clangd = false, -- if true, scope changes auto-rewrite compile_commands.json
+    clangd = false, -- legacy automatic filtered integration; source database stays intact
     -- Base flags scoper launches clangd with (it prepends its own
     -- --compile-commands-dir on top when applicable). These defaults
     -- are reasonable, but they're OPINIONS, not requirements of the

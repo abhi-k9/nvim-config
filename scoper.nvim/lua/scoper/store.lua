@@ -22,7 +22,7 @@ function M.new(root, fresh_state)
   end
 
   -- Scope names are command-friendly identifiers; "." and ".." are out.
-  -- lsp.lua additionally encodes names that cannot be filesystem components.
+  -- pipeline.lua additionally encodes names that cannot be filesystem components.
   local function valid_scope_name(name)
     return type(name) == "string"
       and name:match("^[%w_%-%.]+$") ~= nil
@@ -46,9 +46,8 @@ function M.new(root, fresh_state)
   -- Where on disk the per-project state file lives. We hash the cwd
   -- rather than putting it in the filename verbatim because raw paths
   -- contain `/`, `\`, drive colons, and other filesystem-unfriendly bytes;
-  -- a 16-char sha256 prefix avoids that without realistic collision risk
-  -- for the < ~1000 distinct projects any one person works on.
-  -- The hash itself lives in util.cwd_hash because lsp.cache_dir keys its
+  -- a 16-char sha256 prefix gives each normalized project a compact key.
+  -- The hash itself lives in util.cwd_hash because pipeline.cache_dir keys its
   -- filtered-compile-commands cache off the SAME value; two independent
   -- implementations could drift and silently split one project in two.
   --

@@ -97,7 +97,7 @@ local function build_cmd(opts)
 end
 
 -- ---------------------------------------------------------------------------
--- Build the clangd `cmd` array. ALWAYS returns a non-nil cmd. The
+-- Build clangd argv from a valid configured/inherited command. The
 -- `--compile-commands-dir` flag is prepended in two cases:
 --
 --   1. Filtering succeeded — dir points at the scoper cache holding the
@@ -106,19 +106,13 @@ end
 --      project's real compile_commands.json — dir points at that
 --      file's containing directory.
 --
--- Only when neither holds (no CC.json anywhere in scoper's candidate
--- list) is the flag omitted, and clangd is left to its own discovery
--- (the upward walk and `.clangd` config).
+-- A custom-named selected source needs a prepared canonical copy first.
+-- Without a usable source/copy, clangd retains its own database discovery.
+-- Native/disabled modes preserve existing compilation-directory arguments.
 --
--- Why always-explicit when we can: clangd's discovery is fragile. It
--- walks up from the source file, and a project-level `.clangd` file's
--- `CompileFlags.CompilationDatabase` setting can redirect that search
--- to a directory that doesn't contain the database (e.g. `.clangd`
--- says `build/` but the file actually lives at the root, or vice
--- versa). When that happens clangd silently falls back to fixed
--- ad-hoc flags and every project include becomes a "file not found"
--- error. Passing `--compile-commands-dir` overrides `.clangd`'s
--- setting and removes that whole class of failure.
+-- In managed modes --compile-commands-dir selects the chosen database ahead
+-- of .clangd's CompileFlags.CompilationDatabase search setting. Other .clangd
+-- flags/configuration still apply; selecting a database does not disable them.
 --
 -- `extra_args` are appended after `lsp.clangd_args` and remembered: every
 -- later reload (scope edits, :ScoperLspReload) keeps them until the next
@@ -126,10 +120,9 @@ end
 --
 -- Returns cmd, info, changed (see write_filtered_compile_commands).
 --
--- Contract: the returned cmd is ALWAYS usable (never nil), so callers can
--- wire `cmd = require("scoper").clangd_cmd(...)` straight into
--- vim.lsp.config; when filtering isn't possible it is plain clangd. That
--- means a cache miss filters synchronously, in this Neovim.
+-- This compatibility API returns ready argv, filtering synchronously on a
+-- cold miss. Managed startup can prepare asynchronously instead. Invalid argv
+-- configuration raises an error; returning a command does not install clangd.
 -- ---------------------------------------------------------------------------
 function M.clangd_cmd(extra_args)
   if extra_args ~= nil then M._extra_args = extra_args end
@@ -162,7 +155,8 @@ local C_FAMILY = { c = true, cpp = true, objc = true, objcpp = true, cuda = true
 
 -- Install `cmd` as this project's clangd command. vim.lsp.enable() quietly
 -- skips a list cmd whose program isn't installed but warns about a failing
--- function on every C buffer, so the function needs clangd on PATH.
+-- function on every C buffer, so install the function only once the executable
+-- is available (on PATH or through an explicit command path).
 --
 -- A clangd from mason.nvim is on PATH only once mason has loaded, which is
 -- often after setup(). Until then a C buffer's FileType installs the
@@ -260,13 +254,9 @@ end
 -- Apply the configuration via vim.lsp.config and restart this project's
 -- running clangd clients.
 --
--- Proceeds unconditionally — clangd_cmd() always returns a usable
--- cmd, whether scoped (--compile-commands-dir pointing at the filtered
--- cache), unscoped-but-located (pointing at the project's actual
--- compile_commands.json directory), or fully-unconfigured (no flag).
--- The toggle-on / toggle-off round trip therefore swaps between the
--- first two cases in the same session, restarting clangd each time so
--- the swap takes effect immediately.
+-- Selected/filtered and legacy manual modes refresh the chosen input. Native
+-- and disabled modes return immediately. In filtered mode, toggling the scope
+-- swaps between an immutable filtered copy and the selected complete database.
 --
 -- opts.auto (set by the ScoperChanged listener): skip the restart when it
 -- would change nothing — same cmd as the one last applied, the filtered
@@ -342,10 +332,9 @@ end
 local restart
 
 -- Restart timing in ms: the poll interval; the graceful-shutdown budget,
--- after which Client:stop() kills the process (clangd with a busy
--- background index routinely needs more than a second; nothing of value
--- is lost, the index is on disk); then how long the killed process gets
--- to be reaped. A table so lsp_spec can shorten it.
+-- after which Client:stop() kills the process; then how long the killed process
+-- gets to be reaped. A forced stop may require rebuilding unfinished index work.
+-- A table so lsp_spec can shorten the budgets.
 M._timing = { poll = 50, grace = 2000, kill = 1500 }
 
 -- The actual reload logic: filter in the background, then restart. `done`
@@ -472,12 +461,10 @@ function restart(done, opts, cmd, info, changed)
 end
 
 -- ---------------------------------------------------------------------------
--- setup() hook: install the clangd cmd before any client exists, so a
--- persisted enabled scope filters the very first index. Startup never
--- filters: on a cache miss (a CMake re-run touched compile_commands.json)
--- the previous filtered file is used as it is, and without one (first use
--- of a scope) the unfiltered database; the background refresh scheduled
--- here then restarts clangd only if the filtered database really changed.
+-- setup() stages a command without synchronously parsing a database. Fallback
+-- startup uses an intact previous object or the complete selected database on a
+-- cold miss, then refreshes. Strict prepare startup instead waits at the root
+-- callback before attachment; it does not schedule this fallback refresh.
 -- ---------------------------------------------------------------------------
 function M.apply_initial()
   if Pipeline.mode() == "disabled" or Pipeline.mode() == "native" then return end
@@ -575,7 +562,7 @@ function M.attach_auto()
     group = group,
     callback = function()
       -- Throttle: scope changes can fire rapidly during multi-add; debounce
-      -- by 500ms so we only reload once after the last change.
+      -- by lsp.debounce_ms (500ms by default) after the last change.
       --
       -- vim.defer_fn returns a uv_timer that auto-closes itself when it
       -- fires. If we cancel it before it fires, we must close it manually

@@ -18,7 +18,7 @@ want `<leader>fg` to grep through `repo/legacy/`, `repo/vendor/`, and
 :ScoperGrep TODO
 ```
 
-Now `:ScoperGrep` and `:ScoperFind` only touch the in-scope dirs. Your
+Now `:ScoperGrep` and `:ScoperFind` return in-scope paths. Your
 existing `<leader>ff` / `<leader>fg` are untouched — Scoper deliberately
 provides separate commands.
 
@@ -118,6 +118,10 @@ three shapes:
 |---|---|
 | `:ScoperToggle` | Enable / disable scoping. When disabled, everything is in scope (see below). |
 | `:ScoperStatus` | Echo `Scoper: ON · scope="foo" · N include · M exclude`. |
+
+Fresh projects start with scoping disabled. `:ScoperToggle` inverts the saved
+state rather than always enabling it; check `:ScoperStatus` when reopening an
+existing project. The enabled state is persisted alongside the active scope.
 
 ### Search within scope
 
@@ -334,6 +338,11 @@ If mode is absent, legacy `lsp.clangd=true` maps to automatic filtered integrati
 `false` disables automatic integration while preserving explicit manual reloads.
 An explicit disabled mode is stricter than that legacy boolean.
 
+Standalone setup defaults to `lsp.clangd=false`, so it does not automatically
+reconfigure clangd until integration is enabled. The host supplies its filtered
+default explicitly; copying a standalone setup does not implicitly reproduce
+every host policy.
+
 Select arbitrary nested/external databases through `compilation_database.path`,
 a main-editor resolver or ordered candidates, or persist a selection with
 `:ScoperDatabase`. No build generator is run and Debug/Release databases are never
@@ -347,7 +356,9 @@ Native mode preserves the user's existing `.clangd`/upward discovery behavior.
 intentionally chosen globs. The host no longer infers broad permissions from a
 compiler prefix or grants hard-coded MSYS paths.
 
-Filtering and reloads run in a background editor. The default
+Filtering and reloads normally prepare data in a background editor. If a worker
+cannot run, compatibility reloads may filter in the main editor and report that
+fallback once; strict `startup="prepare"` reports failure instead. The default
 `lsp.startup="fallback"` uses a previous filtered object or the selected full
 input on a cold miss, then refreshes asynchronously. For a filtered first
 attachment, `startup="prepare"` provides a bounded asynchronous startup gate;
@@ -446,9 +457,9 @@ responsibility.
   drive's current directory.
 - Tilde (`~/foo`) is expanded relative to the user's home.
 - Relative include paths are stored relative to the project directory.
-  The state file is named by a hash of the project's absolute path, so
-  it belongs to one checkout on one machine and can't be shared through
-  git.
+  The state filename hashes the normalized absolute project path. Moving a
+  checkout changes that lookup key, so its old saved state is not discovered
+  automatically at the new location.
 
 ## Data location
 
@@ -501,19 +512,22 @@ for field/return contracts and explicit conflict recovery.
 - Native Windows 8.3 aliases are expanded for comparisons, so a short cwd
   and long buffer filename still identify the same scope. Stored project
   identity and scope names retain their existing form.
+- Matching folds case on Windows, including directories explicitly configured
+  as case-sensitive. Such directories are not modeled as distinct path identities.
 - `:ScoperReplace` refuses an active restricted scope because grug-far
   cannot preserve its working directory through deferred operations and
   window changes. Unrestricted replacement requires grug-far.nvim.
   `:ScoperFind` / `:ScoperGrep` use a plain-vim fallback if no picker
   plugin is installed.
-- On the fzf-lua backend, `:ScoperFind` runs ripgrep itself over every
-  scope directory (fd through fzf-lua's `search_paths` when ripgrep
-  isn't installed), and `:ScoperGrep` uses `search_paths`, which needs a
-  fzf-lua from mid-2024 or later. On the telescope backend (or
-  `vim.g.scoper_picker = "telescope"`) this works regardless of version
-  via `search_dirs`.
-- LSP integration is clangd-only for now; nothing else has the
-  `--compile-commands-dir` style external index config.
+- On the fzf-lua backend, `:ScoperFind` uses ripgrep over every search root,
+  falling back to fzf-lua's fd options without ripgrep. Individual-file roots
+  without ripgrep use native lookup instead, because fd expects directories.
+  Live grep requires the backend's grep tool (normally ripgrep). Telescope uses
+  `search_dirs` plus exact entry filtering. A compatible backend version and its
+  external search tools are still required; no version-independent guarantee is
+  made for third-party picker APIs.
+- LSP integration is implemented only for clangd. Other servers would need
+  their own source-selection, configuration and restart adapter.
 
 ## Testing
 

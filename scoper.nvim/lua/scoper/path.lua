@@ -15,8 +15,8 @@
 --                            avoids exploding on node_modules symlink farms)
 --   * UNC paths            ─ "\\server\share\foo"    → "//server/share/foo"
 --
--- All public functions return forward-slash paths regardless of OS, which is
--- what Neovim's own APIs use internally and what plugins like Telescope expect.
+-- Path-valued results use forward slashes regardless of OS, matching the form
+-- expected by Neovim and picker integrations.
 
 local M = {}
 
@@ -62,7 +62,7 @@ function M.normalize(path, opts)
     path = path:gsub("^//[?.]/[Uu][Nn][Cc]/", "//"):gsub("^//[?.]/(%a:)", "%1")
     -- vim.fs.normalize upper-cases the drive letter. Keep it lower-case:
     -- state files of existing projects are found by a hash of this form
-    -- (state.legacy_store_path), and stored absolute includes use it.
+    -- (store.lua's legacy path), and stored absolute includes use it.
     path = path:gsub("^%a:", string.lower)
   end
 
@@ -116,9 +116,9 @@ function M.is_absolute(path)
 end
 
 -- ---------------------------------------------------------------------------
--- Comparison form. Windows filesystems are case-insensitive (on NTFS by
--- default) but case-PRESERVING — so we keep the original case in storage
--- and compare lower-cased. On Unix we compare as-is.
+-- Scoper deliberately folds case on Windows, matching its usual filesystem
+-- behavior, while preserving stored spelling. Case-sensitive Windows directory
+-- policies are not modeled. On Unix we compare as-is.
 -- ---------------------------------------------------------------------------
 local function cmp_key(s)
   if M.is_windows then
@@ -129,7 +129,7 @@ local function cmp_key(s)
 end
 
 -- Identity of a path for equality / dedupe / hashing: normalized, and
--- lower-cased on Windows (NTFS is case-insensitive), so "Src" and "src",
+-- lower-cased on Windows, so "Src" and "src",
 -- or "C:/Proj" and "c:/proj", are the same entry there.
 function M.key(path)
   return cmp_key(M.normalize(path))
@@ -185,7 +185,7 @@ end
 -- True iff `child` is `parent` or a descendant of `parent`. Both paths are
 -- normalized inside; callers don't need to pre-normalize.
 --
--- On Windows the comparison is case-insensitive (the filesystem is too).
+-- On Windows Scoper's comparison is case-insensitive.
 -- The "+ '/'" check is important: without it, "/foo" would match "/foobar"
 -- as a child of "/foo", which is wrong.
 -- ---------------------------------------------------------------------------
@@ -242,9 +242,8 @@ end
 -- (The lookup gates on `nil`, not falsiness, so a failed compile isn't
 -- retried on every call.)
 --
--- On Windows both sides are lower-cased: the filesystem is
--- case-insensitive, so `**/Build/**` must exclude `build/`. (Lower-casing
--- the pattern is safe — glob syntax has no letters with meaning.)
+-- On Windows both sides are lower-cased, so `**/Build/**` excludes `build/`.
+-- Glob operators are retained while literal letters follow the same folding.
 -- ---------------------------------------------------------------------------
 local glob_cache = {}
 -- vim.glob rejects the empty segment at the start of a UNC path. Compile
@@ -298,9 +297,9 @@ function M.match_glob(path, pattern, cwd)
 end
 
 -- ---------------------------------------------------------------------------
--- Exclude matching with the SAME semantics ripgrep (`--glob=!pat`) and fd
--- (`--exclude pat`) apply in the pickers — gitignore-style, relative to
--- the directory being searched:
+-- Shared exclude matching uses component/glob rules relative to a search root.
+-- Picker adapters translate these for ripgrep/fd and retain the exact captured
+-- matcher for final result filtering:
 --   * a pattern without "/" (`build`, `*.o`, `node_modules`) matches any
 --     single path component at any depth, so it excludes a directory of
 --     that name together with everything below it;

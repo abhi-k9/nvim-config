@@ -85,12 +85,22 @@ local query = Scope.query({ include = { "src/**/*.c" }, exclude = {} }, root, tr
 | `excludes` | A copy of active excludes; empty for unrestricted queries. |
 | `missing` | Includes without an existing literal search root. |
 
+`compile()` evaluates the supplied definition directly; an empty include list
+matches nothing there. `query()` applies Scoper's compatibility policy first,
+so a disabled or empty scope returns an unrestricted predicate and no roots.
+Use `query()` when implementing a search adapter that must honor that policy.
+
 A file contributes its own path. A glob contributes its deepest complete literal
 ancestor; glob expansion never triggers an unbounded discovery walk. Search
 adapters apply the exact predicate as well as the bounded roots. A restricted
 query with no usable roots is refused instead of silently searching the whole
 project. The CDB filter uses the same matcher. `State.active_dirs()` remains a
 directory-only compatibility accessor; new adapters use `State.query()`.
+
+Search roots bound where a backend looks, but a glob's literal ancestor can
+contain out-of-scope files. Exact filtering constrains returned results, not
+filesystem access by the search tool. Scoping is a selection policy rather
+than an access-control boundary.
 
 ## Snapshots, revisions and events
 
@@ -113,7 +123,9 @@ Mutating this snapshot cannot change live state. `scoper.state.context()` suppli
 the comparison identity (`root`, `scope`, `revision`, `database`) for delayed
 operations. Revision increases monotonically for accepted changes and project
 loads, including changes to a scope that keeps the same name. Scope-sensitive
-selectors cancel if their captured revision changes while they are open.
+management selectors cancel if their captured revision changes while they are
+open. Search pickers instead retain the exact query captured when opened;
+changing the active scope does not retarget an already-open picker.
 
 The existing `User ScoperChanged` event has `args.data` containing:
 
@@ -146,9 +158,12 @@ end. For example, `State.add_paths()` returns `count, missing, result`,
 `remove_paths()` returns `count, result`, and `new_scope()` returns
 `accepted, error, result`. `clear_active()`, `set_enabled()`, `toggle()` and
 `set_database()` return a result directly. `State.save()` remains
-`saved, result`. Public `scoper.add/remove/exclude/remove_exclude/new/use/clear/`
-`toggle/select_database` return the result; batch `delete` returns
-`{ deleted, errors, outcomes }` with each named result.
+`saved, result`. With explicit arguments, public
+`scoper.add/remove/exclude/remove_exclude/new/use/clear/toggle/select_database`
+return the result; batch `delete` returns `{ deleted, errors, outcomes }` with
+each named result. No-argument selector forms are asynchronous and return `nil`
+before a choice is made; use the resulting state event or invoke an explicit
+mutator when the caller needs a synchronous outcome.
 
 | Result | Meaning |
 | --- | --- |
@@ -169,7 +184,9 @@ Cooperating editors serialize compare-and-publish using an owner-marked lock.
 A stale write is refused rather than merging scopes automatically. Changes that
 another editor saved are refreshed before the next mutation, provided this
 editor has no unsaved changes. Failed local publications are never replaced by
-an automatic refresh. Unsaved state is retained in memory when switching projects
+an automatic refresh. Find, grep and replace also refresh before capturing their
+first query, so new roots and replacement restrictions apply on the next call.
+Unsaved state is retained in memory when switching projects
 and restored on return with its original store baseline. This protects changes
 within the running editor; an editor exit still loses unsaved session state.
 

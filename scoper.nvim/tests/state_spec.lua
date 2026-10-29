@@ -14,9 +14,8 @@ local function tmpdir()
   return vim.fn.tempname()
 end
 
--- Reset in-memory state to a clean default. We can't just call
--- `package.loaded["scoper.state"] = nil` and re-require because that
--- triggers `vim.uv.cwd()` reads we don't always want; cheaper to assign.
+-- Reset the legacy in-memory shape explicitly; before_each also loads a fresh
+-- module so store ownership, revision tracking and error state cannot leak.
 local function reset_state(State)
   State.state = {
     active = "default",
@@ -33,9 +32,7 @@ describe("scoper.state", function()
     vim.fn.mkdir(data_root, "p")
     -- Make stdpath("data") resolve into our temp dir for this test only.
     vim.env.XDG_DATA_HOME = data_root
-    -- Force a fresh require so stdpath() cache (if any) doesn't carry
-    -- across tests; on most Neovim versions stdpath() isn't cached but
-    -- this is cheap insurance.
+    -- Reset the module-owned store/revisions after choosing this test's data root.
     package.loaded["scoper.state"] = nil
     State = require("scoper.state")
     reset_state(State)

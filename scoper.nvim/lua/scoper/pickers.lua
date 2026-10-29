@@ -6,20 +6,20 @@
 --
 --   :ScoperFind     – fuzzy-find files within active scope
 --   :ScoperGrep     – live grep within active scope
---   :ScoperReplace  – open grug-far rooted at the scope's dirs
+--   :ScoperReplace  – ordinary grug-far only for unrestricted scope queries
 --
 -- Backend preference (in order):
---   1. fzf-lua    – fastest, accepts `cwd` + multiple search paths
---   2. telescope  – pure-lua, accepts `search_dirs` and an `entry_maker`
---   3. plain vim  – falls back to :vimgrep / :find with cwd hacks
+--   1. fzf-lua    – accepts `cwd` + multiple search paths
+--   2. telescope  – accepts `search_dirs` and a filtering `entry_maker`
+--   3. plain vim  – findfile() / :vimgrep with explicit project paths
 --
 -- Ripgrep receives anchored exclude globs. Telescope filters its parsed
 -- entries through the same captured matcher as the compilation database;
 -- it does not approximate Neovim globs with Lua patterns.
 --
 -- Scoping off, or an empty include list, means everything is in scope
--- (as in is_in_scope): the commands then search the whole cwd, without
--- the scope's excludes.
+-- (as in is_in_scope): find/grep use the whole loaded project, without
+-- the scope's excludes. Unrestricted replace retains grug-far's usual cwd.
 
 local State = require("scoper.state")
 local Path = require("scoper.path")
@@ -172,8 +172,7 @@ end
 -- ---------------------------------------------------------------------------
 -- Telescope: non-closing <M-p> mapping that shows the highlighted entry's
 -- absolute path in the prompt title without dismissing the picker.
--- (fzf-lua's Lua actions all exit; telescope's mapping API doesn't, which
--- is why this only exists on the telescope backend.) Registered through
+-- This mapping is implemented only for Telescope. Registered through
 -- telescope's `map`: keys set behind its back are overwritten by its
 -- defaults, and <C-p> is its "previous entry".
 --

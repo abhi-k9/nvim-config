@@ -4,11 +4,9 @@
 -- vim.* APIs (vim.fs.normalize, vim.glob.to_lpeg, vim.uv.cwd, …) are
 -- available.
 --
--- The suite is platform-aware: a handful of cases only make sense on
--- Windows (drive-letter casing, backslash conversion, long-path prefix)
--- and are skipped on Unix, and vice versa. The flag we read is
--- Path.is_windows so we exercise the same code path the implementation
--- uses to decide its behaviour.
+-- Native-platform cases follow Path.is_windows. Separate forced-branch cases
+-- also exercise Windows string rules on Unix, using the same flag consumed by
+-- the implementation. This does not replace native Windows filesystem tests.
 
 local Path = require("scoper.path")
 

@@ -10,8 +10,10 @@
 --
 -- Data shape:
 -- {
+--   schema_version = 1,
 --   active  = "frontend",            -- name of currently active scope
 --   enabled = true,                   -- whether scope filtering is on
+--   database_path = "/build/compile_commands.json", -- optional project-wide selection
 --   scopes  = {
 --     frontend = {
 --       include = { "src/frontend", "shared/" },        -- allow-list
@@ -64,7 +66,7 @@ local function fallback_scope(scopes)
 end
 
 -- Scope names are command-friendly identifiers; "." and ".." are out.
--- lsp.lua additionally encodes names that cannot be filesystem components.
+-- pipeline.lua additionally encodes names that cannot be filesystem components.
 local function valid_scope_name(name)
   return type(name) == "string"
     and name:match("^[%w_%-%.]+$") ~= nil
@@ -220,9 +222,8 @@ function M.active_scope()
   return M.state.scopes[M.state.active]
 end
 
--- Look up a scope by name (or nil). Public accessor so consumers —
--- including scoper/init.lua — never reach into M.state directly; the
--- internal shape stays free to change.
+-- Legacy mutable scope accessor (or nil). New consumers use copied snapshots
+-- and supported mutators so revisions and persistence cannot be bypassed.
 function M.scope(name)
   return M.state.scopes[name]
 end
@@ -296,9 +297,9 @@ end
 -- are silently skipped. Paths are stored as cwd-relative when possible;
 -- ~ and $VARS in them are expanded.
 --
--- Returns the number added and the list of added entries that aren't an
--- existing directory (nor a glob) — likely typos, kept anyway because a
--- build directory may simply not exist yet.
+-- Returns the number added, missing literal paths (files or directories), and
+-- the structured publication result. Missing paths remain selected because a
+-- generated file/directory may appear later; globs are not existence-checked.
 function M.add_paths(paths)
   sync()
   if type(paths) == "string" then paths = { paths } end
@@ -373,8 +374,8 @@ function M.remove_paths(paths)
 end
 
 -- Add exclude pattern(s) — glob strings. Returns the number added and the
--- list of rejected patterns that vim.glob can't parse (the clangd filter
--- couldn't apply them, while rg in the pickers might).
+-- list of rejected patterns the shared matcher cannot parse, followed by the
+-- structured publication result. Backend-specific acceptance is not enough.
 function M.add_excludes(patterns)
   sync()
   if type(patterns) == "string" then patterns = { patterns } end
@@ -446,7 +447,7 @@ end
 -- Returns false if the name is taken or unusable.
 --
 -- Keep names simple to type and complete in commands: word characters plus
--- '.', '-', '_', excluding traversal components. lsp.cache_dir separately
+-- '.', '-', '_', excluding traversal components. pipeline.cache_dir separately
 -- encodes Windows device names, trailing dots, and overlong components so
 -- existing logical names remain readable on every platform.
 function M.new_scope(name)

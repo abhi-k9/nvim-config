@@ -57,6 +57,13 @@ explicit argv. Selecting a database replaces an existing
 custom function-valued `cmd` can remain entirely under user ownership through
 native/disabled mode; selected/filtered integration requires explicit argv.
 
+The appended defaults can repeat flags already in inherited argv. Set
+`clangd_args = {}` when the existing command should supply all base flags, or
+provide a replacement list deliberately. List replacement affects that option,
+not the inherited command itself. A managed compilation-directory argument takes
+precedence over `.clangd`'s `CompileFlags.CompilationDatabase` search setting;
+other `.clangd` configuration, including added compiler flags, still applies.
+
 `query_drivers` is an execution whitelist: clangd may execute matching compilers
 to discover system headers. The host no longer grants inferred prefix globs or
 hard-coded MSYS paths. List trusted exact paths, or intentionally chosen globs.
@@ -132,8 +139,10 @@ canonical selected database. Concurrent buffers share preparation. Scope/build
 changes retry preparation within the original timeout budget. The editor
 stays responsive. If preparation fails, times out, or has no usable filtered
 output, the buffer stays unattached and reports the reason; retry with
-`:ScoperLspReload` after correcting it. This policy never falls back to expensive
-synchronous filtering on worker startup failure. A timed-out worker may still
+`:ScoperLspReload` after correcting it. This strict policy never falls back to
+expensive synchronous filtering on worker startup failure. Ordinary compatibility
+reloads can instead filter in the main editor after a worker failure and warn
+once; that fallback can pause the UI on a large database. A timed-out worker may still
 finish its immutable cache object for a later retry. Native/manual client start
 APIs that bypass `vim.lsp.enable()` are outside this startup gate's contract.
 

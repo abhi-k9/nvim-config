@@ -2,8 +2,8 @@
 --
 -- Small helpers shared by ≥2 callers. Kept small on purpose; if this
 -- file grows much further, the contents probably want to live in
--- topic-specific modules instead. atomic_write (I/O) lives here too:
--- state.lua and lsp.lua both need it, and one copy beats two.
+-- topic-specific modules instead. atomic_write (I/O) is shared by the
+-- versioned store and compilation-database publisher.
 
 local M = {}
 
@@ -80,14 +80,14 @@ end
 -- ---------------------------------------------------------------------------
 -- Atomic file write: write to a PID-suffixed temp file in the same
 -- directory, then rename over the target. rename(2) within one
--- filesystem is atomic, so readers (another nvim instance, or clangd's
--- inotify watch, which fires IN_MOVED_TO for renames) never observe a
--- half-written file. The PID and a per-process counter in the suffix keep
+-- filesystem publishes the completed file without exposing an intermediate
+-- partial write to readers. Filesystem notification details vary by platform.
+-- The PID and a per-process counter in the suffix keep
 -- two nvim instances, or two writes of one instance, from sharing a temp
 -- file.
 --
--- Never throws: writefile() raises an error on failure (it doesn't just
--- return -1), so it runs under pcall.
+-- File-write failures are returned, including writefile() errors or nonzero
+-- results; rename failures also return an error rather than being ignored.
 --
 -- Returns: ok:boolean, err:string|nil ("write failed: ..." | "rename failed: ...")
 -- ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 -- lua/scoper/cdb_worker.lua
 --
--- Background entry point for scoper.cdb, started by lsp.lua as
+-- Background entry point for scoper.cdb, started by pipeline.lua as
 --   nvim --clean --headless -l cdb_worker.lua <job.json> <result.json>
 -- Writes the result of cdb.run as JSON to <result.json> (stdout may carry
 -- messages). Not meant to be required.

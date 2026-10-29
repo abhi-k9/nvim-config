@@ -2,10 +2,10 @@
 --
 -- The expensive half of the clangd filter: read compile_commands.json,
 -- keep the entries in scope, write the result and its meta file. Every
--- input arrives in `job` (built by lsp.lua) and nothing is read from
+-- input arrives in `job` (built by pipeline.lua) and nothing is read from
 -- scoper's state, so the same code runs in this Neovim and in the
--- background process lsp.lua starts (cdb_worker.lua) to keep the main loop
--- free on big databases (~400-500 ms for 10k entries / 20 MB).
+-- background process pipeline.lua starts (cdb_worker.lua) to keep expensive
+-- database parsing/filtering out of the main loop during ordinary reloads.
 
 local Scope = require("scoper.scope")
 local Path = require("scoper.path")
@@ -115,8 +115,8 @@ end
 --   job.root        project root the scope's paths are relative to
 --   job.scope       { include, exclude }
 --   job.out_dir     where compile_commands.json + .scoper-meta.json go
---   job.meta        inputs to record in the meta file (src, mtime, size,
---                   fingerprint; see lsp.lua's freshness cache)
+--   job.meta        source path/generation and context fingerprint to record
+--                   in the advisory meta file (see pipeline.lua)
 --   job.old_digest  sha256 of the current output, nil when there is none
 --
 -- Returns a table: { dir, info, changed } when the filter applied,
@@ -158,16 +158,10 @@ function M.run(job)
     }
   end
 
-  -- Atomic write (util.atomic_write: tmp + rename). Same rationale as
-  -- state.save, plus one extra reason specific to this file: it is
-  -- read by ANOTHER PROCESS (clangd) via inotify on Linux /
-  -- ReadDirectoryChangesW on Windows. A direct writefile to out_path
-  -- means clangd's watcher could fire on IN_MODIFY mid-write and read
-  -- a truncated JSON, which would parse-fail and drop clangd back to
-  -- ad-hoc flags — the exact failure mode lsp.lua is structured to
-  -- prevent. With the rename, clangd sees one atomic IN_MOVED_TO event
-  -- with the final file in place. The PID-suffixed tmp name also handles
-  -- two Neovim instances sharing this cache dir.
+  -- Publish the complete object via a same-directory temporary file + rename.
+  -- Other editors/clangd must not observe a partially written database. Actual
+  -- filesystem notifications vary by platform; correctness relies on complete
+  -- publication and generation checks, not a particular watcher event sequence.
   local out_stamp = intact_object(out_path, digest, #encoded + 1)
   if not out_stamp then
     local ok_w, w_err = Util.atomic_write(out_path, { encoded })

@@ -1,7 +1,7 @@
 -- tests/pickers_spec.lua
 --
 -- Unit tests for scoper.pickers. The pure helpers (the plain-vim :find
--- 'path', shell and grug-far quoting) are tested directly. Controlled
+-- 'path' and shell quoting) are tested directly. Controlled
 -- backend calls verify options and actual Telescope entry acceptance,
 -- including the configured entry-maker hooks.
 --

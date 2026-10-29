@@ -10,7 +10,8 @@
 -- with `"<owner>/scoper.nvim"` (and drop `dir`).
 --
 -- Setup options:
---   lsp.clangd        – auto-rewrite compile_commands.json on scope change
+--   lsp.mode          – disabled/native/selected/filtered integration policy
+--   lsp.clangd        – legacy opt-in to automatic filtered-cache refresh
 --   lsp.query_drivers – explicit trusted compiler paths (no auto-trust globs)
 --   default_excludes  – seed every new scope, including a fresh project's default scope
 
