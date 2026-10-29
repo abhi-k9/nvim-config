@@ -98,6 +98,33 @@ does not relocate breakpoint persistence or third-party session files. Launch
 files and Lua callbacks are executable/debugging inputs: use trusted project
 files and review adapter commands before launching them.
 
+## Selecting a launch and choosing program input/output
+
+`<leader>dc` reads the launch provider when choosing a new configuration. During
+an active session it continues that session; `<leader>dl` (Run Last) and
+`<leader>dR` (Restart) reuse an existing configuration. To apply launch-file
+edits, finish the session and choose a configuration again. `<leader>dL`
+validates/previews the file without starting a process.
+
+CodeLLDB's `terminal = "console"` sends program output to the DAP console and
+avoids the terminal-launch handshake that caused problems in the tested Windows
+setup. The REPL still accepts debugger commands and expressions; typing there
+does **not** provide the program's interactive stdin. Use `"integrated"` when
+the program needs a terminal, and verify it on your platform. An application
+that accepts an input-file argument can also run without interactive stdin;
+putting a filename in `args` only works when the application supports it.
+
+`"external"` requests a separate terminal from nvim-dap. Configure
+`dap.defaults.codelldb.external_terminal = { command = ..., args = { ... } }`
+with a terminal executable and its run-command arguments, for example through
+`debug.configure`. Without this client-side definition nvim-dap warns and falls
+back to an integrated terminal. See `:help dap-terminal` for the terminal contract.
+
+Keeping DAP UI open with `<leader>dU` preserves visible panels and console
+output, not a live debuggee after termination. An ended adapter session cannot
+answer new variable/evaluation requests; pause before exit to inspect live state,
+or use a core dump when post-mortem inspection is needed.
+
 ## CodeLLDB symbol loading for slow launches
 
 For large native programs with substantial debug information, reducing LLDB's

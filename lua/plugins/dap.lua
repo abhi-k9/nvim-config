@@ -192,9 +192,9 @@ return {
       -- ---- Inspect --------------------------------------------------------
       -- Lightweight hover on the symbol under the cursor (or the visual
       -- selection) in a small floating window, without opening the whole
-      -- dap-ui. The float is focusable/scrollable — press <leader>dw again to
-      -- jump into it, then q or <Esc> to close. Complements <leader>de, which
-      -- routes through dapui.eval and its Watches/expression panel.
+      -- dap-ui. The locked widgets implementation focuses the new float so
+      -- it can be scrolled; use :close to dismiss it. Complements <leader>de,
+      -- which opens dapui.eval's expression float.
       {
         "<leader>dw",
         function()
@@ -205,14 +205,12 @@ return {
       },
       -- ---- VS Code function keys (unmodified only) ------------------------
       -- Muscle memory for VS Code migrants, sitting alongside the <leader>d*
-      -- chords. Only the UNMODIFIED F-keys are bound here: a plain function key
-      -- has an unambiguous legacy encoding that every terminal transmits,
-      -- whereas the modified keys VS Code also uses — Shift+F5 (stop),
-      -- Shift+F11 (step out), Ctrl+Shift+F5 (restart) — need the kitty keyboard
-      -- protocol to arrive distinctly and won't reach nvim on legacy terminals
-      -- (the Windows console, or zellij/tmux running over one). That's the same
-      -- limitation that makes <C-Space> unreliable, so those three actions
-      -- deliberately stay on <leader>dt / <leader>dO / <leader>dR instead.
+      -- chords. Only the UNMODIFIED F-keys are bound here for broad terminal
+      -- compatibility. Modified keys such as Shift+F5 (stop), Shift+F11
+      -- (step out) and Ctrl+Shift+F5 (restart) depend on terminal/multiplexer
+      -- key encoding and forwarding; kitty is one supported protocol, not
+      -- a universal requirement. Those actions stay on the portable
+      -- <leader>dt / <leader>dO / <leader>dR chords instead.
       -- stylua: ignore start
       { "<F5>",  function() require("dap").continue() end,   desc = "Debug: continue / start (VS F5)" },
       { "<F6>",  function() require("dap").pause() end,       desc = "Debug: pause (VS F6)" },
@@ -238,7 +236,7 @@ return {
   -- Loads on VeryLazy for the same reason as dap-ui: it registers
   -- dap.listeners during setup(), which must exist before a session starts.
   -- It finds variables with Neovim's own treesitter and the parser's
-  -- `locals` query (installed with the parsers by nvim-treesitter); a
+  -- `locals` query (supplied by the runtime or query plugins); a
   -- buffer without a parser or that query just shows no inline values.
   -- -------------------------------------------------------------------------
   {
@@ -276,15 +274,15 @@ return {
   -- an nvim instance would come up with NO UI — just the dap REPL / the
   -- debuggee's console split — until you manually pressed <leader>du.
   -- VeryLazy registers the listeners at startup so the UI auto-opens on every
-  -- session. dapui.setup() opens no windows on its own, so the early load is
-  -- cheap; the <leader>du/<leader>de keys still work as before.
+  -- session unless debug.auto_open_ui is false. dapui.setup() opens no
+  -- windows on its own; <leader>du/<leader>de remain available for manual use.
   -- -------------------------------------------------------------------------
   {
     "rcarriga/nvim-dap-ui",
     event = "VeryLazy",
     dependencies = {
       "mfussenegger/nvim-dap",
-      "nvim-neotest/nvim-nio", -- async IO; required by dap-ui ≥ v3
+      "nvim-neotest/nvim-nio", -- async IO required by the locked dap-ui
     },
     keys = {
       -- stylua: ignore start
@@ -321,10 +319,9 @@ return {
 
       -- Auto-close the UI when the debuggee exits?
       --   true  (default) — close on terminate/exit for a clean session end.
-      --   false           — leave the panels + REPL up so you can inspect the
-      --                     final variable state or scroll the console AFTER
-      --                     the program has finished; close it yourself with
-      --                     <leader>du.
+      --   false           — leave panels + REPL visible to read console output
+      --                     and any retained display. A closed session cannot
+      --                     serve new variable queries. Close with <leader>du.
       -- Flip it at runtime with <leader>dU, or pin a preference in your own
       -- config BEFORE this plugin loads (e.g. `vim.g.dap_autoclose_ui = false`).
       -- We only seed the default when the user hasn't already set one, so a
@@ -376,8 +373,8 @@ return {
   --
   -- Stores them in stdpath("data")/nvim_checkpoints/, one JSON file per
   -- working directory (keyed by file path inside it), so re-opening the
-  -- same project — from the same cwd — picks them back up. Conditional breakpoints, log points, and hit-count
-  -- breakpoints all round-trip correctly.
+  -- same project from the same cwd picks them back up. Conditional breakpoints,
+  -- log points and hit counts are saved through the wrappers below.
   --
   -- We bind the same <leader>db / <leader>dB chords to the persistent
   -- variants so you don't have to remember a second set of keys. The
@@ -400,7 +397,7 @@ return {
     dependencies = { "mfussenegger/nvim-dap" },
     opts = {
       load_breakpoints_event = { "BufReadPost" },
-      always_reload = false, -- only load each file's breakpoints once per session
+      always_reload = false, -- avoid repeat file loads; DirChanged still reloads the cwd's store
     },
   },
 }

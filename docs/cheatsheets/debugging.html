@@ -81,13 +81,13 @@
   <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>Session &amp; flow <span class="note">leader = &lt;Space&gt;</span></h2></div>
   <table>
     <tr class="divider"><td colspan="2">Start / stop</td></tr>
-    <tr><td><kbd class="mauve">&lt;leader&gt;dc</kbd></td><td>Continue / start (reads <code>.vscode/launch.json</code>) <span class="note">without one, pick a <code>‹fallback›</code> config; at its "Path to executable" prompt <kbd>&lt;Esc&gt;</kbd> cancels ("Run aborted")</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dc</kbd></td><td>Continue an active session / select a new launch (reads the configured launch file) <span class="note">generated <code>‹fallback›</code> entries are also available; at the native executable prompt <kbd>&lt;Esc&gt;</kbd> cancels ("Run aborted")</span></td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dl</kbd></td><td>Run last config</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dR</kbd></td><td>Restart session <span class="note">(VS Ctrl+Shift+F5)</span></td></tr>
-    <tr><td><kbd class="mauve">&lt;leader&gt;dt</kbd></td><td>Terminate <span class="note">UI closes, unless auto-close is off — <kbd class="mauve">&lt;leader&gt;dU</kbd></span></td></tr>
-    <tr><td colspan="2" class="note">A launch/attach that fails (bad path, adapter error) closes the UI again.
-      Saving the session mid-debug keeps the program running; quitting Neovim terminates it.
-      Python fallback uses <code>$VIRTUAL_ENV</code>, then <code>$CONDA_PREFIX</code>, then
+    <tr><td><kbd class="mauve">&lt;leader&gt;dt</kbd></td><td>Terminate <span class="note">UI closes when no other session needs it, unless auto-close is off — <kbd class="mauve">&lt;leader&gt;dU</kbd></span></td></tr>
+    <tr><td colspan="2" class="note">A failed launch/attach closes the UI again when no other session needs it.
+      Saving the session mid-debug keeps the program running; quitting closes adapter sessions, with debuggee cleanup depending on adapter/attach behavior.
+      Python fallback honors <code>debug.python</code> first, otherwise uses <code>$VIRTUAL_ENV</code>, then <code>$CONDA_PREFIX</code>, then
       <code>./.venv</code> / <code>./venv</code>, then <code>python</code> (Windows) or <code>python3</code> (elsewhere) on PATH.</td></tr>
     <tr class="divider"><td colspan="2">Step</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;di</kbd> <kbd class="mauve">do</kbd> <kbd class="mauve">dO</kbd></td><td>Step into / over / out</td></tr>
@@ -103,12 +103,12 @@
     <tr><td><kbd class="mauve">&lt;leader&gt;de</kbd></td><td>Eval expression under cursor / selection (n, x)</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dw</kbd></td><td>Hover value in a widgets float <span class="note">lighter than <kbd class="mauve">de</kbd>; no full UI (n, x)</span></td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dv</kbd></td><td>Toggle inline end-of-line values</td></tr>
-    <tr><td><kbd class="mauve">&lt;leader&gt;dU</kbd></td><td>Toggle UI auto-close on exit <span class="note">off = panels + REPL stay up after the program ends so you can read final state; option <code>vim.g.dap_autoclose_ui</code></span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dU</kbd></td><td>Toggle UI auto-close on exit <span class="note">off = retain console/panel display; ended sessions cannot answer new variable queries. Option <code>vim.g.dap_autoclose_ui</code></span></td></tr>
     <tr class="divider"><td colspan="2">VS Code function keys <span class="note">unmodified only</span></td></tr>
     <tr><td><kbd class="mauve">&lt;F5&gt;</kbd> <kbd class="mauve">&lt;F6&gt;</kbd></td><td>Continue / start &nbsp;·&nbsp; Pause</td></tr>
     <tr><td><kbd class="mauve">&lt;F9&gt;</kbd></td><td>Toggle breakpoint <span class="note">persistent, like <kbd class="mauve">db</kbd></span></td></tr>
     <tr><td><kbd class="mauve">&lt;F10&gt;</kbd> <kbd class="mauve">&lt;F11&gt;</kbd></td><td>Step over &nbsp;·&nbsp; Step into</td></tr>
-    <tr><td colspan="2" class="note">Shift+F5 (stop), Shift+F11 (step out) &amp; Ctrl+Shift+F5 (restart) are deliberately <em>not</em> bound: the Windows console (and zellij/tmux running over it) doesn't pass modified F-keys to nvim reliably. Use <kbd class="mauve">&lt;leader&gt;dt</kbd> / <kbd class="mauve">dO</kbd> / <kbd class="mauve">dR</kbd> instead.</td></tr>
+    <tr><td colspan="2" class="note">Shift+F5 (stop), Shift+F11 (step out) &amp; Ctrl+Shift+F5 (restart) are deliberately <em>not</em> bound: support depends on terminal/multiplexer key encoding and forwarding. Use <kbd class="mauve">&lt;leader&gt;dt</kbd> / <kbd class="mauve">dO</kbd> / <kbd class="mauve">dR</kbd> instead.</td></tr>
   </table>
 </div>
 
@@ -140,7 +140,7 @@
     <tr><td colspan="2" class="note">VS's "break when value changes". No nvim keymap — set it from the REPL:</td></tr>
     <tr><td><code>watchpoint set variable x</code></td><td>Stop when <code>x</code> changes</td></tr>
     <tr><td><code>watchpoint set expression -- &amp;buf[10]</code></td><td>Watch an address</td></tr>
-    <tr><td><code>watchpoint list</code> / <code>delete</code></td><td>Manage them</td></tr>
+    <tr><td><code>watchpoint list</code> / <code>watchpoint delete</code></td><td>Manage them</td></tr>
     <tr><td colspan="2" class="note">Hardware-backed: at most <strong>4</strong> watchpoints, each on a
       1/2/4/8-byte region (x86_64). Re-arm after the watched object goes out of scope.</td></tr>
   </table>
@@ -165,8 +165,9 @@
       No multi-select in the panel (dap-ui limitation).</td></tr>
     <tr class="divider"><td colspan="2">Watches — add expressions</td></tr>
     <tr><td colspan="2" class="note">In the Watches panel, enter insert mode and type an expression
-      (e.g. <code>vec.size()</code>, <code>obj.field</code>), then Enter. Anything the
-      evaluators below accept works here.</td></tr>
+      (e.g. <code>vec[i]</code>, <code>obj.field</code>, <code>/nat vec.size()</code>), then Enter. Anything the
+      evaluators below accept works here. Native function calls execute debuggee code and may run again on each refresh;
+      prefer formatted variable access when a call is unnecessary.</td></tr>
     <tr class="divider"><td colspan="2">Inline values</td></tr>
     <tr><td colspan="2" class="note">nvim-dap-virtual-text paints each variable's value at end-of-line while
       stopped — the VS "inline values" equivalent.</td></tr>
@@ -206,12 +207,12 @@
       <td><code>obj.field</code> / <code>p-&gt;m</code></td><td>Member access</td>
     </tr>
     <tr>
-      <td><code>vec.size()</code></td><td>Call a member (function call in the inferior)</td>
+      <td><code>/nat vec.size()</code></td><td>Native member call in the inferior (requires callable code)</td>
       <td><code>expr,x</code></td><td>Format suffix: hex. Others: <code>d o u b c f p s y Y</code></td>
     </tr>
     <tr>
-      <td><code>vec.data(),[50]</code></td><td>View a <strong>window</strong> of 50 elements (array specifier)</td>
-      <td><code>vec.data()+1000,[50]</code></td><td>Elements 1000–1049 (pointer math + array)</td>
+      <td><code>/nat vec.data(),[50]</code></td><td>View a <strong>window</strong> of 50 elements (native call + array specifier)</td>
+      <td><code>/nat vec.data()+1000,[50]</code></td><td>Elements 1000–1049 (native call + pointer math + array)</td>
     </tr>
     <tr>
       <td><code>ptr,x[16]</code></td><td>Combine format + array (16 elements, hex)</td>
@@ -235,7 +236,7 @@
     </tr>
     <tr>
       <td><code>codelldb</code> / <code>debugger</code></td><td>Auto-imported module: <code>evaluate(expr)</code>, <code>wrap()/unwrap()</code>, <code>get_config()</code>, <code>create_webview()</code></td>
-      <td class="note" colspan="2">stdout → DEBUG CONSOLE, stderr → the adapter's output. codelldb's Python may not be the one on your PATH: <code>script import sys; print(sys.version, sys.prefix)</code> in the REPL shows which installation it uses, then run that installation's <code>python -m pip install --user &lt;pkg&gt;</code>. (VS Code's "LLDB: Command Prompt" helper doesn't exist in Neovim.)</td>
+      <td class="note" colspan="2">stdout → DEBUG CONSOLE, stderr → the adapter's output. CodeLLDB's embedded Python may differ from the one on PATH: <code>script import sys; print(sys.version, sys.prefix, sys.path)</code> shows the active interpreter paths. Packages must be importable there; a system <code>pip install</code> may target a different environment. (VS Code's "LLDB: Command Prompt" helper doesn't exist in Neovim.)</td>
     </tr>
     <tr class="divider"><td colspan="4">Examples</td></tr>
     <tr>
@@ -260,8 +261,9 @@
       <td><code>open(r'...','w')</code></td><td>Plain Python file open in codelldb's <em>host-side</em> interpreter — raw string keeps the Windows backslashes literal; the file lands on the debugger machine, not the debuggee</td>
       <td><code>.write(...)</code></td><td>Writes the joined text</td>
     </tr>
-    <tr><td colspan="4" class="note">Stopped at a frame where <code>vec</code> is live. Iteration goes through the data
-      formatter, so it's still bounded by <code>target.max-children-count</code> — raise it first (next card) for the full 20k, or this truncates.</td></tr>
+    <tr><td colspan="4" class="note">Stop at a frame where <code>vec</code> is live. Iteration uses the children reported by the data
+      formatter, rather than just the rows currently displayed in the UI; <code>target.max-children-count</code> is not a universal Python iteration cap.
+      Check <code>/py len($vec)</code> against the expected count before assuming a full dump. Large dumps can be expensive.</td></tr>
   </table>
 </div>
 
@@ -271,9 +273,9 @@
   <table>
     <tr><td colspan="2" class="note">dap-ui / LLDB cap how many children are shown
       (<code>target.max-children-count</code>, a few hundred). Options, cheapest first:</td></tr>
-    <tr><td><code>vec.data(),[50]</code></td><td>Window N elements in a watch (best — no cap fight)</td></tr>
+    <tr><td><code>/nat vec.data(),[50]</code></td><td>Window N elements in a watch (requires a native call)</td></tr>
     <tr><td><code>vec[12345]</code></td><td>Jump straight to one element</td></tr>
-    <tr><td><code>?/py len($vec)</code></td><td>Python iterates the real container, cap-free</td></tr>
+    <tr><td><code>?/py len($vec)</code></td><td>Count formatter-reported children, without printing them all</td></tr>
     <tr class="divider"><td colspan="2">Full dump into a buffer</td></tr>
     <tr><td>1.</td><td><code>settings set target.max-children-count 100000</code> (REPL)</td></tr>
     <tr><td>2.</td><td><code>frame variable vec</code> → prints into the REPL buffer</td></tr>
@@ -303,7 +305,7 @@
   <table class="wide">
     <tr>
       <td><code>"type": "codelldb"</code></td><td>LLDB-based; cross-platform</td>
-      <td><code>"terminal": "console"</code></td><td>stdio → DEBUG CONSOLE, no extra window. <code>integrated</code> (default) can hang on Windows; <code>external</code> = OS window</td>
+      <td><code>"terminal": "console"</code></td><td>output → DEBUG CONSOLE, no interactive stdin. <code>integrated</code> (default) requests a terminal; <code>external</code> needs nvim-dap's external-terminal command configured.</td>
     </tr>
     <tr>
       <td><code>"stopOnEntry": true</code></td><td>Stop at entry — <strong>NOT</strong> <code>stopAtEntry</code> (cppdbg's name; silently ignored)</td>

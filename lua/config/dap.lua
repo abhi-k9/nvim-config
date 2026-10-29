@@ -5,7 +5,7 @@
 --   * dap.pause without the thread picker (toggle: <leader>dT)
 --   * breakpoint / stopped-line signs
 --   * :DapLoadLaunchJSON (validate .vscode/launch.json)
---   * adapters: cppdbg, codelldb, debugpy, bashdb
+--   * adapter types: cppdbg, codelldb, python (debugpy), bashdb
 --   * fallback configurations for C/C++/Rust, Python and Bash
 
 local M = {}
@@ -112,7 +112,8 @@ function M.setup()
   -- Flip vim.g.dap_pause_pick_thread via <leader>dT to restore nvim-dap's
   -- built-in picker for those. An EXPLICIT threadId — e.g. the dap-ui
   -- Threads panel's own pause action — bypasses both paths and pauses
-  -- exactly that thread regardless of the toggle.
+  -- that requested thread ID unchanged regardless of the toggle; whether
+  -- other threads stop too is the adapter's execution model.
   -- -----------------------------------------------------------------------
   if vim.g.dap_pause_pick_thread == nil then
     vim.g.dap_pause_pick_thread = Settings.get("debug.pause_pick_thread", false)
@@ -160,9 +161,9 @@ function M.setup()
   -- -----------------------------------------------------------------------
   -- Per-project .vscode/launch.json support
   -- -----------------------------------------------------------------------
-  -- Modern nvim-dap reads .vscode/launch.json on every dap.continue()
-  -- via its configuration-provider system, so the file shows up in the
-  -- <leader>dc picker automatically — no reload step required.
+  -- Modern nvim-dap reads .vscode/launch.json through its providers when
+  -- selecting a new configuration. Continuing, Run Last and Restart use
+  -- the existing configuration; select anew to apply launch-file edits.
   --
   -- We still expose `:DapLoadLaunchJSON` (and bind <leader>dL to it)
   -- because it's useful for a different reason: to *validate* the file
@@ -220,9 +221,9 @@ function M.setup()
 
   -- Adapters
   -- -----------------------------------------------------------------------
-  -- Every adapter is registered here, so this file is the list of `type`
-  -- values a launch.json can use. Mason only installs the binaries
-  -- (mason-tool-installer's list in lua/plugins/formatting.lua).
+  -- These are the shipped `type` registrations; debug.adapters and other
+  -- plugin/user code can add more. Mason installs the selected binaries
+  -- (the defaults are in lua/plugins/formatting.lua).
   --
   -- Mason's Windows bin/ entries are .cmd shims. nvim-dap uses uv.spawn,
   -- which cannot execute batch files directly. Use the package's native
@@ -327,7 +328,7 @@ function M.setup()
   -- entries (nvim-dap lists its providers in name order: dap.global, then
   -- dap.launch.json). Use them for quick one-offs when you don't want to
   -- commit a launch.json to the repo — they prompt for the executable
-  -- each time so they're project-agnostic.
+  -- for native launch/attach so those examples are project-agnostic.
   --
   -- MIMode picks the debugger backend cppdbg drives. gdb is standard on
   -- Linux/Windows (Windows requires gdb to be on PATH — install via
@@ -417,10 +418,8 @@ function M.setup()
       fallbacks.rust = vim.deepcopy(fallbacks.cpp)
   -- stylua: ignore end
 
-  -- Python fallback. `pythonPath` prefers the ACTIVE virtualenv
-  -- (debugging against the project env, not the global interpreter,
-  -- is nearly always what's wanted); falls back to whatever
-  -- python/python3 is on PATH.
+  -- Python fallback. An explicit debug.python path/resolver wins; otherwise
+  -- prefer the activated environment, project .venv/venv, then PATH.
   table.insert(fallbacks.python, {
     name = "‹fallback› Launch current file (debugpy)",
     type = "python",
