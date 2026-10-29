@@ -570,10 +570,13 @@ features you need. A missing language tool is not a reason to abandon setup.
   you install its CLI, compiler, curl, and tar, the next buffer starts the build).
   A failed build is retried after 5 minutes at the earliest.
   `vim.g.treesitter_auto_install = false` turns that off.
-- **Plugin versions**: `lazy-lock.json` pins every plugin to the commit
-  this config was last tested against. Commit it; `:Lazy restore` returns
-  to those pins after an update goes wrong, and `:Lazy update` moves them
-  forward (and rewrites the file). CI's plugin cache is keyed on it.
+- **Plugin versions**: the committed `lazy-lock.json` records the tested plugin
+  revisions. `:Lazy update` moves them forward and rewrites that file.
+  `:Lazy restore` uses the lockfile currently on disk; it does not recover an
+  older lockfile from Git. To undo an update, restore your desired lockfile from
+  Git or a backup first, then run `:Lazy restore`. See the
+  [rollback steps](docs/workflows/install-update-uninstall.md#roll-back).
+  CI's plugin cache is keyed on the lockfile.
 - **Tooling health reminder**: an informational prompt appears on first
   interactive use, then every 30 days when you start or refocus Neovim.
   Set `globals.tooling_reminder_days = 7` in `local.lua` for weekly

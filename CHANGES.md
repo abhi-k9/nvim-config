@@ -22,6 +22,8 @@ that a later change undid is marked *(Reverted in …)* where it appears.
   locked dependencies. Correct setup/tooling, trust, debugging, C/C++, search,
   session, clipboard, fold, state-cleanup and CI claims; expand recipes and
   explain backend boundaries, recovery costs and privacy limits.
+- Explain that plugin rollback requires restoring the desired lockfile before
+  `:Lazy restore`; updating plugins rewrites the on-disk lockfile.
 - Preserve dated audit/changelog evidence with explicit historical notices and
   later correction notes. See the [coverage and verification report](docs/documentation-audit-2026-10-28.md).
 

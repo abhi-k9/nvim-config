@@ -220,6 +220,14 @@ new seed online and install it as the last section of
 
 ### Roll back
 
+For a plugin-only update, `:Lazy update` / `:Lazy sync` has rewritten the current
+lockfile. `:Lazy restore` alone follows that new file. Recover the desired
+`lazy-lock.json` from a backup or Git first. If `HEAD` contains the wanted tested
+lockfile, `git restore --source=HEAD -- lazy-lock.json` restores it from the config
+repository root; this discards local changes to that file, so save a copy first
+if you want to keep the newer selection. Then run `:Lazy restore` and restart.
+If the update was committed, select the earlier known-good revision instead.
+
 Quit Neovim, move the new config aside, rename `nvim.bak` back to `nvim`,
 start Neovim, and run `:Lazy restore`. That returns the plugins to the old
 lockfile's commits, which needs the network. Offline, reinstall the old

@@ -11,7 +11,7 @@ inventory; dependency sources were consulted to verify specific public contracts
 | Area | Corrections and useful context |
 | --- | --- |
 | Installation and partial environments | Distinguish the audited bundle from GitHub source archives, required editor/bootstrap tools from optional development tools, supported build discovery from guaranteed availability, and per-language readiness from a universal startup prerequisite. |
-| Updates and CI | Plugin update checks do not apply updates. Clarify immutable action pins versus separately downloaded tools, one run per batch push versus separate push events, native-platform bounds and controlled parser provisioning in tests. |
+| Updates and CI | Plugin update checks do not apply updates. Recover a known-good lockfile before `:Lazy restore` when undoing an update that rewrote it. Clarify immutable action pins versus separately downloaded tools, one run per batch push versus separate push events, native-platform bounds and controlled parser provisioning in tests. |
 | Local configuration and trust | `exrc` is off by default; explicit pre-set options survive. Explain returned settings versus executable side effects, project overlay matching versus registration lifetime, and the difference between trust approval and a sandbox. |
 | Debugger workflows | Launch files are read when selecting a new configuration, not on every active Continue/RunLast. Explain CodeLLDB command/evaluation REPL versus debuggee stdin, client-dependent external terminals, symbol lookup tradeoffs, expression modes and post-exit UI limits. Remove global ptrace-disable and broad antivirus-exclusion recipes from current guidance. |
 | C/C++ examples | Correct clangd user/project precedence, compilation-database discovery and header command inference. Explain clang-tidy diagnostic scope/version-dependent wildcard checks, formatter semantic caveats and physical-line suppression. Correct the annotated `FullyQualifiedNamespaces` value to an empty list. |
@@ -72,7 +72,7 @@ value. Plugin/tool pins and the configuration's defaults remain unchanged.
   Markdown examples passed syntax checks: 22 Lua snippets, one JSON field block
   in its documented object context, and 34 shell snippets. Syntax checking does
   not execute setup, cleanup or project-specific commands.
-- All 93 local Markdown/HTML references and fragments were checked across 31
+- All 94 local Markdown/HTML references and fragments were checked across 31
   files. All 110 distinct public GitHub targets returned HTTP 200, and selected technical claims
   were compared with the referenced source and locked dependencies. A successful
   HTTP response does not establish the accuracy of every upstream statement.
