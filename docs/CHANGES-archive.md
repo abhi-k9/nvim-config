@@ -34,6 +34,11 @@ Files touched:
 
 # DAP: log points, VS Code function keys, UI auto-close, persistence fixes
 
+> Later clarification: modified keys depend on the encoding supported by the
+> terminal and multiplexer, not exclusively on kitty. Keeping panels open after
+> exit does not preserve a live debug target or guarantee post-mortem evaluation.
+> See the current [debugging cheatsheet](cheatsheets/debugging.html).
+
 Several debugger-workflow additions, plus two persistence bugs.
 
 - **Log points** on `<leader>dP`: prompts for a message (with `{expr}`
@@ -69,6 +74,11 @@ Files touched:
 ---
 
 # Completion: terminal-safe menu trigger + command-line completion
+
+> Later clarification: Ctrl+Space commonly uses NUL without an extended keyboard
+> protocol. Encodings and interception vary by terminal/multiplexer; the failure
+> described below was environment-specific. See the current
+> [terminal notes](../README.md#c-space-and-other-modified-special-key-combos).
 
 - `<C-n>` / `<C-p>` are remapped to
   `{ "show", "select_next"/"select_prev", "fallback" }`, so the FIRST press
@@ -1720,6 +1730,10 @@ Files touched:
 
 # Perf: defer LLDB symbol loading in the codelldb fallback (slow first launch)
 
+> Later correction: on-demand debug information is enabled per module, with
+> breakpoint/expression lookup tradeoffs. The broad antivirus-exclusion advice
+> below is not current guidance. See the [debugger guide](debug-terminal-configuration.md#codelldb-symbol-loading-for-slow-launches).
+
 A dap TRACE log of a ~3-minute codelldb start on a large ACIS/OpenGL Windows
 app showed the entire span was symbol/debug-info loading: 104s on a single
 `setBreakpoints` (loading the debug info for the breakpoint's module) plus
@@ -1864,6 +1878,11 @@ Files touched:
 ---
 
 # Fix: codelldb terminal handling — `terminal:"console"` fallback + template correction
+
+> Later correction: the CodeLLDB console is an LLDB command/evaluation REPL, not
+> a debuggee stdin bridge. Interactive stdin needs a terminal, and external
+> terminal launching depends on nvim-dap client configuration. See the
+> [debugger guide](debug-terminal-configuration.md#selecting-a-launch-and-choosing-program-inputoutput).
 
 Root cause of a stray blank `[dap-terminal]` window on launch: codelldb's
 stdio destination is the `terminal` field, which DEFAULTS to `integrated`

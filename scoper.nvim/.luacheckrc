@@ -2,10 +2,12 @@
 --
 -- Static analysis config for scoper.nvim.
 --
--- Goal: catch real bugs (typos in vim.* names, unused locals that hide
+-- Goal: catch real bugs (unknown global names, unused locals that hide
 -- shadowing, accidentally global variables) without spamming us about
 -- legitimate Lua-in-Neovim idioms (long lines in comments, the busted
 -- spec DSL, …).
+-- `vim` is declared as a known table; this does not validate its API field names
+-- or replace runtime checks of whether a particular Neovim API exists.
 
 std = "luajit"
 

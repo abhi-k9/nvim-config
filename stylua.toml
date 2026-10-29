@@ -1,5 +1,6 @@
 # Enforced: `make check` (and CI) run `stylua --check` over the tree, with
-# the latest stylua (CI and Mason both track it; see .github/workflows/ci.yml).
+# the latest stylua in CI; unpinned Mason installs track releases too. Explicit
+# local tool pins can differ; see .github/workflows/ci.yml and the tooling guide.
 # Hand-aligned blocks are wrapped in `-- stylua: ignore start` /
 # `-- stylua: ignore end`; put new columnar tables inside such a pair.
 # collapse_simple_statement = "ConditionalOnly" keeps one-line guards like

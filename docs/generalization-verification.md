@@ -1,5 +1,10 @@
 # Configuration generalization verification
 
+> Verification snapshot for the generalization batch ending at `172dd08`
+> (2026-10-27). The test counts below are that run's evidence, not a live total.
+> Use the [README testing instructions](../README.md#testing) to verify a later
+> revision. The feature guides describe the current supported configuration.
+
 The implementation follows the approved separation of machine settings,
 project identity, search membership, build selection and optional clangd policy.
 Existing workflows retain their defaults except the documented Windows shell
@@ -31,7 +36,7 @@ cd scoper.nvim
 nvim --headless --noplugin -u NONE -l tests/run.lua tests/lsp_modes_spec.lua
 ```
 
-The completed local run passed **735 executable tests**: 340 full-configuration,
+That batch's completed local run passed **735 executable tests**: 340 full-configuration,
 329 Scoper, 52 offline-seed and 14 action-updater tests. Three platform-specific
 cases were pending/skipped on Linux. Lint, formatting, documentation guards and
 the immutable-action check passed. Native CI remains the platform-specific gate

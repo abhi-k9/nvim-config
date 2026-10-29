@@ -3,11 +3,10 @@
 A well-commented Neovim configuration for **Neovim ≥ 0.12.0** — the floor
 that nvim-treesitter's `main` branch needs. A guard at the top of `init.lua`
 (`MIN_NVIM`) checks it at startup, and `make check-docs` fails if this
-README, the health check or CI name a different floor. The zip holds one
-top-level `nvim/` folder; extract it into the parent folder so it becomes
-your config folder:
+README, the health check or CI name a different floor. Use these default config
+folders when no `XDG_CONFIG_HOME` or `NVIM_APPNAME` override is set:
 
-| OS              | Extract into          | Config folder              |
+| OS              | Config parent         | Config folder              |
 |-----------------|-----------------------|----------------------------|
 | Linux / macOS   | `~/.config/`          | `~/.config/nvim/`          |
 | Windows (PS)    | `$env:LOCALAPPDATA\`  | `$env:LOCALAPPDATA\nvim\`  |
@@ -15,12 +14,17 @@ your config folder:
 You can also clone the repository directly into the **Config folder** above.
 Pass that destination explicitly to `git clone` to avoid a nested `nvim-config/`.
 Git accepts an existing destination only when it is empty, including hidden files.
+The original audited zip contains a top-level `nvim/` folder and can be extracted
+into the parent above. GitHub source archives usually contain `nvim-config-main/`
+instead: move/rename that directory so `init.lua` is directly inside the config
+folder. Inspect an archive's layout before extracting it over an existing config.
 Commands for cloning, backing up an existing config, extracting, updating to a
 new zip, trying it next to another config, and uninstalling, per OS:
 [docs/workflows/install-update-uninstall.md](docs/workflows/install-update-uninstall.md).
 
 The first `nvim` launch will bootstrap [lazy.nvim](https://github.com/folke/lazy.nvim)
-and install every plugin. Give it ~30–60 seconds, then quit and relaunch.
+and install the enabled plugin set. Wait for installation to finish before
+relaunching; downloads and supported native builds can take several minutes.
 
 ## Prerequisites
 
@@ -35,8 +39,8 @@ installation to run the config or edit Lua.
 
 | Tool                  | Why                                                                  |
 |-----------------------|----------------------------------------------------------------------|
-| **Neovim ≥ 0.12.0**   | nvim-treesitter's `main` branch requires it, and the config uses 0.12 features (`:restart`, `:lsp`, `'winborder'`). Checked at startup by the guard at the top of `init.lua`. |
-| **git**               | Plugin install + auto-update.                                        |
+| **Neovim ≥ 0.12.0**   | nvim-treesitter's `main` branch requires it. Checked at startup by the guard in `init.lua`; Neovim 0.12.6 is used for local verification. |
+| **git**               | Online plugin bootstrap and explicit updates. Lazy checks for updates periodically; it does not automatically apply them. A prepared offline seed supports offline startup. |
 
 ### For automatic parser builds
 
@@ -45,9 +49,9 @@ basic syntax highlighting until their build prerequisites are installed.
 
 | Tool | Why |
 | --- | --- |
-| **tree-sitter CLI ≥ 0.26.1** | nvim-treesitter (`main`) builds every parser with it. See [Installing the tree-sitter CLI](#installing-the-tree-sitter-cli) below. Without it only Neovim's bundled parsers highlight. |
-| **`tar` and `curl`**  | nvim-treesitter downloads parser sources with them. Both ship with Windows 10+ and every Linux/macOS. |
-| **A C compiler**      | Each parser is compiled to a `.so`/`.dll`. On Windows the MSVC Build Tools are found automatically (they don't need to be on `PATH`); to use LLVM instead, install it and set `CC=clang`. Compiler errors during `:TSInstall` / `:TSUpdate` always trace back here. |
+| **tree-sitter CLI ≥ 0.26.1** | nvim-treesitter (`main`) builds parsers with it. See [Installing the tree-sitter CLI](#installing-the-tree-sitter-cli) below. Existing compatible and Neovim-bundled parsers remain usable without it. |
+| **`tar` and `curl`**  | Parser source download/extraction. Recent Windows versions provide them; minimal Linux/macOS installations may need packages. Check availability instead of assuming it. |
+| **A C compiler**      | Each parser is compiled to a `.so`/`.dll`. On Windows the CLI can discover installed MSVC C++ Build Tools; to select LLVM, install it and set `CC=clang`. Build failures can also involve SDKs, downloads or incompatible grammar/tool versions; inspect the actual error. |
 
 ### Installing the tree-sitter CLI
 
@@ -86,39 +90,42 @@ Use the first option that works on your machine:
 |-------------|-------------------------------------------------------------------------|
 | `ripgrep`   | `<leader>fg` (live grep), grug-far, scoper                              |
 | A Nerd Font | Icons in bufferline / lualine / telescope / neo-tree. Get one from <https://www.nerdfonts.com> and set it as your terminal font. |
-| `fd`        | First choice of the file finders (`<leader>ff`, `<leader>Ff`); without it they list files with `rg --files` |
+| `fd` / `fdfind` | Alternative file-listing backend when ripgrep is unavailable. The configured file finders prefer `rg --files`. |
 | `node` + `npm` | Many LSP servers (`ts_ls`, `pyright`, `bashls`, `jsonls`, `yamlls`, `html`/`cssls`) and `prettierd` are JS-based. Automatic installs need both; existing servers only need Node. |
 | `python` / `python3` with `venv`/`ensurepip` | Mason installs `clang-format` and `debugpy` from PyPI. On Debian/Ubuntu, also install `python3-venv`. Store aliases on Windows are skipped. |
-| `cargo` / `rustup`   | Rust toolchain itself — `rust_analyzer` ships via Mason, but `rustfmt` and `cargo` come from rustup. (blink.cmp needs no cargo: it downloads a prebuilt fuzzy matcher, else falls back to its Lua matcher with a warning.) |
+| `cargo` / `rustup`   | Rust toolchain itself — `rust_analyzer` ships via Mason, but `rustfmt` and `cargo` come from rustup. Blink can use a prebuilt fuzzy matcher or its Lua fallback without Cargo. |
 | `lazygit`   | `<leader>tg` floating lazygit terminal                                  |
 | `make` or `cmake` | Builds `telescope-fzf-native` with a C toolchain. The Makefile uses `cc` on Unix, **`gcc`** on Windows (MinGW); CMake also supports MSVC. With no suitable build chain the build is skipped and Telescope uses its Lua sorter. `make` also runs the test suite. |
-| `gdb` or `lldb` | DAP debugging of native code (C / C++ / Rust). gdb on Linux/Windows, lldb on macOS. codelldb is auto-installed by Mason as a third option. |
+| `gdb` or an appropriate LLDB/MI debugger | Needed for the corresponding cppdbg workflow. The separately installed CodeLLDB adapter bundles LLDB, so it does not require a system `gdb`/`lldb`. |
 
 #### Per-language quick guide
 
-What you need installed before nvim is useful for that language:
+Tools for richer language support are listed below; basic editing does not
+require them. Automatic installation depends on the selected tools and their
+prerequisites, and each language can work independently of the others.
 
 | Language | Required runtime  | Auto-installed via Mason            | DAP adapter (Mason)       |
 |----------|-------------------|-------------------------------------|---------------------------|
-| C / C++  | `gcc`/`clang` + `gdb` or `lldb` | `clangd` (LSP), `clang-format` (formatter) | `cppdbg`, `codelldb` |
+| C / C++  | A compiler/SDK to build; a debugger matching the chosen adapter | `clangd` (LSP), `clang-format` (formatter) | `cppdbg`, `codelldb` |
 | Rust     | `rustup` (gets you `cargo`, `rustfmt`) | `rust_analyzer` (LSP) — `rustfmt` comes from rustup, not Mason | `codelldb` |
 | Python   | `python` (Windows) / `python3` | `pyright` (LSP: types), `ruff` (LSP: lint + import sort, AND conform formatter) | `debugpy`     |
 | Lua      | (none — Neovim ships its own) | `lua_ls` (LSP), `stylua` (formatter) | (no DAP)         |
 | Bash     | `bash`            | `bashls` (LSP), `shfmt` (formatter) | `bashdb`                  |
-| Scheme   | a Scheme impl (guile / chez / racket) | — treesitter highlighting only; no LSP and no formatter exist | (no DAP) |
-| Batch    | (Windows shell)   | — nothing exists (no LSP, formatter, or parser) | (no DAP)      |
-| JS / TS  | `node` + `npm`    | `ts_ls` (LSP); `prettierd` (formatter) | (disabled by default — see `lua/plugins/dap.lua` to re-enable) |
-| Go       | `go` (rustup-style installer) | `gopls` (commented out — uncomment in `lsp.lua`) | (disabled by default) |
+| Scheme   | a Scheme implementation to run programs | Treesitter highlighting; no LSP/formatter configured | (none configured) |
+| Batch    | Windows cmd to run scripts | No LSP, formatter or parser configured | (none configured) |
+| JS / TS  | `node` + `npm`    | `ts_ls` (LSP); `prettierd` (formatter) | (none configured; add an adapter and configuration) |
+| Go       | Go toolchain     | `gopls` is optional: select it in `tools.servers` | (none configured) |
 | Markdown | (none)            | `marksman` (LSP); `prettierd` (formatter) | (no DAP)         |
 
 The `mason-tool-installer` spec in `lua/plugins/formatting.lua` installs
-`stylua`, `clang-format`, `shfmt`, `prettierd` and `shellcheck` (bashls
-needs it for diagnostics), plus the four debug adapters `debugpy`,
+`stylua`, `clang-format`, `shfmt`, `prettierd` and `shellcheck` (provides bashls's
+ShellCheck lint diagnostics), plus the four debug adapters `debugpy`,
 `codelldb`, `cpptools` and `bash-debug-adapter`. `ruff` and `taplo` arrive
 with their language servers (mason-lspconfig's list in
 `lua/plugins/lsp.lua`), and `rustfmt` rides along with the rustup
-toolchain and is found on `PATH`. For anything else, add the Mason
-package name to one of those lists, or run `:MasonInstall <name>` once.
+toolchain and is found on `PATH`. For other tools, use the server/package
+selection in `local.lua` or run `:MasonInstall <name>` once. Installing a package
+alone does not define an LSP configuration, formatter mapping or debug adapter.
 
 ### Optional
 
@@ -150,9 +157,9 @@ scoop bucket add nerd-fonts
 scoop install nerd-fonts/JetBrainsMono-NF
 ```
 
-`mingw` provides `gcc`, which `make` needs to build telescope-fzf-native
-(its Makefile calls `gcc`). Without it, uninstall `make` so the spec falls
-back to `cmake` with the MSVC Build Tools. Treesitter parsers are compiled
+`mingw` provides `gcc` for telescope-fzf-native's Makefile. Without a supported
+Make toolchain, the spec can select CMake when available; there is no need to
+uninstall Make used by other projects. Treesitter parsers are compiled
 by the MSVC Build Tools (Visual Studio Build Tools, "Desktop development
 with C++"), which are found automatically; with LLVM instead, `CC=clang`
 must be set.
@@ -163,7 +170,8 @@ must be set.
 brew install neovim git tree-sitter ripgrep fd fzf node lazygit
 brew install --cask font-jetbrains-mono-nerd-font
 # Optional extras:
-brew install bat stylua luacheck lldb
+brew install bat stylua luacheck
+# CodeLLDB bundles LLDB; Xcode Command Line Tools also provide an lldb executable.
 ```
 
 Whatever the OS: run `tree-sitter --version` (must be **0.26.1+**); see
@@ -176,7 +184,9 @@ Xcode Command Line Tools provide the C compiler (`xcode-select --install` if you
 **Linux** (Debian/Ubuntu, adapt to your package manager):
 
 ```sh
-sudo apt install git build-essential curl ripgrep fd-find nodejs npm lazygit
+sudo apt install git build-essential curl ripgrep fd-find nodejs npm
+# Install lazygit separately if your distribution/release does not package it:
+#   https://github.com/jesseduffield/lazygit#installation
 # A clipboard tool, so "+y / "+p reach the system clipboard:
 sudo apt install xclip          # X11; on Wayland: sudo apt install wl-clipboard
 # Neovim and fzf: the distro packages are too old on Debian/Ubuntu
@@ -196,7 +206,9 @@ sudo luarocks install luacheck
 # ~/.local/share/fonts/, then `fc-cache -fv`.
 ```
 
-`fd` is sometimes called `fdfind` on Debian-based distros; symlink or alias it as `fd` if so.
+`fd` is often called `fdfind` on Debian-based distributions. The config recognizes
+both executable names; an interactive shell alias is not needed and would not
+affect Neovim's subprocess lookup anyway.
 
 ## Customization
 
@@ -335,6 +347,7 @@ nvim/
 ├── docs/                     Human-facing docs (not loaded by nvim)
 │   ├── customization.md       local override lifecycle, trust and feature guide index
 │   ├── generalization-verification.md  test environment, acceptance cases and platform limits
+│   ├── documentation-audit-2026-10-28.md  documentation/comment coverage, corrections and evidence
 │   ├── tooling-configuration.md  selected languages, executable discovery and offline intent
 │   ├── scoper-core-notes.md   scope model, revisions, schema and persistence outcomes
 │   ├── scoper-integration-notes.md  build selection, clangd modes, startup and source refresh
@@ -461,21 +474,24 @@ A few standalone motions worth knowing right away:
 
 ## First-time setup checklist
 
-In order — each step assumes the previous succeeded.
+Start with the required editor/plugin prerequisites, then enable the optional
+features you need. A missing language tool is not a reason to abandon setup.
 
-1. **Install the prerequisites** from the Prerequisites section above.
-   Verify each is on PATH in a fresh shell before continuing:
+1. **Check Neovim and Git**, then check optional tools for your workflows in a
+   fresh shell. Run these commands separately in your platform's shell:
    ```
    nvim --version       # ≥ 0.12.0
    git --version
    tree-sitter --version   # ≥ 0.26.1, and not the npm package
-   tar --version; curl --version   # both ship with Windows 10+
+   tar --version        # optional parser-build prerequisite
+   curl --version       # optional parser-build prerequisite
    cc --version         # or clang --version; on Windows the MSVC Build Tools needn't be on PATH
    rg --version         # ripgrep (recommended)
    fd --version         # (recommended)
    ```
-   If any of these come back "not found", fix that first — lazy.nvim's
-   build steps assume they're available.
+   Neovim/Git are needed for a fresh online install. Missing parser/build or
+   language prerequisites skip the corresponding optional installs; review
+   `:checkhealth config` and the [limited-environment guide](docs/limited-environments.md).
 
 2. **Clone this repository into the config folder**, or extract the zip into
    its parent folder (table at the top; per-platform commands and existing-folder
@@ -484,57 +500,56 @@ In order — each step assumes the previous succeeded.
    Move an existing config aside first. No internet on this machine? Install an offline seed built elsewhere
    instead of steps 3–7: [docs/workflows/offline-install.md](docs/workflows/offline-install.md).
 
-3. **Launch `nvim`.** lazy.nvim will clone itself and every plugin —
-   a flurry of progress messages, then the lazy.nvim UI. Let it run to
-   completion (30–60 seconds on a fresh install).
+3. **Launch `nvim`.** lazy.nvim installs itself and enabled plugins. Wait for
+   those operations to complete; network speed and supported native builds
+   determine how long a fresh install takes.
 
 4. **Quit and relaunch.** Some plugins finalize on the second boot.
 
-5. **Run `:checkhealth`** and address any "missing executable" notes.
-   The most common offenders are Nerd Font, ripgrep, and node. Single-
-   plugin variants (`:checkhealth nvim-treesitter`, etc.) narrow the
-   focus.
+5. **Run `:checkhealth config`**, then relevant plugin health checks. Missing
+   optional tools are reported even when startup continues quietly. Check font
+   rendering separately in your terminal; a Nerd Font is not an executable that
+   this health check can install or verify.
 
-6. **Let the treesitter parsers build.** On first start the config
-   installs every parser in its list in the background; that takes a
-   minute or two. Compiler errors there mean the C compiler check in
-   step 1 was wrong. `:TSInstall <lang>` retries one parser (`:TSUpdate`
-   only updates parsers that are already installed).
+6. **Let supported parser installs finish.** With auto-install enabled and its
+   prerequisites available, the configured parser list installs in the background.
+   Read build errors before retrying `:TSInstall <lang>`; downloads, SDKs and
+   grammar/tool compatibility matter as well as the compiler. `:TSUpdate` updates
+   installed parsers. Existing compatible parsers work without a build toolchain.
 
-7. **Run `:Mason`** to verify LSP servers, formatters, and DAP adapters
-   from `ensure_installed` finished installing. If anything is missing,
-   `:MasonInstall <name>` to retry.
+7. **Run `:Mason`** to inspect selected LSP servers, formatters and DAP adapters.
+   Check prerequisite skips in `:checkhealth config` before retrying a package
+   with `:MasonInstall <name>`; a manual install still needs its prerequisites.
 
 8. **Open a Lua file** and confirm completion + `gd` (go-to-definition)
-   work. This is the smoke test that the LSP stack came up correctly.
-   If it doesn't work in Lua, no other language will either.
+   work when `lua_ls` is selected and installed. This checks Lua support; other
+   languages have independent servers, runtimes and project-root requirements.
 
 ### Stuck during setup?
 
 - Mason package failing to install → open `:MasonLog` for the actual
   error. Most failures are missing-toolchain (no `go`, no `node`, no C
   compiler) or network/proxy issues.
-- Plugin reports an error you don't recognize → `:Lazy log` shows the
-  recent operations; in `:Lazy`, `<CR>` on a plugin shows its branch,
-  commit and directory. If a plugin's on the wrong branch or commit,
-  see "Clearing caches" below.
+- Plugin reports an error you don't recognize → inspect task errors in `:Lazy`
+  and `:messages`; `<CR>` on a plugin shows its branch, commit and directory.
+  `:Lazy log` shows recent Git updates/commits, not a general error log. If a
+  plugin has the wrong revision, see the version/reset guidance below.
 - A parser build fails with `Lock file '…tree-sitter…\lock\<lang>-….lock'
   appears stale` → Neovim was closed while that parser compiled (gitcommit
-  takes a few minutes). With no `tree-sitter` process running, delete that
-  one lock file (in `%LOCALAPPDATA%\tree-sitter\lock\` on Windows,
-  `~/.cache/tree-sitter/lock/` on Linux and macOS) and `:TSInstall <lang>`
-  again.
-- Treesitter parsers won't compile → almost always the C compiler or
-  tree-sitter CLI prerequisite. `:checkhealth config` checks both
+  can be slow). Close other parser installers and confirm the lock's owner is
+  gone before removing that specific lock at the path printed in the error;
+  cache roots vary by platform and environment. Then retry `:TSInstall <lang>`.
+- Treesitter parsers won't compile → inspect prerequisites and the build error.
+  `:checkhealth config` checks the compiler and CLI
   (it flags an npm or pre-0.26.1 CLI); then `:TSInstall <lang>`
   retries. On Windows the MSVC Build Tools are found automatically;
   with LLVM instead, `CC=clang` must be set.
 - LSP server not attaching → `:checkhealth vim.lsp` shows the per-buffer
   status. If it shows "no clients", confirm the server is in Mason's
   installed list (`:Mason`).
-- Everything else → `:DiagnosticDump` writes a snapshot of all the
-  above plus the LSP log tail to `stdpath('log')`; attach when asking
-  for help.
+- Everything else → `:DiagnosticDump` writes configuration/runtime details and
+  an LSP log tail to `stdpath('log')`. Review paths, messages and logs for private
+  data before sharing a report.
 
 ## Common tweaks
 
@@ -543,8 +558,9 @@ In order — each step assumes the previous succeeded.
   its flavour. See [editing/UI policies](docs/editing-ui-configuration.md).
 - **Format on save** (off by default): add a Conform Lazy override with
   `event = { "BufWritePre" }` and a `format_on_save` callback; see the
-  commented example in `lua/plugins/formatting.lua`. `:FormatToggle` controls
-  Conform formatting; `editing.trim_whitespace` separately controls core trimming.
+  [complete local.lua recipe](docs/tooling-configuration.md#opt-into-format-on-save).
+  Its callback honors `:FormatToggle` / `:FormatToggle!`;
+  `editing.trim_whitespace` separately controls core trimming.
 - **Big-file threshold**: files larger than `vim.g.big_file_size` bytes
   (default 1 MB) open in big-file mode: no treesitter, regex syntax, swap,
   folding (ufo included) or LSP, and no whitespace trim on save.
@@ -576,43 +592,37 @@ In order — each step assumes the previous succeeded.
   clipboard access. To restore the convenient-but-leaky `clipboard =
   "unnamedplus"` behaviour, set `options.clipboard = "unnamedplus"` in
   `local.lua`.
-- **Per-project config (`exrc`)**: `exrc` is **on** (`lua/config/options.lua`),
-  so a `.nvim.lua` (or `.nvimrc` / `.exrc`) in the current directory **and
-  in every parent directory** runs at startup — handy for pinning a
-  clangd `-std`, seeding a scoper scope, or setting `makeprg` per repo.
-  A trusted file in a parent (your home folder, say) therefore applies to
-  every project below it; a file that sets `vim.o.exrc = false` stops the
-  search above it. It is **trust-gated**: Neovim never runs an untrusted
-  file, prompting `(i)gnore / (v)iew / (d)eny` and remembering your
-  `:trust` decision by content hash — choose `(v)iew`, read the file,
-  then `:trust` it; `:trust ++remove` in that buffer revokes it. It
-  is *not* a sandbox, though — a trusted `.nvim.lua` runs with full power, so
-  only `:trust` project files you'd run by hand. Turn it off with `vim.o.exrc
-  = false`. Full security rationale is in the `exrc` block comment in
-  `options.lua`.
-- **Disable in-buffer Markdown rendering**: `:RenderMarkdown toggle`, or
-  remove the render-markdown block from `lua/plugins/editor.lua`.
+- **Per-project Lua (`exrc`)**: **off by default**; explicitly pre-set options
+  survive. To opt in, set `options.exrc = true` in `local.lua`. Neovim then uses
+  its `:trust` mechanism for `.nvim.lua` / `.nvimrc` / `.exrc` discovery, including
+  ancestor directories. Trusted files execute with the editor's full access;
+  approve only code you have reviewed. `:trust ++remove` revokes the current
+  file's trust. For project behavior registered from your own trusted local
+  configuration, see [project overlays](docs/customization.md#project-context-and-trust).
+- **Disable in-buffer Markdown rendering**: `:RenderMarkdown toggle`, or add
+  `{ "MeanderingProgrammer/render-markdown.nvim", enabled = false }` under
+  `plugins` in `local.lua`.
 
 ## Health checks
 
 Run `:checkhealth` for a top-down view. Start with this config's own check:
 
 - `:checkhealth config` — this config's own check; run it first. It covers,
-  in order: **Neovim** (the version floor), **Core prerequisites** (a C
-  compiler, `git`, the **tree-sitter CLI** — required, 0.26.1+ and not the
-  npm package; nvim-treesitter's `main` branch builds every parser with
-  it — plus `curl`/`wget` and
-  `tar`; Mason can't supply these), **Runtime state
+  **Neovim** (the version floor), **Core prerequisites** (`git` and conditional
+  parser-build requirements: compiler, tree-sitter CLI 0.26.1+, download/extraction
+  tools), **Runtime state
   directories** (swap, and undo when `undofile` is on, must be writable),
   **Search & pickers** (`rg`, `fzf`, `fd`), the **C/C++ toolchain**
   (`clangd`, `clang-format`, `clang-tidy`), **Language runtimes** (`node`,
-  Python 3 as `python3` or `python`, `cargo`; fzf older than 0.45 is flagged because some fzf-lua
+  Python 3 as `python3` or `python`, Rust tools where selected; fzf older than 0.45 is flagged because some fzf-lua
   pickers need newer), **Dev & test tooling**, and **Mason-managed servers /
   formatters / debug adapters** (deferred to `:checkhealth mason` rather
   than duplicated here), and **Optional tooling skipped on this machine**
   (automatic installs/builds and server runtimes skipped by prerequisite checks).
   It flags what's missing or the wrong version, and
   notes when `'exrc'` is on (project `.nvim.lua` files run once `:trust`ed).
+  Intentional opt-outs and prerequisite skips are distinguished from usable
+  installed tools. See [tool selection](docs/tooling-configuration.md).
   (Implemented in `lua/config/health.lua`.)
 
 Useful single-plugin variants:
@@ -621,7 +631,7 @@ Useful single-plugin variants:
 - `:checkhealth nvim-treesitter`
 - `:checkhealth mason`
 - `:checkhealth telescope`
-- `:checkhealth vim.lsp` (`:checkhealth lsp` is the same report)
+- `:checkhealth vim.lsp`
 
 ## Neovim 0.12 features deliberately not enabled
 
@@ -815,13 +825,12 @@ don't have to be rediscovered.
 
 ### `<C-Space>` and other "modified special key" combos
 
-Neovim can only see `<C-CR>`, `<S-CR>`, `<C-Tab>` and similar
-combinations if the terminal encodes them, which requires the **kitty
-keyboard protocol** (aka CSI-u / "fixterms"). Terminals that speak it:
-WezTerm, kitty, Alacritty, and recent Windows Terminal. The legacy Windows
-console (`conhost`, the default `cmd.exe` window) does **not**, and a
-multiplexer in the middle can swallow the encoding even when the outer
-terminal supports it.
+Neovim can distinguish `<C-CR>`, `<S-CR>`, `<C-Tab>` and similar combinations
+only when the terminal sends distinct encodings. Neovim supports CSI-u/parts of
+the kitty keyboard protocol and xterm's separate `modifyOtherKeys` mechanism;
+these are not interchangeable names for one protocol. Support depends on the
+terminal version and its settings, and a multiplexer can intercept the encoding.
+See `:help tui-input` and `:help tui-csiu` before choosing mappings that rely on it.
 
 `<C-Space>` needs no protocol in most terminals: they send it as a NUL
 byte, which Neovim reads as `<C-Space>`. On the Windows console (and
@@ -832,25 +841,27 @@ reachable through **`<C-n>` / `<C-p>`** in this config, which every terminal
 can send. See `docs/cheatsheets/keymaps.html` and the completion section of
 `docs/cheatsheets/vs-to-nvim.html`.
 
-If you want the modified combos to work: use one of the terminals above, and
-if you run a multiplexer make sure it passes the protocol through (zellij and
-tmux both need reasonably recent versions).
+To investigate a missing key, compare what Neovim receives with and without your
+multiplexer: enter Insert mode and type `<C-v>` followed by the desired key (or
+use `:lua print(vim.fn.keytrans(vim.fn.getcharstr()))` and press it). If the key
+arrives as another key, changing a Neovim map cannot recover the lost distinction.
+Check terminal/multiplexer protocol settings or use the provided alternative map.
 
 ### Mouse drag-select and scroll under zellij
 
 With `mouse = "a"` (the default here) Neovim handles the mouse itself. Under
-**zellij** specifically, two rough edges are upstream multiplexer
-limitations, not config problems:
+**zellij**, versions and terminal combinations have exhibited these behaviors:
 
 - **Drag-select doesn't auto-scroll symmetrically** — dragging past the top
   or bottom edge scrolls unevenly or not at all.
 - **The scroll wheel restarts/clears an in-progress selection** instead of
   extending it.
 
-The config's mouse handling is deliberately vanilla — `mouse = "a"` with no
+The config's mouse handling uses `mouse = "a"` with no
 wheel or drag remaps and neoscroll bound only to keyboard motions
 (`<C-u>` / `<C-d>` / `<C-f>` / `<C-b>` / `<C-y>` / `<C-e>`), so there's
-nothing here to change. Workarounds:
+no custom drag-selection implementation. Compare a session outside the
+multiplexer to isolate the layer involved, then try these workarounds:
 
 - Hold **Shift** while selecting to bypass the application's mouse capture
   and use the terminal's own text selection (works in most terminals).
@@ -867,7 +878,7 @@ status before assuming a given version still has them.
 
 When something feels stale — a plugin update that didn't take, a
 treesitter parser that refuses to recompile, mysterious post-update
-errors — there are four levels of reset, ordered least to most
+errors — there are three levels of reset, ordered least to most
 destructive. Start with level 1.
 
 First, run this inside nvim to get the exact paths on your system
@@ -882,18 +893,21 @@ With no `XDG_*` or `NVIM_APPNAME` overrides they resolve to:
 | Path                | Windows                      | Linux and macOS          | Holds                                                 |
 |---------------------|------------------------------|--------------------------|-------------------------------------------------------|
 | `stdpath('config')` | `%LOCALAPPDATA%\nvim`        | `~/.config/nvim`         | Your config. **Never delete this.**                   |
-| `stdpath('data')`   | `%LOCALAPPDATA%\nvim-data`   | `~/.local/share/nvim`    | Plugins (lazy), Mason packages, parsers, sessions, undo, swap |
-| `stdpath('state')`  | (same as data)               | `~/.local/state/nvim`    | shada, logs                                           |
+| `stdpath('data')`   | `%LOCALAPPDATA%\nvim-data`   | `~/.local/share/nvim`    | Plugins (lazy), Mason packages, installed parsers, sessions and breakpoints |
+| `stdpath('state')`  | (same as data)               | `~/.local/state/nvim`    | ShaDa, logs, undo, swap and fold views in this config |
 | `stdpath('cache')`  | `%TEMP%\nvim`                | `~/.cache/nvim`          | luac bytecode cache, parser downloads, scoper's compile_commands copies |
 | `stdpath('log')`    | (same as data)               | `~/.local/state/nvim`    | lsp.log, DiagnosticDump output                        |
 
-The Unix commands below run unchanged in bash, zsh and fish.
+The Unix commands below work in bash, zsh and fish. They target the default paths
+in the table: substitute the actual `stdpath()` values if using XDG overrides or
+another `NVIM_APPNAME`. Close all Neovim instances using those paths before any
+reset, including before deleting Scoper caches referenced by running clangd.
 
-### Level 1 — just the cache (safe, fixes most "stale" issues)
+### Level 1 — generated caches
 
-This is what people usually mean by "clear cache". Lua bytecode and
-treesitter compile artifacts are regenerated on next launch — nothing
-gets re-downloaded.
+This preserves installed plugins, parsers and Mason tools. Generated Lua/cache
+and Scoper files are rebuilt as needed; cached download/build inputs may need
+to be fetched again. It does not select different plugin versions.
 
 ```powershell
 # Windows — quit nvim first.
@@ -905,30 +919,37 @@ Remove-Item -Recurse -Force "$env:TEMP\nvim"
 rm -rf ~/.cache/nvim
 ```
 
-### Level 2 — cache + logs + shada/state, keep plugins & Mason
+### Level 2 — cache, selected logs and ShaDa, keep plugins and recovery data
 
-Deeper reset; preserves the big downloads (plugins, Mason packages).
+This additionally loses command/register/mark history and the named logs.
+Preserve diagnostic evidence first. It does not remove undo, swap, views,
+sessions or breakpoints; use the state guide for those individual policies.
 
 ```powershell
 Remove-Item -Recurse -Force "$env:TEMP\nvim"
-Remove-Item -Force "$env:LOCALAPPDATA\nvim-data\*.log" -ErrorAction SilentlyContinue
+Remove-Item -Force "$env:LOCALAPPDATA\nvim-data\*.log*" -ErrorAction SilentlyContinue
 Remove-Item -Force "$env:LOCALAPPDATA\nvim-data\shada\*" -ErrorAction SilentlyContinue
 ```
 
 ```sh
 rm -rf ~/.cache/nvim
-rm -f ~/.local/state/nvim/*.log
-rm -f ~/.local/state/nvim/shada/*
+find ~/.local/state/nvim/. ! -name . -prune -type f -name '*.log*' -exec rm -f {} +
+find ~/.local/state/nvim/shada -type f -exec rm -f {} +
 ```
+
+The log command prunes child directories, so it only removes direct log files
+and keeps nested undo/swap/view data even when an encoded filename contains
+`.log`. `find` can report a directory that has never been created. The quoted
+filename pattern avoids shell differences when no logs match.
 
 ### Level 3 — nuclear: everything except config
 
 Wipes plugins, Mason, sessions, breakpoints, the lot, **including swap
 files with unsaved work**: run `nvim --clean -r` first and recover
 anything marked "modified: YES" ([docs/workflows/swap-files.md](docs/workflows/swap-files.md)).
-Next launch
-re-clones every plugin and recompiles every parser. Slow (1–2 minutes
-on first nvim launch), but reliably gets you back to a clean state.
+Next launch needs network access to reinstall enabled plugins and tools, and
+build prerequisites for missing parsers/native extensions. It preserves tracked
+and local configuration, so a configuration logic error can still recur.
 
 ```powershell
 Remove-Item -Recurse -Force "$env:LOCALAPPDATA\nvim-data"
@@ -947,7 +968,7 @@ Target one subsystem instead of nuking everything:
 
 - **Swap files** — `:SwapClean` deletes the leftovers that hold no
   unsaved work; see [docs/workflows/swap-files.md](docs/workflows/swap-files.md).
-  Undo history, ShaDa, sessions and logs grow forever too:
+  Undo, ShaDa, sessions and logs have different retention and recovery policies:
   [docs/workflows/state-files.md](docs/workflows/state-files.md).
 
 - **Lazy plugin clean / reinstall** — `:Lazy clean` (removes plugins no
@@ -956,19 +977,21 @@ Target one subsystem instead of nuking everything:
   (`Remove-Item -Recurse -Force "$env:LOCALAPPDATA\nvim-data\lazy\<plugin>"`,
   or `rm -rf ~/.local/share/nvim/lazy/<plugin>`), relaunch
 - **Mason packages** — `:Mason` → `X` on a package, or `:MasonUninstallAll`
-- **Treesitter parsers** — `:TSUninstall <lang>` then `:TSInstall <lang>`
-  (`:TSUpdate` never installs a missing parser); after `:TSUninstall all`,
-  restart and the config reinstalls its parser list
+- **Treesitter parsers** — `:TSUninstall <lang>` then `:TSInstall <lang>`.
+  Automatic installation can reinstall selected parsers after a restart or a
+  matching file open. To keep one absent, remove it from the startup
+  `tools.parsers` list **and** disable `tools.parsers_on_demand`, or disable all
+  automatic installation as described in the tooling guide.
 - **Sessions** — `:AutoSession delete` for the current project. Behaviours
   worth knowing:
-  - Started **with file arguments** (`nvim foo.c`), the session is only
-    auto-saved if the work grew to 2+ file buffers or 2+ tabs, so a quick
-    one-file edit never overwrites the project's session.
-  - Home, Downloads, the temp dirs and the filesystem root never get an
-    automatic session (both slash styles on Windows).
-  - A window whose file doesn't exist on disk yet (a never-written new
-    buffer) is closed before saving — if it was a tab's only window, that
-    tab is not in the session.
+  - By default, starting **with file arguments** (`nvim foo.c`) saves only
+    after the work grows to 2+ ordinary file buffers or 2+ tabs. Session policies
+    in `local.lua` can change automatic saving and suppression.
+  - Home, Downloads, temp directories and filesystem roots are suppressed by
+    the shipped policy; see the session guide for pattern/predicate boundaries.
+  - Never-written file buffers are excluded from the saved layout without
+    discarding their in-memory edits. Write important new buffers to disk;
+    session files are not a substitute for saving their contents.
   - Saving while debugging (`:AutoSession save`, switching sessions)
     keeps the debug session running; dap-ui closes for the save and
     reopens. Quitting still terminates the debuggee.
@@ -980,9 +1003,9 @@ Target one subsystem instead of nuking everything:
 
 - **Stale cache** (level 1) fixes weird highlighting after an update,
   treesitter parsers that won't recompile, post-update Lua oddities.
-- **Wrong plugin code** (a `branch` or `commit` change that didn't take)
-  needs level 3 or a targeted single-plugin reinstall — *not* level 1,
-  because the cache isn't what's wrong, the checked-out code is.
+- **Wrong plugin code** — inspect `:Lazy` and use `:Lazy restore` for the
+  committed lockfile or an explicit update for a new revision. A targeted
+  reinstall is for a damaged checkout; deleting all runtime data is unnecessary.
 - **Config logic bugs** can't be cache-cleared away. The problem is in
   `lua/`.
 
@@ -1016,7 +1039,10 @@ Writes a timestamped report to `stdpath('log')` containing:
 - plugin list from lazy.nvim
 - last 64 KiB of the LSP log
 
-Run `:DiagnosticDump`, attach the file. Done.
+Run `:DiagnosticDump`, inspect the file, and share only the parts needed for the
+issue. Redaction is limited: filenames, messages, source fragments and LSP logs
+can contain private information even without `!`. A dump is a snapshot, not a
+stack trace of code that was blocked before the command could execute.
 
 ### When nvim is *fully* hung
 
@@ -1025,18 +1051,21 @@ Run `:DiagnosticDump`, attach the file. Done.
 1. **Try `<C-c>` first** — interrupts whatever's blocking. If it
    unhangs, immediately run `:DiagnosticDump` while you can.
 2. **Open Task Manager / Process Explorer** and look at `nvim.exe`:
-   - high CPU → likely treesitter or a tight-loop autocmd
-   - low CPU → blocked on I/O (LSP, network, antivirus, slow disk)
+   - high CPU → investigate active computation such as parsing or an autocmd loop
+   - low CPU → investigate waits or I/O; this alone does not identify the cause
 3. **Force-kill nvim**, then restart in the same project.
-4. **Run `:DiagnosticDump`** in the fresh nvim — the dump points at the
-   LSP log, which is what we want from the previous session (it
-   persists across kills).
-5. Send the dump file + a note about what you were doing when it hung.
+4. **Run `:DiagnosticDump`** in the fresh nvim. This describes the new process;
+   old LSP messages may remain in `lsp.log` or its rotated `lsp.log.old`, but
+   startup rotation can replace the older generation. Preserve logs before
+   repeated restarts if they matter to the investigation.
+5. Review the report and logs before sharing them with a note about the trigger.
 
 For especially nasty hangs on Windows, [ProcDump](https://learn.microsoft.com/sysinternals/downloads/procdump)
 captures a memory snapshot of the still-frozen process so the call
 stacks of every nvim thread are recoverable: `procdump -ma <pid>`.
-Heavyweight; rarely necessary.
+Capture before killing the process if a native stack is needed. Memory dumps can
+contain source code, credentials and other process data; share them privately
+only with the intended debugger/support recipient.
 
 ### Preemptive verbose logging
 
@@ -1073,9 +1102,9 @@ nvim
 | Symptom | Likely cause | What to try |
 |---|---|---|
 | Hang when opening a specific file | huge file + treesitter | open the file with `nvim --clean <file>` to confirm |
-| Hang after autocomplete pause | LSP request stalled | `:checkhealth vim.lsp`, then `:lsp restart <name>` |
+| Completion slow or absent | Server/runtime availability, project setup or completion configuration | `:checkhealth vim.lsp`, inspect attached clients and logs; an asynchronous LSP request alone does not establish why the whole UI froze |
 | Windows: Mason install fails with "tar: unrecognized option --no-same-owner" | Another tool's `tar` (Git/MSYS, vendor shells) is first on PATH | Handled automatically: when Mason loads, System32's `tar.exe` is copied to `stdpath("data")/tar-shim` and put first on PATH for Neovim (`vim.g.windows_tar_shim = false` to opt out). `:checkhealth config` shows which tar is used; then `:MasonInstall <pkg>` again |
 | Hang on `:wq` after long session | session-save iterating thousands of buffers | `:lua print(#vim.api.nvim_list_bufs())` — if >500, something's leaking buffers |
 | Sluggish typing | treesitter on a huge buffer | check `:DiagnosticDump`'s buffer table for big files with `ts=true` and `big_file=false` (the big-file guard isn't catching it) |
 | Hang on git operation in a huge repo | gitsigns / diffview blocking | `:Lazy reload gitsigns.nvim` to confirm |
-| Random multi-minute freezes on Windows | Defender scanning Mason packages | exclude `%LOCALAPPDATA%\nvim-data\mason\` from real-time scanning |
+| Repeated slow native debugger startup on Windows | Symbol loading or another startup bottleneck | Try the per-project [CodeLLDB symbol-loading settings](docs/debug-terminal-configuration.md#codelldb-symbol-loading-for-slow-launches), then inspect adapter logs; timing alone does not identify antivirus scanning |

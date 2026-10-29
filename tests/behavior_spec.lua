@@ -641,9 +641,9 @@ end)
 describe("formatting", function()
   before_each(reset)
 
-  -- The tree is stylua-formatted with hand-aligned blocks fenced by
-  -- `-- stylua: ignore start/end`; formatting must fix the rest and leave
-  -- those blocks byte-for-byte alone.
+  -- Formatting must fix the surrounding sample and leave these top-level
+  -- `-- stylua: ignore start/end` blocks byte-for-byte alone. StyLua can
+  -- still normalize some table-internal comment spacing in other contexts.
   it("visual <leader>cf formats only the selected lines (stylua range end)", function()
     local stylua = vim.fn.executable("stylua") == 1 and "stylua"
       or vim.fn.stdpath("data") .. "/mason/bin/stylua"

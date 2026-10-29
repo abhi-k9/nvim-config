@@ -22,7 +22,10 @@ new source files still appear in the documentation checks. To use another file,
 set `vim.g.config_local_file` to its filename **before** loading `init.lua`.
 Set it to `false` to disable local loading. The test harness does this so a
 developer's private configuration cannot change the default regression suite.
-A missing file uses defaults; a broken file reports an error and uses defaults.
+A missing file uses defaults. An unreadable file, execution error or non-table
+return reports an error and discards returned settings. Executable Lua can have
+side effects before failing; those are not rolled back. Prefer returned settings
+over direct mutations, and review this file as code.
 
 ## Load order and override rules
 
@@ -53,8 +56,11 @@ To disable a plugin, use a normal spec such as
 ## Project context and trust
 
 The settings module never searches a project for Lua or executes project files.
-Neovim's `exrc`/`:trust` mechanism remains responsible for project configuration.
-Set `options.exrc=false` if project-local Lua is unwanted.
+Neovim's `exrc`/`:trust` mechanism remains responsible for project-file discovery.
+The shipped `exrc` default is false; explicitly pre-set options are preserved.
+Opt in with `options.exrc=true`, then review each file before trusting it. A
+trusted project file has the same access as the editor process; trust is not
+a sandbox. Explicit overlays registered below do not require enabling `exrc`.
 
 Trusted code can register a runtime overlay explicitly:
 
@@ -67,7 +73,8 @@ require("config.settings").for_project("/work/project-a", {
 
 Overlays match the **global** working directory and its descendants, most
 specific last. Dictionaries merge, lists replace, and changing global directory
-removes the previous project's runtime overlay. This models one active project.
+stops applying overlays whose roots no longer match. Registrations remain stored
+and apply again when returning to that root. This models one active project.
 An `:lcd`/`:tcd` changes invocation cwd without changing project identity. It
 does not activate a different project overlay. Startup settings such as leaders,
 plugin specs, tool lists, theme, and session adapter selection need a restart;

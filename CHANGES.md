@@ -1,8 +1,29 @@
 # Changelog
 
-Newest first. New entries use one `## YYYY-MM-DD — <title>` heading per
+Newest first. Entries record their own revision's behavior and evidence; later
+changes can supersede earlier defaults or instructions. Use the README and
+feature guides for current operation. New entries use one `## YYYY-MM-DD — <title>` heading per
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
+
+## 2026-10-28 — Audit documentation, examples and source comments
+
+### Fixed
+
+- Refresh externally saved Scoper state before capturing the first search or
+  replacement query. Newly saved roots/restrictions now apply immediately;
+  two failing-before/passing-after regressions cover the boundary.
+- Correct the annotated clangd example's `FullyQualifiedNamespaces` value to an
+  empty list instead of a scalar that could be treated as a namespace name.
+
+### Docs
+
+- Reconcile all tracked documentation and comment surfaces with current code and
+  locked dependencies. Correct setup/tooling, trust, debugging, C/C++, search,
+  session, clipboard, fold, state-cleanup and CI claims; expand recipes and
+  explain backend boundaries, recovery costs and privacy limits.
+- Preserve dated audit/changelog evidence with explicit historical notices and
+  later correction notes. See the [coverage and verification report](docs/documentation-audit-2026-10-28.md).
 
 ## 2026-10-28 — Document on-demand CodeLLDB symbols for slow launches
 

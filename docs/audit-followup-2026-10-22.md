@@ -1,5 +1,11 @@
 # Expanded repository audit — 2026-10-22
 
+> Historical snapshot of this audit batch, including its original file/test
+> counts and platform evidence. It is not the current repository inventory or
+> a guarantee about later revisions. Workspace artifact paths refer to the
+> investigation environment; current commands and policies live in the
+> [README](../README.md) and feature guides.
+
 This continues [the first audit](audit-2026-10-21.md) from commit `01842c4`.
 The inventory covered all **107 tracked baseline files**, including the plugin
 specifications, custom callbacks, bundled Scoper implementation, test harnesses,

@@ -2,23 +2,25 @@
 --
 -- Neovim configuration entry point. The hard MINIMUM Neovim version is
 -- enforced by the guard below; :checkhealth config reads it from
--- vim.g.config_min_nvim. README.md and the CI matrix repeat the number, so
--- change all three together.
+-- vim.g.config_min_nvim. README.md, the health fallback and CI documentation
+-- repeat the floor; keep them aligned. CI's matrix currently selects stable.
 --
 -- Loading order matters:
 --   0. version guard – abort early (before any require) if Neovim is too old,
 --                     so a missing 0.12 API surfaces as one clear message
 --                     instead of a confusing mid-load stack trace.
---   1. options      – set globals BEFORE plugins load (e.g. mapleader must be
---                     set before lazy.nvim reads your plugin specs).
---   2. keymaps      – global, non-plugin keymaps.
---   3. autocmds     – autocommands (e.g. highlight on yank).
---   4. diagnostics  – registers the :DiagnosticDump command. The command
+--   1. settings     – capture pre-set options, load optional trusted local.lua
+--                     and apply globals before mappings or plugins exist.
+--   2. options      – apply shipped options, then captured/local overrides
+--                     (e.g. mapleader must be set before Lazy reads specs).
+--   3. keymaps      – global, non-plugin keymaps.
+--   4. autocmds     – autocommands (e.g. highlight on yank).
+--   5. diagnostics  – registers the :DiagnosticDump command. The command
 --                     body queries dap/lazy via pcall when invoked, but
 --                     registration itself is just nvim_create_user_command
 --                     and doesn't need any plugin loaded.
---   5. lazy         – bootstraps lazy.nvim and imports `lua/plugins/*.lua`.
---   6. health reminder – periodic, persisted prompt to review optional tools.
+--   6. lazy         – bootstraps lazy.nvim and imports `lua/plugins/*.lua`.
+--   7. health reminder – periodic, persisted prompt to review optional tools.
 --
 -- Each file under lua/config/ and lua/plugins/ is heavily commented; start
 -- there if you want to tweak something.

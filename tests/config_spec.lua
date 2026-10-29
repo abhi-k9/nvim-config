@@ -14,8 +14,8 @@
 --      lazy.nvim `keys` spec. Known blind spots: buffer-local maps
 --      (LspAttach, gitsigns on_attach, picker prompts), maps a plugin sets
 --      itself inside config(), and prefix shadowing between distinct LHSs.
---      The only intentionally repeated leader LHS is <leader>sr, split
---      across modes n and x (search.lua).
+--      Reusing an LHS in distinct modes is allowed; the identity includes
+--      the mode, so normal/visual variants are checked independently.
 --
 -- These tests run inside a headless Neovim that has the real config loaded.
 

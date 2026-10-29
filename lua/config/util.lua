@@ -15,9 +15,10 @@
 --     each picker only turns its entries into bufnrs and refreshes its list.
 --   * augroup, is_file_buffer, the buffer_menu hook and windows_tar_shim.
 --
--- Every close path in the config goes through these helpers so they share
--- one set of rules: keep the window layout, never discard unsaved work,
--- force terminals, and report why a buffer stayed open.
+-- The configured buffer-close mappings, menus and pickers share these helpers.
+-- Normal closes skip unsaved changes; an explicitly forced single close can
+-- discard them. Terminal deletion needs force and stops its running job.
+-- Raw :bdelete/:bwipeout commands retain Neovim's own behavior.
 
 local M = {}
 
@@ -113,8 +114,8 @@ end
 -- nvim_buf_call line, at 100 ms up to SECONDS per buffer (measured
 -- 131,904 ms for 30 deletes with the picker open on 0.12.4; 3 ms for
 -- the same deletes without the mask absent the float). Masking the
--- flag for the microseconds of the delete call skips only that dead
--- re-apply; syntax stays on globally and no other buffer is touched.
+-- flag for the duration of the delete call skips that redundant re-apply;
+-- existing highlighters in other buffers are not explicitly disabled.
 -- pcall-protected so the flag is always restored.
 local function delete_buf_quietly(b, opts)
   local saved = vim.g.syntax_on
@@ -177,8 +178,8 @@ end
 -- skipped buffer would also fire its own notification.
 --
 -- The batch does it right:
---   1. dirty buffers are set aside untouched (same never-force-discard
---      guarantee as the single delete),
+--   1. dirty buffers are set aside untouched (bulk deletion has no explicit
+--      force-discard option),
 --   2. every window showing ANY doomed buffer is repointed ONCE to a
 --      survivor OUTSIDE the doomed set,
 --   3. the buffers are deleted in a tight loop,
@@ -209,8 +210,8 @@ function M.delete_buffers_keep_windows(bufs)
     if not vim.api.nvim_buf_is_valid(b) then
       res.deleted = res.deleted + 1
     else
-      -- Terminals take force, exactly as in delete_buffer_keep_windows:
-      -- a running job's buffer is never 'modified', but needs force.
+      -- Terminals need force to end the running job; modified targets have
+      -- already been excluded above.
       local force = vim.bo[b].buftype == "terminal"
       if delete_buf_quietly(b, { force = force }) then
         res.deleted = res.deleted + 1

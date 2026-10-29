@@ -1,10 +1,15 @@
 # Audit finding resolution
 
+> Historical follow-up snapshot, last updated at `bb172db` (2026-10-23).
+> File/test counts, timings and resolved behavior below belong to that batch.
+> Consult the [README](../README.md) and feature guides for current behavior;
+> subsequent revisions and their validation appear in [CHANGES.md](../CHANGES.md).
+
 This follow-up addresses the unresolved findings in the
 [first audit](audit-2026-10-21.md) and
 [expanded audit](audit-followup-2026-10-22.md), starting from `d82a7f4`.
 Their original observations and test counts remain historical evidence.
-This records current behavior and the limits of the verification, rather than
+This records that batch's resulting behavior and verification limits, rather than
 claiming exhaustive branch coverage or an audit of every upstream dependency.
 
 ## Findings addressed
