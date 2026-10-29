@@ -8,9 +8,10 @@
 # HOW IT APPLIES IN THIS SETUP: <leader>cf (conform.nvim) runs the
 # clang-format binary Mason installs; <leader>lf asks clangd, which uses
 # clang-format's library. Both read this file, as does clang-format run
-# directly. It changes layout; the only tokens it adds are the braces from
-# InsertBraces below. It never rewrites expressions (so it can't convert
-# `=` init to `{}`; that's a clang-tidy job, see .clang-tidy).
+# directly. It mainly changes layout, but this style also inserts braces,
+# updates namespace comments and sorts/deduplicates includes. Review those
+# changes: clang-format has no full semantic model. It doesn't provide a
+# general `=`-to-`{}` initialization rewrite; see clang-tidy for refactorings.
 #
 # DESIGN: start from a predefined base and override only deliberate
 # choices, so the file stays short and upgrades cleanly between
@@ -36,8 +37,8 @@ Language: Cpp
 BasedOnStyle: LLVM
 
 # --- Width & indentation -----------------------------------------------
-ColumnLimit: 100          # 80 is cramped for modern C++ with templates/namespaces; 100 is the common modern choice
-IndentWidth: 4            # 4 spaces reads better than LLVM's 2 for most teams
+ColumnLimit: 100          # chosen line limit; adjust to the project style
+IndentWidth: 4            # override LLVM's 2-space indentation
 TabWidth: 4
 UseTab: Never             # spaces only — portable, no tab/space mixing
 ContinuationIndentWidth: 4
@@ -46,7 +47,7 @@ NamespaceIndentation: None  # don't indent inside namespaces (modern convention;
 
 # --- Pointers & qualifiers ---------------------------------------------
 DerivePointerAlignment: false  # don't guess from the file; enforce the choice below
-PointerAlignment: Left         # `int* p` (type-attached) — the modern C++ convention
+PointerAlignment: Left         # chosen type-attached style: `int* p`
 ReferenceAlignment: Left       # `int& r` to match
 QualifierAlignment: Leave      # do NOT auto-move const/volatile: clang-format lacks full
                                # semantic info and can produce wrong code. Leave it; enforce
@@ -54,8 +55,8 @@ QualifierAlignment: Leave      # do NOT auto-move const/volatile: clang-format l
 
 # --- Braces ------------------------------------------------------------
 BreakBeforeBraces: Attach      # `if (x) {` on the same line (K&R/LLVM style)
-InsertBraces: true             # add braces to single-statement if/for/while — removes a
-                               # whole class of goto-fail bugs. (clang-format 15+.)
+InsertBraces: true             # add braces to eligible if/else/for/do/while statements
+                               # (clang-format 15+); review changes for semantic edge cases.
 
 # --- Includes ----------------------------------------------------------
 SortIncludes: CaseSensitive    # keep #includes sorted & deduplicated
@@ -108,7 +109,7 @@ MaxEmptyLinesToKeep: 1
 Standard: Latest              # parse newest C++ syntax (structured bindings, concepts, etc.)
 # Note: `Standard: Latest` controls how clang-format PARSES syntax, not
 # which standard your compiler targets — that comes from compile flags /
-# .clangd. It's safe to leave at Latest.
+# .clangd. Latest follows the formatter version's supported syntax.
 
 # RemoveSemicolon: clang-format 16+ can strip stray `;` after function
 # bodies. Off by default here because it edits tokens (a delete), which

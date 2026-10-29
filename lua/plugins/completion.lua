@@ -1,8 +1,7 @@
 -- lua/plugins/completion.lua
 --
--- blink.cmp — the completion engine. It's the modern (2024+) successor to
--- nvim-cmp: significantly faster (Rust fuzzy matcher), smaller config
--- surface, and ships with snippet support out of the box.
+-- blink.cmp — the completion engine, with LSP/path/buffer/snippet sources
+-- and optional Rust fuzzy matching. It is an alternative to nvim-cmp.
 --
 -- Neovim 0.12 can complete as you type on its own ('autocomplete' and
 -- vim.lsp.completion.enable()); blink.cmp adds the fuzzy matcher, snippet,
@@ -13,20 +12,18 @@
 return {
   {
     "saghen/blink.cmp",
-    version = "*", -- pin to releases; blink ships pre-built binaries per tag
+    version = "*", -- select release tags; lazy-lock.json records the exact revision
     event = { "InsertEnter", "CmdlineEnter" },
     dependencies = {
       -- LuaSnip is optional but lets you use the rich vscode-snippet
       -- ecosystem via friendly-snippets.
       --
       -- We deliberately do NOT add `build = "make install_jsregexp"` here.
-      -- jsregexp is an optional native extension used only for advanced
-      -- regex transforms inside snippet bodies; it fails to link on
-      -- Windows + LuaJIT (Neovim ships LuaJIT, but the makefile expects
-      -- a full Lua 5.1 static lib, so every `lua_*` symbol comes up
-      -- "undefined"). Skipping it gives you ~99% of LuaSnip's features
-      -- with zero build step. If you ever need transforms, install
-      -- jsregexp via `luarocks --lua-version=5.1 install jsregexp`.
+      -- jsregexp is optional and needed for LSP-snippet regex transforms.
+      -- Skipping it avoids a native build requirement on limited systems.
+      -- If transforms are needed, follow LuaSnip's installation guidance for
+      -- your compiler and Neovim LuaJIT runtime; Windows builds need matching
+      -- tooling and can otherwise fail to link.
       {
         "L3MON4D3/LuaSnip",
         version = "v2.*",
@@ -67,14 +64,12 @@ return {
       -- Keymap preset. "default" = <C-Space> trigger, <C-n>/<C-p> (or
       -- <Up>/<Down>) to select, <C-y> accept, <C-e> cancel/dismiss,
       -- <Tab> snippet jump. Other presets: "super-tab" (Tab accepts the
-      -- highlighted item), "enter" (Enter accepts; no Tab binding).
+      -- highlighted item), "enter" (Enter accepts; Tab still jumps snippets).
       --
-      -- <C-Space> is kept (it still works on terminals that speak the kitty
-      -- keyboard protocol), but it is unreliable elsewhere: legacy terminals
-      -- — the Windows console, plus multiplexers not negotiating the protocol
-      -- (zellij/tmux over such a terminal) — cannot distinguish Ctrl+Space
-      -- from a bare <Space>. Since <leader> is <Space>, the keypress collapses
-      -- to <leader> and pops which-key instead of opening the completion menu.
+      -- <C-Space> is kept, but terminal/multiplexer or OS shortcuts may
+      -- intercept it. Legacy terminals normally encode it as NUL (<C-@>),
+      -- not bare Space; extended keyboard protocols can encode it explicitly.
+      -- C-n/C-p provide an alternative when the key never reaches Neovim.
       --
       -- So we ALSO make <C-n>/<C-p> open the menu, not merely navigate it:
       -- those keys are transmitted cleanly by every terminal. Putting "show"

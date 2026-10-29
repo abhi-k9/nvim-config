@@ -26,9 +26,9 @@
 # decide you want that warning back.
 
 # ---------------------------------------------------------------------------
-# Checks. Leading `-*` disables clang-tidy's defaults so the set below is
-# explicit and reproducible (the default set drifts between LLVM versions).
-# Globs enable a family; `-family-check` removes one member.
+# Checks. Leading `-*` clears clang-tidy's default selection. Globs enable
+# a family; `-family-check` removes one member. Family contents can grow when
+# LLVM is updated, so a fixed tool version is needed for a fixed check set.
 # ---------------------------------------------------------------------------
 Checks: >
   -*,
@@ -84,21 +84,21 @@ Checks: >
 #   misc-no-recursion                   -> recursion is not a defect.
 
 # ---------------------------------------------------------------------------
-# Header filtering: which headers report diagnostics. For clangd this
-# governs which headers show tidy diagnostics. The regex below matches every
-# header, so with SystemHeaders:false you get all non-system headers —
-# third-party ones included ("not <vector>", but vendored code still shows).
-# To skip vendored code, narrow it to your own header roots, e.g.
-# '^<project-root>/(include|src)/'.
+# Header filtering for standalone clang-tidy diagnostics. The regex below
+# matches every header; with SystemHeaders:false it includes non-system
+# vendored headers too. To narrow CLI output, use your own header roots, e.g.
+# '^<project-root>/(include|src)/'. clangd primarily reports the opened file;
+# don't use this regex as a clangd file-exclusion rule. Use .clangd If with
+# Diagnostics.Suppress or ClangTidy.Remove for editor exclusions.
 # ---------------------------------------------------------------------------
 HeaderFilterRegex: '.*'
 # SystemHeaders defaults to false (don't lint system headers) — keep it.
 
 # ---------------------------------------------------------------------------
-# Treat selected checks as errors. NOTE: clangd does NOT use this for live
-# editor diagnostics (it surfaces everything as warnings/hints); this only
-# affects the standalone `clang-tidy` CLI / CI. Left empty so nothing is
-# force-promoted; set e.g. 'bugprone-*' in CI if you want hard failures.
+# Treat selected checks as errors. clangd honors this for editor severity;
+# the standalone clang-tidy CLI also returns failure when a matching warning
+# occurs. Left empty so nothing is force-promoted. Set e.g. 'bugprone-*'
+# deliberately if you want errors in both the editor and CLI/CI.
 # ---------------------------------------------------------------------------
 WarningsAsErrors: ''
 

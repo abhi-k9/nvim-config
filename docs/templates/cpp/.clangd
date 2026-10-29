@@ -4,14 +4,12 @@
 # NOT in your Neovim config. clangd discovers it by walking up from the
 # file being edited; it has nothing to do with the editor.
 #
-# WHY THIS EXISTS: header files (.h/.hpp) are never listed in
-# compile_commands.json — only source TUs (.cpp) are. To parse a header,
-# clangd has to borrow compile flags from a source file that #includes it.
-# When it can't find one (the sibling .cpp isn't in the database, isn't
-# indexed yet, or — with scoper's LSP filtering on — was filtered out of
-# the scoped compile_commands.json), clangd falls back to a DEFAULT
-# standard, which is old enough that modern C++ features report errors
-# like "... is a C++NN extension" or "no member named ... (C++98)".
+# WHY THIS EXISTS: most build systems don't compile headers directly, so
+# compile_commands.json usually has no entry for them. clangd can borrow
+# flags from an opened source that includes the header, or infer a command
+# from similar file names in the database. If neither is available, it uses
+# a fallback command. Any borrowed/default command with the wrong standard
+# or missing include paths/macros can produce misleading diagnostics.
 #
 # WHAT IT DOES: the Add flag below is appended to the compile command of
 # EVERY C++ file clangd parses — sources with a database entry, and those
@@ -20,9 +18,9 @@
 # the standard everywhere, overriding the database's own -std. That is
 # what fixes header diagnostics even across an include/ vs src/ split and
 # regardless of what's currently in scope, and it is right for a
-# single-standard project. The PathMatch keeps it off C files, which would
-# otherwise be parsed as C++20 (.h counts as C++ here; drop it from the
-# list if your .h files are C).
+# single-standard project. The PathMatch excludes .c sources but includes
+# .h headers. Remove .h from the list for C headers: -std=c++20 does not
+# itself change a C compile command into a C++ command.
 
 If:
   PathMatch: .*\.(cc|cpp|cxx|c\+\+|h|hh|hpp|hxx|ipp|inl|tpp)
@@ -35,9 +33,10 @@ CompileFlags:
 # Optional: only apply the standard to headers, leaving real source TUs
 # entirely on their database flags. Use this instead of the block above
 # if your project mixes C++ standards across targets. Delete the block
-# above if you enable this one.
+# above if you enable this one. Paths are relative to this .clangd directory;
+# this example matches C++ headers under its include/ directory. Adapt the path.
 #
 # If:
-#   PathMatch: .*/include/.*
+#   PathMatch: include/.*\.(h|hh|hpp|hxx|ipp|inl|tpp)
 # CompileFlags:
 #   Add: [-std=c++20]

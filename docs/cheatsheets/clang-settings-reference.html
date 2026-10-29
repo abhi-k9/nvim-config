@@ -55,7 +55,7 @@
 
   <!-- ═══════════════ .clang-format ═══════════════ -->
   <div class="card col-2">
-    <div class="card-header"><div class="dot" style="background:var(--green)"></div><h2>.clang-format <span class="note">layout only · based on LLVM</span></h2></div>
+    <div class="card-header"><div class="dot" style="background:var(--green)"></div><h2>.clang-format <span class="note">formatting · based on LLVM</span></h2></div>
     <table class="wide">
       <tr><td>BasedOnStyle</td><td><span class="val">LLVM</span> — overrides below stack on top</td></tr>
       <tr><td>ColumnLimit</td><td><span class="val">100</span></td></tr>
@@ -82,9 +82,9 @@
     <table class="wide">
       <tr><td>If / PathMatch</td><td>C++ extensions only: <span class="val">.cc .cpp .cxx .c++ .h .hh .hpp .hxx .ipp .inl .tpp</span></td></tr>
       <tr><td>CompileFlags.Add</td><td><span class="val">-std=c++20</span></td></tr>
-      <tr><td colspan="2" class="note">Not a fallback: clangd appends it after the compile_commands.json flags, so it overrides the database's <code>-std</code> for <em>every</em> C++ file (the last <code>-std</code> wins) — headers with no entry included. C files are left alone. Set it to your project's real standard (c++17/20/23).</td></tr>
+      <tr><td colspan="2" class="note">Not a fallback: clangd appends it after the compile_commands.json flags, so it overrides the database's <code>-std</code> for <em>every</em> C++ file (the last <code>-std</code> wins) — headers with no entry included. The pattern excludes .c but includes .h; remove .h for C headers. Set the flag to your build's real standard (c++17/20/23).</td></tr>
       <tr class="divider"><td colspan="2">optional, commented in the file</td></tr>
-      <tr><td>If / PathMatch <code>.*/include/.*</code></td><td>pin headers only (instead of the block above), if you mix standards per target</td></tr>
+      <tr><td>If / PathMatch <code>include/.*\.(h|hh|hpp|hxx|ipp|inl|tpp)</code></td><td>pin headers only (instead of the block above), if you mix standards per target</td></tr>
     </table>
   </div>
 
@@ -94,7 +94,7 @@
     <table class="wide">
       <tr><td>Enabled</td><td><span class="val">bugprone-* cppcoreguidelines-* modernize-* performance-* readability-* misc-*</span></td></tr>
       <tr><td>Subtracted (noise/style)</td><td><span class="off">use-trailing-return-type · avoid-c-arrays (both the modernize- and cppcoreguidelines- names — they're aliases) · use-nodiscard · identifier-length · magic-numbers · named-parameter · braces-around-statements · function-cognitive-complexity · pro-bounds-pointer-arithmetic · pro-bounds-array-to-pointer-decay · pro-type-vararg · non-private-member-variables · avoid-non-const-global · easily-swappable-parameters · no-recursion</span></td></tr>
-      <tr><td>HeaderFilterRegex</td><td><span class="val">.*</span> — every non-system header, third-party ones included; narrow it to skip vendored code</td></tr>
+      <tr><td>HeaderFilterRegex</td><td><span class="val">.*</span> — standalone clang-tidy reports non-system headers, including vendored code. Narrow CLI output here; use .clangd If/Diagnostics for editor exclusions.</td></tr>
       <tr><td>WarningsAsErrors</td><td><span class="off">'' (empty)</span> <span class="note">— clangd honours it too: listed checks would show as errors in the editor, and fail a standalone clang-tidy run</span></td></tr>
     </table>
   </div>

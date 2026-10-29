@@ -80,14 +80,14 @@
   <div class="card-header"><div class="dot" style="background:var(--lavender)"></div><h2>Which tool emits which warning? <span class="note">work out where to put the suppression</span></h2></div>
   <table>
     <tr><td class="desc">
-      Three independent tools surface diagnostics in your buffer. Suppression syntax differs for each.<br>
-      <strong style="color:var(--peach)">clang-format</strong> · purely formatting (whitespace, line breaks, brace style). It never produces diagnostics — it only rewrites the buffer when you format (<kbd>&lt;leader&gt;cf</kbd>, or on save if you enabled that).<br>
+      Identify the diagnostic producer before choosing suppression syntax. clang-format is a formatter, while clangd combines compiler, tidy and include diagnostics.<br>
+      <strong style="color:var(--peach)">clang-format</strong> · formats whitespace, line breaks, braces and includes. It can report formatting/configuration errors, but does not publish source lint diagnostics in this setup; it edits the buffer when you format (<kbd>&lt;leader&gt;cf</kbd>, or on save if you enabled that).<br>
       <strong style="color:var(--yellow)">clang-tidy</strong> · semantic linting (modernize-*, performance-*, bugprone-*, readability-*, cppcoreguidelines-*). Diagnostics have a check name in brackets.<br>
-      <strong style="color:var(--red)">compiler warnings</strong> · surfaced by clangd from the underlying clang/gcc/cl (-Wunused-variable, -Wmissing-field-initializers, etc.). Diagnostics start with <code>-W</code>.<br>
-      <strong style="color:var(--sky)">clangd itself</strong> · cross-translation-unit checks (unused-includes, missing-includes) that you configure in <code>.clangd</code>.
+      <strong style="color:var(--red)">compiler warnings</strong> · produced by clangd's Clang frontend on every platform, even with GCC/MSVC build commands. Codes may appear as <code>-W...</code> groups or <code>clang-diagnostic-...</code> names.<br>
+      <strong style="color:var(--sky)">clangd itself</strong> · include checks (unused-includes, missing-includes) that you configure in <code>.clangd</code>.
     </td></tr>
     <tr><td class="desc">
-      <strong>How to tell them apart:</strong> put the cursor on the line and press <kbd>&lt;leader&gt;ld</kbd>, or jump to it with <kbd>]d</kbd> / <kbd>[d</kbd> (the float opens on every jump). The float ends with the diagnostic's code in brackets: a <code>[check-name]</code> means clang-tidy; a <code>[-Wflag]</code> means compiler; "unused include" without either means clangd's own check. (<kbd>K</kbd> is fold peek / symbol hover — it doesn't show diagnostics.)
+      <strong>How to tell them apart:</strong> put the cursor on the line and press <kbd>&lt;leader&gt;ld</kbd>, or jump to it with <kbd>]d</kbd> / <kbd>[d</kbd> (the float opens on every jump). The float ends with the diagnostic's code in brackets: a tidy check name identifies clang-tidy; <code>-W...</code> or <code>clang-diagnostic-...</code> identifies compiler diagnostics; <code>unused-includes</code>/<code>missing-includes</code> identifies include checks. (<kbd>K</kbd> is fold peek / symbol hover — it doesn't show diagnostics.)
     </td></tr>
   </table>
 </div>
@@ -122,7 +122,7 @@
     <tr><td class="code-y">// NOLINT(a, b)</td>
         <td class="desc">Multiple checks, comma-separated.</td></tr>
     <tr><td class="code-y">// NOLINTNEXTLINE(check)</td>
-        <td class="desc">Affects the next code line. Use when the target line itself can't take a trailing comment.</td></tr>
+        <td class="desc">Affects the next physical line. Use when the target line itself can't take a trailing comment.</td></tr>
     <tr><td class="code-y">// NOLINTBEGIN(check)<br>// NOLINTEND(check)</td>
         <td class="desc">Region. Both ends need the same check list.</td></tr>
   </table>
@@ -147,7 +147,7 @@
 <span class="ty">int</span>   b = <span class="num">2</span>;
 Foo* c = <span class="key">new</span> Foo();
 <span class="cmt">// NOLINTEND(readability-magic-numbers, modernize-use-auto)</span></pre>
-  <div class="note">The check name in <code>NOLINT(...)</code> must match what clang-tidy printed — copy from the diagnostic. Globs work too since LLVM 15 (<code>// NOLINT(readability-*)</code>), but an exact name documents the intent and can't hide other checks.</div>
+  <div class="note">The check name in <code>NOLINT(...)</code> must match what clang-tidy printed — copy from the diagnostic. Current tools support globs too (<code>// NOLINT(readability-*)</code>), but an exact name documents the intent and can't hide other checks.</div>
 </div>
 
 <!-- ═══════════════════ COMPILER PRAGMAS ═══════════════════ -->
@@ -224,10 +224,10 @@ Foo* c = <span class="key">new</span> Foo();
   <table>
     <tr><td class="desc"><strong>Bare <code>// NOLINT</code> hides future bugs.</strong> Always name the check.</td></tr>
     <tr><td class="desc"><strong>Check name typos are silent.</strong> <code>// NOLINT(readibility-foo)</code> suppresses nothing — clang-tidy doesn't warn about unknown names. Copy from the diagnostic verbatim.</td></tr>
-    <tr><td class="desc"><strong>NOLINTNEXTLINE counts only the very next code line.</strong> A blank line or comment between the marker and the target line breaks the suppression silently.</td></tr>
-    <tr><td class="desc"><strong>An unmatched NOLINTBEGIN / NOLINTEND suppresses nothing.</strong> Each BEGIN needs an END with the same check list; otherwise the whole region stays active and clang-tidy reports the stray marker instead.</td></tr>
-    <tr><td class="desc"><strong>NOLINT globs need LLVM 15+.</strong> Mason's clangd and clang-tidy are far newer; an old system clang-tidy (e.g. in CI) may ignore <code>// NOLINT(readability-*)</code>.</td></tr>
-    <tr><td class="desc"><strong><code>// NOLINT</code> is the canonical spelling.</strong> Capitalised. <code>/* NOLINT */</code> also works. Trailing position required.</td></tr>
+    <tr><td class="desc"><strong>NOLINTNEXTLINE counts the very next physical line.</strong> A blank line or comment between the marker and the target line breaks the suppression silently.</td></tr>
+    <tr><td class="desc"><strong>An unmatched NOLINTBEGIN / NOLINTEND suppresses nothing.</strong> Each BEGIN needs an END with the same check list; otherwise the suppression is invalid and standalone clang-tidy reports a <code>clang-tidy-nolint</code> diagnostic. clangd may not expose every malformed-marker diagnostic.</td></tr>
+    <tr><td class="desc"><strong>Check suppression support in older CI tools.</strong> LLVM 14 already documents NOLINT globs and BEGIN/END blocks; consult the exact tool version rather than assuming a system clang-tidy matches Mason's clangd.</td></tr>
+    <tr><td class="desc"><strong><code>NOLINT</code> is case-sensitive.</strong> Line or block comments work on the diagnostic's physical line; trailing position is conventional, not required. Do not insert whitespace between <code>NOLINT</code> and its opening parenthesis.</td></tr>
   </table>
 </div>
 
@@ -236,11 +236,11 @@ Foo* c = <span class="key">new</span> Foo();
   <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>Diagnosing from inside nvim <span class="note">find the right check name without leaving the file</span></h2></div>
   <table>
     <tr><td class="code-s" style="width:24%"><kbd>&lt;leader&gt;ld</kbd></td>
-        <td class="desc">Open the line's diagnostics in a float. Each message ends with its code in brackets — the clang-tidy check name or the compiler's <code>-W</code> flag; the source (clangd / clang-tidy) is added when several sources report in the buffer.</td></tr>
+        <td class="desc">Open the line's diagnostics in a float. Each message ends with its code in brackets — a tidy check name, compiler diagnostic code or include-check name; the source (clangd / clang-tidy) is added when several sources report in the buffer.</td></tr>
     <tr><td class="code-s"><kbd>]d</kbd> &nbsp;·&nbsp; <kbd>[d</kbd></td>
         <td class="desc">Jump to next / prev diagnostic in the buffer; the same float opens on every jump.</td></tr>
     <tr><td class="code-s"><kbd>&lt;leader&gt;la</kbd></td>
-        <td class="desc">Code action menu — clang-tidy fix-its (for checks that have one) and clangd's quick fixes. There is no "suppress" action: type the <code>// NOLINT(check)</code> yourself.</td></tr>
+        <td class="desc">Code action menu — clang-tidy fix-its (for checks that have one) and clangd's quick fixes. Available actions depend on clangd/check support; if no suitable suppression action is offered, add a targeted <code>// NOLINT(check)</code> comment.</td></tr>
     <tr><td class="code-s"><kbd>&lt;leader&gt;xx</kbd></td>
         <td class="desc">Trouble — full list of diagnostics with sources, jump to any.</td></tr>
     <tr><td class="code-s"><code>:lua print(vim.lsp.log.get_filename())</code></td>
@@ -250,7 +250,7 @@ Foo* c = <span class="key">new</span> Foo();
 
 </div>
 <footer>
-  <span>Tested against clang-format / clang-tidy / clangd 18+ &nbsp;·&nbsp; NOLINTBEGIN / NOLINTEND require clang-tidy 14+</span>
+  <span>Feature versions: OneLineFormatOffRegex needs clang-format 21+ &nbsp;·&nbsp; NOLINTBEGIN / NOLINTEND are documented in clang-tidy 14</span>
   <span>Companion: <code>docs/templates/cpp/clang-format.example</code> &nbsp;·&nbsp; <code>docs/templates/cpp/clangd.example</code></span>
 </footer>
 </body>

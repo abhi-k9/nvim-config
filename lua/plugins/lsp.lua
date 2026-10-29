@@ -68,9 +68,9 @@ return {
       -- starting it as a second language server on every Lua buffer — a
       -- duplicate formatter that bypassed conform's per-file condition.
       automatic_enable = { exclude = { "stylua" } },
-      -- Each server here is installed by Mason on first launch and
-      -- automatically enabled. Edit freely; if you don't write a given
-      -- language, drop it.
+      -- Selected servers are installed automatically when prerequisites
+      -- are available, then enabled when usable (config.tooling gates both).
+      -- Remove languages you do not need through tools.servers.
       ensure_installed = require("config.tool_intent").option("servers", {
         "lua_ls", -- Lua
         "bashls", -- Bash
@@ -460,8 +460,9 @@ return {
             analysis = {
               -- "basic" is the sane default: real type errors without the
               -- flood "strict" produces on most untyped code. Bump to
-              -- "strict" per-project via a `.nvim.lua` (exrc, see options.lua)
-              -- or a pyrightconfig.json at the project root.
+              -- "strict" in pyrightconfig.json at the project root, or use
+              -- the explicit trusted overlays documented in customization.md.
+              -- Project .nvim.lua execution is off by default (exrc=false).
               typeCheckingMode = require("config.tool_intent").python_policy().type_checking,
             },
           },
@@ -469,12 +470,11 @@ return {
       })
 
       vim.lsp.config("ruff", {
-        -- init_options.settings is ruff's native config channel; anything you
-        -- can put in a project pyproject.toml `[tool.ruff]` can be forced here
-        -- as a fallback. Left empty so a project's own pyproject.toml /
-        -- ruff.toml wins — ruff discovers those by walking up from the file,
-        -- exactly like clangd finds .clang-tidy. Add lint.select / lint.ignore
-        -- here only if you want a global baseline for projects with no config.
+        -- init_options.settings is Ruff's editor-settings channel, with a
+        -- supported subset of options rather than the entire pyproject schema.
+        -- Leave it empty to follow the project's pyproject.toml / ruff.toml.
+        -- Use Ruff's configurationPreference when deliberately combining
+        -- editor settings and filesystem configuration.
         init_options = {
           settings = {},
         },

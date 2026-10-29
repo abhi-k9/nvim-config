@@ -63,7 +63,7 @@ IndentPPDirectives:                       None            # leave `#if`/`#ifdef`
 IndentRequiresClause:                     true            # C++20 requires-clauses get their own indent
 
 # ─── Line length ────────────────────────────────────────────────────────
-ColumnLimit:                              100             # 80 is for terminals; 120 sprawls
+ColumnLimit:                              100             # chosen line limit; tune to your project
 
 # ─── Braces ─────────────────────────────────────────────────────────────
 # K&R: same line for if/for/while/function definitions. Other options:
@@ -71,7 +71,7 @@ ColumnLimit:                              100             # 80 is for terminals;
 #   Stroustrup — same as Attach except `else` goes on a new line
 #   Mozilla / GNU / WebKit — various combinations
 BreakBeforeBraces:                        Attach
-InsertBraces:                             true            # add braces to single-statement if/for/while — kills a whole class of goto-fail bugs (clang-format 15+)
+InsertBraces:                             true            # add braces to eligible if/else/for/do/while statements (15+); review changes for semantic edge cases
 BreakBeforeBinaryOperators:               NonAssignment   # wrap before `+`, `&&`, … but keep `=` at the end of its line
 
 # ─── Pointer / reference alignment ──────────────────────────────────────
@@ -107,8 +107,8 @@ AlignAfterOpenBracket:                    Align           # align continuation u
 
 # ─── Templates ──────────────────────────────────────────────────────────
 # Renamed to `BreakTemplateDeclarations` in clang-format 19+. The old
-# name `AlwaysBreakTemplateDeclarations` still works as a legacy alias
-# everywhere; rename here if/when you only need to support 19+.
+# name `AlwaysBreakTemplateDeclarations` is retained for compatibility
+# with older supported releases; the local dump-config check verifies it.
 AlwaysBreakTemplateDeclarations:          Yes             # `template<...>` always on its own line
 
 # ─── Constructor initializers ───────────────────────────────────────────

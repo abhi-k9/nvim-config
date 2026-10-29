@@ -7,8 +7,9 @@
 # options (scripts/check-docs.sh enforces both).
 
 # Enable the high-signal modern-C++/bug families, then subtract the noisy or
-# self-contradictory checks. `-*` first so the set is explicit and stable
-# across LLVM versions. Remove a `-check` line to get that warning back.
+# self-contradictory checks. `-*` clears the default selection; family
+# globs can still gain checks when LLVM is updated. Remove a `-check` line
+# to get that warning back.
 Checks: >
   -*,
   bugprone-*,
@@ -41,12 +42,13 @@ Checks: >
   -misc-non-private-member-variables-in-classes,
   -misc-no-recursion,
 
-# Report diagnostics from every non-system header, third-party ones included;
-# narrow the regex to your own header roots to skip vendored code. System
-# headers stay quiet (SystemHeaders defaults off).
+# Standalone clang-tidy: report diagnostics from all non-system headers,
+# including vendored ones. Narrow this regex for CLI runs. clangd primarily
+# reports the opened file; use .clangd If/Diagnostics to exclude files there.
 HeaderFilterRegex: '.*'
 
-# Empty: nothing force-promoted to an error. clangd ignores this (CLI/CI only).
+# Empty: no checks force-promoted to errors. clangd also honors this setting;
+# a nonempty match raises editor severity and makes the CLI return failure.
 WarningsAsErrors: ''
 
 # Per-check tuning. The readability-identifier-naming block is the naming

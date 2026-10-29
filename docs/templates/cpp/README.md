@@ -34,8 +34,9 @@ the options, then keep the trimmed dotfile in your repo.
 ## clang-tidy note
 
 `clangd.example` configures clang-tidy **inside clangd** via its
-`Diagnostics.ClangTidy` block, which carries the same checks and options
-as `.clang-tidy` — an alternative to the standalone file. If you use that
+`Diagnostics.ClangTidy` block, which requests the same check families,
+exclusions and options as `.clang-tidy` — an alternative for editor policy.
+The effective set also depends on clangd's supported checks and fast-check filter. If you use that
 block, you don't also need the separate `.clang-tidy` file (and vice
 versa); with both, clangd applies the block's `Add`/`Remove` on top of
 `.clang-tidy`. The standalone `.clang-tidy` is handy when you also run the
@@ -49,13 +50,17 @@ consumer.
 - **Set the C++ standard** to match your build. `.clangd`'s `-std=c++20`
   is appended to every C++ file's flags, after the `compile_commands.json`
   ones, so it overrides the database's `-std` too (and covers headers that
-  have no entry). Its `If: PathMatch` keeps it off C files. If your
-  targets use different standards, switch to the headers-only block at
-  the bottom of `.clangd`.
-- **Restart clangd after adding `.clangd`/`.clang-tidy`:** `:ScoperLspReload`
-  (reconfigures clangd for the current scope and restarts this project's
-  clangd only) or `:lsp restart clangd` (restarts every clangd client), so
-  clangd re-reads them.
-- Companion cheatsheets: `../../cheatsheets/clang-tools.html` (concepts)
-  and `../../cheatsheets/clang-settings-reference.html` (the exact values
-  in these files).
+  have no entry). Its `If: PathMatch` excludes `.c` files but includes `.h`;
+  remove `.h` for C headers. The flag does not change the compile language.
+  If targets use different standards, remove the project-wide pin or adapt
+  the commented headers-only rule to your layout and chosen header standard.
+  Project config paths are relative to the directory containing `.clangd`.
+- **If config edits are not reflected, restart clangd:** `:ScoperLspReload`
+  reconfigures/restarts the current managed project in selected/filtered mode.
+  Otherwise use `:lsp restart clangd` (restarts every clangd client).
+- Companion cheatsheets: [tool concepts](../../cheatsheets/clang-tools.html)
+  and [template values](../../cheatsheets/clang-settings-reference.html).
+- Upstream references: [clangd configuration and precedence](https://clangd.llvm.org/config),
+  [header compile-command inference](https://clangd.llvm.org/design/compile-commands),
+  [clang-format options and semantic caveats](https://clang.llvm.org/docs/ClangFormatStyleOptions.html),
+  and [clang-tidy suppression syntax](https://clang.llvm.org/extra/clang-tidy/#suppressing-undesired-diagnostics).
