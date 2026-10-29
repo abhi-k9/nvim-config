@@ -109,8 +109,8 @@
     <tr><td><kbd class="peach">&lt;C-f&gt;</kbd></td><td>Filter by language <span class="note">plain <kbd>/</kbd> is Vim's buffer search</span></td></tr>
     <tr><td><kbd class="peach">g?</kbd></td><td>Help</td></tr>
     <tr class="divider"><td colspan="2">Companions</td></tr>
-    <tr><td colspan="2" class="note">mason-lspconfig (<code>lsp.lua</code>) auto-installs the LSPs listed in its <code>ensure_installed</code> — ruff and taplo, which conform also uses as formatters, come from here</td></tr>
-    <tr><td colspan="2" class="note">mason-tool-installer (<code>formatting.lua</code>) installs everything else once on startup: the formatters stylua, clang-format, shfmt and prettierd, plus shellcheck and the debug adapters debugpy, codelldb, cpptools and bash-debug-adapter</td></tr>
+    <tr><td colspan="2" class="note">mason-lspconfig (<code>lsp.lua</code>) installs selected LSP servers when their prerequisites are available. Ruff and taplo also serve Conform, so they have one installer owner.</td></tr>
+    <tr><td colspan="2" class="note">mason-tool-installer (<code>formatting.lua</code>) queues selected formatters, linters and debug adapters when supported. Missing prerequisites suppress repeated install attempts; <code>:checkhealth config</code> and the configurable monthly reminder still report gaps. Existing tools on PATH can work without installation. See <a href="../tooling-configuration.md">tool selection</a> and <a href="../limited-environments.md">limited environments</a>.</td></tr>
   </table>
 </div>
 
@@ -124,10 +124,10 @@
     <tr><td><code>:lsp disable &lt;name&gt;</code></td><td>Stop it <em>and</em> keep it off for future buffers (until <code>:lsp enable</code>)</td></tr>
     <tr><td><code>:lsp restart &lt;name&gt;</code></td><td>Restart &amp; reattach <span class="note">(was <code>:LspRestart</code>)</span></td></tr>
     <tr><td><code>:lua vim.cmd.edit(vim.lsp.log.get_filename())</code></td><td>Open LSP log <span class="note">(was <code>:LspLog</code>)</span></td></tr>
-    <tr class="divider"><td colspan="2">Servers pre-installed</td></tr>
+    <tr class="divider"><td colspan="2">Default requested servers <span class="note">installation depends on platform and prerequisites</span></td></tr>
     <tr><td colspan="2" class="note">lua_ls · bashls · clangd · pyright · ruff · ts_ls · rust_analyzer ·<br>
       jsonls · yamlls · html · cssls · marksman · taplo<br>
-      <span style="opacity:0.75">(gopls present but commented out in <code>lsp.lua</code> — uncomment after installing the Go toolchain)</span></td></tr>
+      <span style="opacity:0.75">For Go, install the Go toolchain and add <code>gopls</code> through the server policy in <code>local.lua</code>; see the tooling guide.</span></td></tr>
     <tr><td colspan="2" class="note"><b>Python runs two servers:</b> <b>pyright</b> for types + completion + hover,
       <b>ruff</b> for lint diagnostics + import sorting. pyright's import organizer is off (ruff owns it) and
       ruff's hover is silenced (pyright's wins), so they don't double up. The one <code>ruff</code> binary
@@ -192,12 +192,12 @@
     <tr><td><code>:Neogen class</code></td><td>Doc for nearest class</td></tr>
     <tr><td><code>:Neogen type</code></td><td>Doc for type / struct</td></tr>
     <tr><td><code>:Neogen file</code></td><td>File header comment</td></tr>
-    <tr class="divider"><td colspan="2">Style per language <span class="note">(neogen defaults; overridable in <code>neogen.lua</code>)</span></td></tr>
+    <tr class="divider"><td colspan="2">Style per language <span class="note">(locked Neogen defaults; override its language template options in <code>local.lua</code>)</span></td></tr>
     <tr><td>C / C++</td><td>doxygen (<code>/** @param @return */</code>)</td></tr>
-    <tr><td>Lua</td><td>ldoc / EmmyLua (<code>--- @param @return</code>)</td></tr>
-    <tr><td>Python</td><td>numpydoc (Parameters / Returns sections)</td></tr>
-    <tr><td>TS / JS</td><td>jsdoc</td></tr>
-    <tr><td>Rust</td><td>rustdoc (<code>/// # Arguments # Returns</code>)</td></tr>
+    <tr><td>Lua</td><td><code>emmylua</code> (<code>---@param</code>, <code>---@return</code>); <code>ldoc</code> is an alternative</td></tr>
+    <tr><td>Python</td><td><code>google_docstrings</code> (Args / Returns); <code>numpydoc</code> and <code>reST</code> are alternatives</td></tr>
+    <tr><td>TypeScript / JavaScript</td><td><code>tsdoc</code> / <code>jsdoc</code>, respectively</td></tr>
+    <tr><td>Rust</td><td><code>rust_alternative</code>; <code>rustdoc</code> is an alternative convention</td></tr>
     <tr class="divider"><td colspan="2">After generation</td></tr>
     <tr><td colspan="2" class="note"><kbd>&lt;Tab&gt;</kbd> / <kbd>&lt;S-Tab&gt;</kbd> walk between empty
       placeholders — neogen inserts the comment as a LuaSnip snippet
@@ -223,8 +223,9 @@
     <tr class="divider"><td colspan="2">Snippets</td></tr>
     <tr><td colspan="2" class="note">Try <code>fn</code>, <code>cls</code>, <code>if</code>, <code>for</code>
       — different per language via <b>friendly-snippets</b>.</td></tr>
-    <tr><td colspan="2" class="note">LuaSnip's optional jsregexp extension is never built (no <code>build</code> step, on any OS);
-      only regex transforms inside snippet bodies need it — <code>luarocks --lua-version=5.1 install jsregexp</code> if you do.</td></tr>
+    <tr><td colspan="2" class="note">This config does not build LuaSnip's optional <code>jsregexp</code> extension.
+      It enables LSP-snippet regex transformations; ordinary snippets work without it. If needed, follow
+      <a href="https://github.com/L3MON4D3/LuaSnip#install">LuaSnip's platform instructions</a> using a build/install compatible with Neovim's LuaJIT.</td></tr>
   </table>
 </div>
 
@@ -236,7 +237,7 @@
       config Lua, so you get real completion + hover for the whole <code>vim.*</code> API and for
       <code>require</code>d plugin modules — not just the silenced <code>vim</code> global.</td></tr>
     <tr class="divider"><td colspan="2">Loads</td></tr>
-    <tr><td colspan="2" class="note">On <code>ft = lua</code> only — zero startup cost. luv (<code>vim.uv</code>) types
+    <tr><td colspan="2" class="note">Deferred until a Lua buffer opens. luv (<code>vim.uv</code>) types
       load when a file references them.</td></tr>
     <tr class="divider"><td colspan="2">Add a library</td></tr>
     <tr><td colspan="2" class="note">Edit <code>library</code> in <code>lua/plugins/lazydev.lua</code> (e.g. add
@@ -263,10 +264,10 @@
     <tr><td>(other)</td><td>LSP formatting when a server offers it (e.g. cssls for scss/less), else trim_whitespace</td></tr>
     <tr><td colspan="2" class="note">A filetype whose formatter isn't installed falls back to LSP formatting too.</td></tr>
     <tr class="divider"><td colspan="2">Format-on-save</td></tr>
-    <tr><td colspan="2" class="note">Off by default. To enable it, uncomment the <code>format_on_save</code>
-      function in <code>formatting.lua</code> <em>and</em> add <code>event = { "BufWritePre" }</code> to the
-      conform spec — conform otherwise loads only on <code>:ConformInfo</code> or its keys, so <code>:w</code>
-      wouldn't format. The function honours runtime toggling via:</td></tr>
+    <tr><td colspan="2" class="note">Off by default. In <code>local.lua</code>, override the Conform spec with
+      <code>event = "BufWritePre"</code> and an <code>opts.format_on_save</code> function that respects
+      <code>vim.g.disable_autoformat</code> and <code>vim.b[bufnr].disable_autoformat</code>.
+      Without the event, the first write need not load Conform; without checking the flags, the toggles below do not disable the formatter. See <a href="../tooling-configuration.md#opt-into-format-on-save">the complete example</a>.</td></tr>
     <tr><td><code>:FormatToggle</code></td><td>Toggle format-on-save for the current buffer</td></tr>
     <tr><td><code>:FormatToggle!</code></td><td>Toggle format-on-save globally</td></tr>
   </table>
@@ -276,17 +277,16 @@
 <div class="card">
   <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>nvim-dap <span class="note">debugger</span></h2></div>
   <table>
-    <tr class="divider"><td colspan="2">Adapters pre-installed</td></tr>
+    <tr class="divider"><td colspan="2">Default requested adapters <span class="note">installed when supported</span></td></tr>
     <tr><td>python</td><td>debugpy</td></tr>
     <tr><td>codelldb</td><td>C / C++ / Rust / Zig</td></tr>
     <tr><td>cppdbg</td><td>C / C++ via cpptools (GDB/LLDB-based)</td></tr>
     <tr><td>bash</td><td>bashdb</td></tr>
-    <tr><td colspan="2" class="note">Not installed or configured: <code>js</code> (vscode-js-debug — needs node+npm) and
-      <code>delve</code> (Go — needs <code>go</code>); Mason would retry their failing builds on every startup.
-      To add one: install the toolchain, add its Mason package to mason-tool-installer's list in
-      <code>lua/plugins/formatting.lua</code>, <em>and</em> define
-      <code>dap.adapters.&lt;name&gt;</code> plus <code>dap.configurations.&lt;filetype&gt;</code> in
-      <code>lua/config/dap.lua</code>.</td></tr>
+    <tr><td colspan="2" class="note">JavaScript and Go adapters are not selected or configured by default.
+      To add one, install its prerequisites and select its Mason package through the tooling policy,
+      then supply native <code>debug.adapters</code> and <code>debug.configurations</code> entries in
+      <code>local.lua</code>. Installing an adapter alone does not create its launch configuration.
+      See <a href="../debug-terminal-configuration.md">the debugger guide</a>.</td></tr>
     <tr class="divider"><td colspan="2">Workflow</td></tr>
     <tr><td colspan="2" class="note">1. Place breakpoints (<kbd class="mauve">&lt;leader&gt;db</kbd>).<br>
       2. <kbd class="mauve">&lt;leader&gt;dc</kbd> to start — UI opens automatically.<br>
@@ -299,10 +299,10 @@
     <tr><td>▶ yellow</td><td>Currently stopped line</td></tr>
     <tr class="divider"><td colspan="2">launch.json (per-project)</td></tr>
     <tr><td colspan="2" class="note">Drop a <code>.vscode/launch.json</code> in the project root —
-      nvim-dap reads it on every <kbd class="mauve">&lt;leader&gt;dc</kbd>.
+      nvim-dap reads it when selecting a new launch configuration. Continuing an existing session does not reload it.
       <kbd class="mauve">&lt;leader&gt;dL</kbd> validates the file and previews its configs
-      without launching anything (same as <code>:DapLoadLaunchJSON</code>). <code>${workspaceFolder}</code> resolves to
-      <code>vim.fn.getcwd()</code>; change with <code>:cd</code> / <code>:tcd</code> / <code>:lcd</code>.
+      without launching anything (same as <code>:DapLoadLaunchJSON</code>). <code>${workspaceFolder}</code> uses the resolved debug root;
+      the default inherits nvim-dap's current-directory discovery, while <code>debug.root</code> can override it.
       See <code>docs/templates/dap/launch.json.example</code> for a template.</td></tr>
     <tr class="divider"><td colspan="2">QOL (Visual-Studio-like)</td></tr>
     <tr><td>inline values</td><td>nvim-dap-virtual-text paints each variable's value at end-of-line while stopped (VS inline values)</td></tr>
@@ -452,8 +452,8 @@
     <tr><td><code>:FzfLua</code></td><td>Pick a picker</td></tr>
     <tr><td><code>:FzfLua resume</code></td><td>Reopen last picker</td></tr>
     <tr><td><code>:FzfLua builtin</code></td><td>List all pickers</td></tr>
-    <tr><td colspan="2" class="note">Backed by the <code>fzf</code> binary — handles
-      100k-file repos with no lag. Preview via Neovim's builtin previewer
+    <tr><td colspan="2" class="note">Backed by the <code>fzf</code> binary for interactive filtering.
+      Listing and preview speed still depend on the repository and storage. Preview via Neovim's builtin previewer
       (treesitter-highlighted, no external binary). Switch to <code>bat</code> in
       <code>finder.lua</code> if you install it. Path display uses
       <code>formatter = "path.filename_first"</code> so filenames sit at the left
@@ -468,14 +468,14 @@
 <div class="card">
   <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>scoper.nvim <span class="note">scoped search &amp; clangd</span></h2></div>
   <table>
-    <tr><td colspan="2" class="note">Bundled local plugin. Narrow your finder/grep/replace
+    <tr><td colspan="2" class="note">Bundled local plugin. Narrow file finding and grep
       to a subset of the project — useful in monorepos. Each scope is a named set of
-      include directories and exclude globs, persisted to disk.</td></tr>
+      includes (directories, files or globs) and excludes, persisted to disk. Build selection is stored independently of the active scope.</td></tr>
     <tr class="divider"><td colspan="2">Commands</td></tr>
     <tr><td><code>:ScoperFind</code></td><td>Find files within active scope</td></tr>
     <tr><td><code>:ScoperGrep</code></td><td>Live grep within active scope</td></tr>
     <tr><td><code>:ScoperReplace</code></td><td>Unrestricted grug-far only; restricted scopes are refused because deferred operations cannot keep a stable project directory</td></tr>
-    <tr><td><code>:ScoperToggle</code></td><td>Enable / disable scoping <span class="note">off (or a scope with no includes): Find / Grep / Replace search the whole cwd, without excludes</span></td></tr>
+    <tr><td><code>:ScoperToggle</code></td><td>Enable / disable scoping <span class="note">off or empty includes ignore scope excludes. Find/Grep use the loaded project root; unrestricted Replace opens ordinary grug-far at its normal current directory.</span></td></tr>
     <tr><td><code>:ScoperStatus</code></td><td>Show active scope + sizes</td></tr>
     <tr><td><code>:ScoperNew &lt;name&gt;</code></td><td>Create a new scope</td></tr>
     <tr><td><code>:ScoperUse &lt;name&gt;</code></td><td>Switch active scope</td></tr>
@@ -485,6 +485,7 @@
     <tr><td><code>:ScoperClear</code></td><td>Empty the active scope (keeps the excludes)</td></tr>
     <tr><td><code>:ScoperScopes</code></td><td>List all scopes for this project</td></tr>
     <tr><td><code>:ScoperDelete</code></td><td>Delete one or more scopes</td></tr>
+    <tr><td><code>:ScoperReload[!]</code></td><td>Reload saved project state; <code>!</code> explicitly discards unsaved local changes</td></tr>
     <tr><td><code>:ScoperLspReload</code></td><td>Reconfigure clangd for the current scope and restart it</td></tr>
     <tr><td><code>:ScoperTogglePicker</code></td><td>Switch backend: fzf-lua ↔ telescope</td></tr>
     <tr class="divider"><td colspan="2">Picker backend</td></tr>
@@ -493,11 +494,13 @@
       <kbd>&lt;M-p&gt;</kbd> (insert and normal mode): it shows the highlighted entry's full path
       in the prompt title without closing the picker.</td></tr>
     <tr class="divider"><td colspan="2">clangd integration</td></tr>
-    <tr><td colspan="2" class="note">When scoping changes, this project's clangd is restarted so its index
-      respects the new boundaries (clangd clients of other projects are left alone) — and the filtered config is also applied at startup and
-      on <code>:cd</code>, so the first (cold-start) index is already scoped. Press
-      <kbd>&lt;F4&gt;</kbd> in a fzf-lua picker to toggle its preview pane if results are too
-      narrow to read.</td></tr>
+    <tr><td colspan="2" class="note">The host's automatic policy prepares a filtered compilation database for an active,
+      nonempty scope, or the complete selected database otherwise. A changed effective configuration restarts this project's
+      clangd clients. Build selection is independent of search scope; explicit <code>selected</code>, <code>native</code> and
+      <code>disabled</code> modes provide other policies. Filtering build entries does not sandbox headers or files you open.
+      Startup preparation can be immediate or wait-before-start according to policy.
+      See the <a href="../../scoper.nvim/README.md">full command/API reference</a> and
+      <a href="../scoper-integration-notes.md">integration guide</a>. In a narrow fzf-lua picker, <kbd>&lt;F4&gt;</kbd> toggles the preview.</td></tr>
   </table>
 </div>
 
@@ -512,8 +515,8 @@
     <tr><td colspan="2" class="note">Tabs per buffer. Slant separators. Diagnostic counts visible per tab.
       Auto-hides when only one buffer is open. Shifts when neo-tree opens. Loads at startup, so pinned
       buffers come back pinned when auto-session restores a session.</td></tr>
-    <tr><td colspan="2" class="note"><strong>Superscript ordinals</strong> (¹ ² ³ …) on each tab — map 1-to-1 to
-      <kbd>&lt;leader&gt;1</kbd>…<kbd>&lt;leader&gt;9</kbd> for quick-jump. Beyond 9 the number is omitted to
+    <tr><td colspan="2" class="note"><strong>Superscript ordinals</strong> (¹ ² ³ …) match visual positions until pinning reorders buffers.
+      <kbd>&lt;leader&gt;1</kbd>…<kbd>&lt;leader&gt;9</kbd> jump by visual position; the displayed ordinal can then differ. Beyond 9 it is omitted to
       avoid clutter; use <kbd>&lt;leader&gt;bj</kbd> (letter picker) or <kbd>&lt;leader&gt;fb</kbd> for the rest.</td></tr>
     <tr><td colspan="2" class="note"><strong>Mouse</strong> — left = focus tab · middle = no-op · right = context
       menu (open in split/vsplit, copy path / filename, toggle pin, close, close others). Bufferline's
@@ -686,7 +689,7 @@
       <td colspan="3">Writes a snapshot (version, paths, swap/undo settings, <code>:messages</code>, active LSP
         clients, loaded buffers w/ treesitter state, swap files, scoper's scope and clangd filter state,
         DAP session, plugin list, LSP-log tail) to
-        <code>stdpath('log')/diagnostic_&lt;timestamp&gt;.txt</code>. Attach the file when reporting.</td>
+        <code>stdpath('log')/diagnostic_&lt;timestamp&gt;_&lt;pid&gt;.txt</code> (with a suffix for repeats). Review it before sharing: messages and logs can contain source text, paths or secrets. DAP redaction is heuristic; <code>:DiagnosticDump!</code> writes that section unredacted.</td>
     </tr>
     <tr>
       <td><code>:lua print(vim.lsp.log.get_filename())</code></td>
@@ -728,15 +731,20 @@
         the swap (compare before you recover); otherwise <b>Recover</b>. <kbd>Esc</kbd> quits.</td>
     </tr>
     <tr>
+      <td>Another / unknown host</td>
+      <td colspan="3">The file opens read-only because a local PID check cannot establish the remote owner's liveness.
+        Verify that editor is closed before taking over. A different Unix user's swap retains Neovim's stock prompt.</td>
+    </tr>
+    <tr>
       <td>Unreadable swap</td>
-      <td colspan="3">Empty or damaged → no prompt, so a session restore never stops on it. An empty swap
+      <td colspan="3">Empty or damaged → the guard avoids the stock E325 prompt during session restore. An empty swap
         older than a minute is deleted; any other is kept and the file opens <b>read-only</b> with a notice
         naming the swap. <code>:SwapDelete</code>, then <code>:e!</code>, to edit.</td>
     </tr>
     <tr>
       <td><code>:SwapGuardToggle</code></td>
-      <td colspan="3">Flip the guard. <b>Off</b> = stock Nvim exactly (edit-anyway + <code>W325</code> for a
-        live owner; the full <code>E325</code> prompt for a crash leftover or an unreadable swap). Affects the
+      <td colspan="3">Flip the guard. <b>Off</b> restores edit-anyway + <code>W325</code> for a
+        live local same-user owner; otherwise Neovim's stock prompt. Affects the
         next collision.</td>
     </tr>
     <tr>
@@ -750,14 +758,15 @@
       <td><code>:SwapDelete {path}</code></td>
       <td colspan="3">Delete a specific swap file by path — clears a leftover without opening the file it
         belongs to. Refuses any swap a different running Nvim is actively using, and anything that isn't a
-        swap (a link, a folder, a file not named <code>*.sw?</code>). An unreadable swap needs
-        <code>:SwapDelete! {path}</code>.</td>
+        swap (a link, a folder, a file not named <code>*.sw?</code>). An unreadable or foreign-host swap needs
+        <code>:SwapDelete! {path}</code>, after checking that it holds no needed work and its remote editor is closed.</td>
     </tr>
     <tr>
       <td><code>:SwapClean</code></td>
-      <td colspan="3">Review <i>every</i> swap in the swap dir: lists the leftovers it would delete (no running
-        owner and no unsaved changes, or empty) and the ones it keeps, with the reason (running Nvim, unsaved
-        changes → recover first, unreadable). One confirm, default <b>Cancel</b>. Full workflow, shell
+      <td colspan="3">Review swaps in scannable <code>'directory'</code> entries: lists the leftovers it would delete (no running
+        local owner and no unsaved changes, or unreadable, zero-byte swaps older than a minute) and the ones it keeps
+        (running process, unknown/remote owner, unsaved changes or unreadable data). Per-file <code>.</code> entries cannot be scanned globally.
+        One confirm, default <b>Cancel</b>. Full workflow, shell
         commands per OS: <code>docs/workflows/swap-files.md</code>.</td>
     </tr>
   </table>

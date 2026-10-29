@@ -214,10 +214,11 @@ return {
     },
     filesystem = {
       -- Show dotfiles and gitignored files by default; press `H` inside
-      -- the tree to toggle hidden-file visibility on/off. Hard-hiding a
-      -- few perennially-noisy names (DS_Store, thumbs.db, node_modules)
+      -- the tree to toggle hidden-file visibility on/off. Filtering a
+      -- few noisy names (.DS_Store, thumbs.db, node_modules by default)
       -- keeps the tree readable in JS projects without affecting fuzzy
-      -- finding (telescope/fzf-lua have their own ignore rules).
+      -- finding (each backend has its own visibility policy). These are
+      -- hide_by_name filters, not permanent never_show exclusions.
       filtered_items = {
         hide_dotfiles = not require("config.search").visibility("explorer", "find").hidden,
         hide_gitignored = require("config.search").visibility("explorer", "find").respect_gitignore,

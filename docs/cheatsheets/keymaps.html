@@ -144,7 +144,7 @@
     <tr><td><kbd class="sky">&lt;leader&gt;wv</kbd></td><td>Split vertically</td></tr>
     <tr><td><kbd class="sky">&lt;leader&gt;wc</kbd></td><td>Close window <span class="note">in the last window it just says what to do instead of E444</span></td></tr>
     <tr><td><kbd class="sky">&lt;leader&gt;wo</kbd></td><td>Close all other windows</td></tr>
-    <tr><td><kbd class="sky">&lt;leader&gt;wm</kbd></td><td>Zoom current window (toggle) — maximizes the focused window; second press restores the exact layout. Works with neo-tree and other fixed-width buffers.</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;wm</kbd></td><td>Zoom current window (toggle). A second press restores saved sizes if the split layout is unchanged; otherwise it equalizes the new layout. Works with neo-tree and other fixed-width buffers.</td></tr>
     <tr class="divider"><td colspan="2">Buffers (bufferline)</td></tr>
     <tr><td><kbd class="sky">&lt;S-l&gt;</kbd> <kbd class="sky">&lt;S-h&gt;</kbd></td><td>Next / prev buffer <span class="note">bufferline visual order (pins first) — also scrolls hidden tabs into view; the strip has no view-only scroll and its truncation markers are not clickable buttons</span></td></tr>
     <tr><td><kbd class="sky">&lt;leader&gt;bd</kbd></td><td>Delete buffer <span class="note">keeps the window — switches to next listed buffer first</span></td></tr>
@@ -156,7 +156,7 @@
     <tr><td><kbd class="sky">&lt;leader&gt;bj</kbd></td><td>Pick by letter</td></tr>
     <tr><td><kbd class="sky">&lt;leader&gt;bJ</kbd></td><td>Pick + close</td></tr>
     <tr><td><kbd class="sky">[B</kbd> <kbd class="sky">]B</kbd></td><td>Move buffer left / right (reorder)</td></tr>
-    <tr><td><kbd class="sky">&lt;leader&gt;1</kbd>…<kbd class="sky">&lt;leader&gt;9</kbd></td><td>Jump to buffer N (matches superscript on each tab)</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;1</kbd>…<kbd class="sky">&lt;leader&gt;9</kbd></td><td>Jump to visual buffer position N <span class="note">pinning can make displayed superscripts differ from positions</span></td></tr>
     <tr><td><kbd class="sky">&lt;leader&gt;0</kbd></td><td>Jump to last buffer</td></tr>
     <tr><td colspan="2" class="note">Right-click a tab in the bufferline for a context menu: open in split/vsplit, copy path/filename, toggle pin, close, close others.</td></tr>
     <tr class="divider"><td colspan="2">Save / quit</td></tr>
@@ -319,7 +319,7 @@
 <div class="card">
   <div class="card-header"><div class="dot" style="background:var(--pink)"></div><h2>Completion (blink.cmp) <span class="note">default preset · C-n/C-p open the menu</span></h2></div>
   <table>
-    <tr><td><kbd class="pink">&lt;C-Space&gt;</kbd></td><td>Trigger / open menu <span class="note">works in most terminals; on the Windows console (and zellij/tmux running over it) Ctrl+Space can arrive as a bare <kbd>&lt;Space&gt;</kbd> = <kbd>&lt;leader&gt;</kbd> and pop which-key instead — use <kbd>&lt;C-n&gt;</kbd> there</span></td></tr>
+    <tr><td><kbd class="pink">&lt;C-Space&gt;</kbd></td><td>Trigger / open menu <span class="note">legacy terminals normally encode this as NUL (<code>&lt;C-@&gt;</code>); OS shortcuts or terminal/multiplexer handling can intercept it. Use <kbd>&lt;C-n&gt;</kbd> if it does not reach Neovim.</span></td></tr>
     <tr><td><kbd class="pink">&lt;C-n&gt;</kbd> <kbd class="pink">&lt;C-p&gt;</kbd></td><td>Open menu, then next / prev item <span class="note">terminal-safe trigger — sent cleanly everywhere. First press opens the menu (ghost-text preview only, nothing inserted); press again to move the selection. Overrides the default preset, whose <kbd>&lt;C-n&gt;</kbd> only moves the selection of a menu that is already open.</span></td></tr>
     <tr><td><kbd class="pink">&lt;C-y&gt;</kbd></td><td>Accept selected <span class="note">the default preset's accept key</span></td></tr>
     <tr><td><kbd class="pink">&lt;C-e&gt;</kbd></td><td>Cancel <span class="note">closes the menu and reverts a previewed item</span></td></tr>
@@ -366,7 +366,7 @@
   <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>Debug (DAP)</h2></div>
   <table>
     <tr class="divider"><td colspan="2">Session control</td></tr>
-    <tr><td><kbd class="mauve">&lt;leader&gt;dc</kbd></td><td>Continue / start (reads <code>.vscode/launch.json</code> automatically)</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dc</kbd></td><td>Continue / start <span class="note">reads project launch configurations when selecting a new launch; continuing a session does not reload it</span></td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dL</kbd></td><td>Validate launch.json &amp; preview its configs (sanity check)</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dC</kbd></td><td>Run to cursor</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dl</kbd></td><td>Run last</td></tr>
@@ -540,7 +540,7 @@
     <tr><td><kbd class="lavender">&lt;C-f&gt;</kbd> <kbd class="lavender">&lt;C-b&gt;</kbd> <kbd class="lavender">&lt;C-y&gt;</kbd> <kbd class="lavender">&lt;C-e&gt;</kbd> <kbd class="lavender">zt</kbd> <kbd class="lavender">zz</kbd> <kbd class="lavender">zb</kbd></td><td>Animated scrolling (neoscroll), like <kbd>&lt;C-d&gt;</kbd> / <kbd>&lt;C-u&gt;</kbd></td></tr>
     <tr><td><kbd class="lavender">&lt;M-e&gt;</kbd> <span class="note">(insert)</span></td><td>Fast wrap: after typing an opening bracket or quote, press it and pick where the closing one goes (autopairs)</td></tr>
     <tr><td><kbd class="lavender">gzn</kbd></td><td>Surround: change how many lines around the cursor are searched</td></tr>
-    <tr><td><kbd class="lavender">q</kbd></td><td>Close help, man, quickfix, <code>:checkhealth</code> and test-popup windows <span class="note">not commit messages — use <code>:q!</code> / <code>:cq</code> to abort a commit</span></td></tr>
+    <tr><td><kbd class="lavender">q</kbd></td><td>Close help, man, quickfix, <code>:checkhealth</code> and test-popup windows <span class="note">not commit messages. <code>:cq</code> aborts the editor with a failure status; <code>:q!</code> only discards edits and may still accept an existing saved message.</span></td></tr>
     <tr><td><code>, . ! ? ; :</code> <span class="note">(insert)</span></td><td>Start a new undo step <span class="note">Markdown, text and commit messages only, so one <kbd>u</kbd> doesn't undo a paragraph; code buffers keep Vim's behaviour</span></td></tr>
     <tr><td><code>:trust</code></td><td>Trust the current file (e.g. a project's <code>.nvim.lua</code>) <span class="note"><code>'exrc'</code> is on, so Neovim offers <code>.nvim.lua</code> from the working directory and its parents once you trust it; <code>:trust ++remove</code> revokes it</span></td></tr>
   </table>

@@ -18,7 +18,7 @@
 -- `lua/config/autocmds/folds.lua` using native view files (:mkview / :loadview),
 -- with `viewoptions = { "folds" }` set in options.lua. That mechanism is
 -- intentionally decoupled from ufo (it never calls into it — it just restores
--- native fold state after ufo's async recompute settles), so nothing here
+-- native fold state on entry and the first idle event), so nothing here
 -- needs to change if fold persistence is tuned or turned off, and vice versa.
 
 -- ---------------------------------------------------------------------------
@@ -37,7 +37,7 @@ local FT_PROVIDER = {
 -- Without this check, ufo throws UfoFallbackException on buffers it can never
 -- parse (e.g. :MasonLog, plain-text files), and the async promise goes
 -- unhandled. We cache by LANGUAGE (not filetype) since different filetypes
--- can map to the same parser (tsx/typescriptreact → typescript) — caching
+-- can map to the same parser (javascript/javascriptreact → javascript) — caching
 -- by ft would store two entries for one underlying lookup.
 --
 -- Only POSITIVE results are cached. A negative can be transient:

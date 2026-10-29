@@ -157,11 +157,11 @@
       <td><kbd class="vs">Ctrl+Tab</kbd></td>
       <td>Switch between open documents</td>
       <td><kbd class="sky">&lt;S-l&gt;</kbd> next / <kbd class="sky">&lt;S-h&gt;</kbd> prev<br>
-        <kbd class="sky">&lt;leader&gt;1</kbd>…<kbd class="sky">&lt;leader&gt;9</kbd> jump to tab N <span class="note">(matches superscript)</span><br>
+        <kbd class="sky">&lt;leader&gt;1</kbd>…<kbd class="sky">&lt;leader&gt;9</kbd> jump to buffer position N <span class="note">(pinning can change the order without renumbering superscripts)</span><br>
         or <kbd class="blue">&lt;leader&gt;fb</kbd> <span class="note">picker</span></td>
     </tr>
     <tr>
-      <td><kbd class="vs">Ctrl+R, Ctrl+O</kbd><span class="vs-name">Recent files</span></td>
+      <td><kbd class="vs">Ctrl+T, R</kbd><span class="vs-name">Go to Recent</span></td>
       <td>Reopen recently-used file</td>
       <td><kbd class="blue">&lt;leader&gt;fr</kbd></td>
     </tr>
@@ -179,14 +179,14 @@
       <td><kbd class="green">gd</kbd></td>
     </tr>
     <tr>
-      <td><kbd class="vs">Ctrl+F12</kbd></td>
+      <td><span class="vs-name">Go To Implementation (language/profile dependent)</span></td>
       <td>Go to Implementation</td>
       <td><kbd class="green">gI</kbd></td>
     </tr>
     <tr>
-      <td><kbd class="vs">Ctrl+Alt+F12</kbd></td>
+      <td><kbd class="vs">Alt+F12</kbd></td>
       <td>Peek Definition</td>
-      <td><kbd class="green">K</kbd> <span class="note">hover preview at cursor</span></td>
+      <td>No dedicated peek-definition binding. <kbd class="green">K</kbd> shows hover information; <kbd class="green">gd</kbd> jumps to the definition.</td>
     </tr>
     <tr>
       <td><kbd class="vs">Shift+F12</kbd></td>
@@ -194,12 +194,12 @@
       <td><kbd class="green">gr</kbd></td>
     </tr>
     <tr>
-      <td><kbd class="vs">Ctrl+T, T</kbd></td>
+      <td><span class="vs-name">Type navigation (language/profile dependent)</span></td>
       <td>Go to Type definition</td>
       <td><kbd class="green">gy</kbd></td>
     </tr>
     <tr>
-      <td><kbd class="vs">F12</kbd> on declaration</td>
+      <td><kbd class="vs">Ctrl+F12</kbd></td>
       <td>Go to Declaration</td>
       <td><kbd class="green">gD</kbd></td>
     </tr>
@@ -255,7 +255,7 @@
       <td><kbd class="vs">Ctrl+X</kbd> / <kbd class="vs">Ctrl+C</kbd> / <kbd class="vs">Ctrl+V</kbd></td>
       <td>Cut / copy / paste</td>
       <td><kbd class="peach">d</kbd> + motion / <kbd class="peach">y</kbd> + motion / <kbd class="peach">p</kbd><br>
-        <span class="note">In-buffer only — these use Vim's unnamed register, NOT the system clipboard. For the OS clipboard prefix the register: <kbd class="peach">"+y</kbd> · <kbd class="peach">"+p</kbd> · <kbd class="peach">"+d</kbd> (or <kbd class="peach">"+yy</kbd> for a whole line). Plain Ctrl+C/V still work in INSERT mode. See <code>lua/config/options.lua</code> for the rationale.</span></td>
+        <span class="note">These use Vim's unnamed register. For the OS clipboard use <kbd class="peach">"+y</kbd> · <kbd class="peach">"+p</kbd> · <kbd class="peach">"+d</kbd> (or <kbd class="peach">"+yy</kbd> for a whole line), with a working clipboard provider. In INSERT, <kbd>&lt;C-r&gt;+</kbd> inserts from that clipboard; plain Ctrl+C exits INSERT and Ctrl+V starts literal-key insertion. A terminal's own copy/paste shortcuts are separate.</span></td>
     </tr>
     <tr>
       <td><kbd class="vs">Ctrl+L</kbd></td>
@@ -298,7 +298,7 @@
     <tr>
       <td><kbd class="vs">Ctrl+Space</kbd></td>
       <td>Trigger completion</td>
-      <td><kbd class="mauve">&lt;C-Space&gt;</kbd> <span class="note">in INSERT — but on the Windows console Ctrl+Space can arrive as <kbd>&lt;leader&gt;</kbd>; use <kbd class="mauve">&lt;C-n&gt;</kbd> to open the menu there</span></td>
+      <td><kbd class="mauve">&lt;C-Space&gt;</kbd> <span class="note">in INSERT. If an OS, terminal or multiplexer shortcut intercepts it, use <kbd class="mauve">&lt;C-n&gt;</kbd> to open the menu. Legacy Ctrl+Space normally encodes NUL, not a plain Space.</span></td>
     </tr>
     <tr>
       <td><kbd class="vs">Ctrl+Shift+Space</kbd></td>
@@ -477,7 +477,7 @@
     <tr>
       <td><kbd class="vs">Shift+Alt+Enter</kbd><span class="vs-name">Toggle Full Screen Mode</span></td>
       <td>Temporarily full-screen the current window, restore on second press</td>
-      <td><kbd class="sky">&lt;leader&gt;wm</kbd> <span class="note">window sizes saved &amp; replayed; works with neo-tree</span></td>
+      <td><kbd class="sky">&lt;leader&gt;wm</kbd> <span class="note">restores sizes if the split layout is unchanged; otherwise equalizes it. Works with neo-tree.</span></td>
     </tr>
     <tr>
       <td>Click pane to focus</td>
@@ -759,7 +759,7 @@
     <tr>
       <td>Tools → Options</td>
       <td>Edit config</td>
-      <td>Edit files under <code>lua/</code>, then <code>:restart</code> <span class="note"><code>:source %</code> doesn't re-run lazy.nvim's setup, so plugin-spec changes need the restart</span></td>
+      <td>Put machine preferences and plugin overrides in ignored <code>local.lua</code> beside <code>init.lua</code>, then restart Neovim. <span class="note">See <a href="../customization.md">customization</a>; sourcing one file does not rebuild Lazy's merged plugin setup.</span></td>
     </tr>
     <tr>
       <td>Extensions Manager</td>
@@ -829,7 +829,7 @@
 
 </div>
 <footer>
-  <span>Visual Studio shortcuts assume the General profile · Nvim bindings reflect this config (see <code>lua/config/keymaps.lua</code> for the source)</span>
+  <span>Visual Studio shortcuts follow the <a href="https://learn.microsoft.com/visualstudio/ide/default-keyboard-shortcuts-in-visual-studio">General-profile reference</a>; language and profile overrides can differ. Nvim bindings reflect this config (see <code>lua/config/keymaps.lua</code>).</span>
   <span>Discover any binding: press <kbd class="lavender">&lt;leader&gt;</kbd> and wait</span>
 </footer>
 </body>

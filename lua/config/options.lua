@@ -92,7 +92,7 @@ opt.undofile = true -- persistent undo across sessions (stdpath("state")/undo)
 -- 'updatetime' also sets how often the swap file is flushed to disk.
 -- stylua: ignore start
 opt.updatetime = 250          -- faster CursorHold (gitsigns / LSP hovers)
-opt.timeoutlen = 400          -- shorter which-key popup delay
+opt.timeoutlen = 400          -- ambiguous-keymap wait; which-key has its own delay
 -- stylua: ignore end
 
 -- ---------------------------------------------------------------------------
@@ -113,8 +113,9 @@ opt.foldlevel = 99            -- start with everything unfolded
 opt.foldlevelstart = 99
 
 -- Fold persistence uses view files (autocmds/folds.lua), storing folds ONLY
--- — no cursor, cwd or options — so a restored view can't move the cursor,
--- and it works independently of sessions and of nvim-ufo.
+-- — no cursor, cwd or options. Loading fold commands can still move the
+-- cursor, so folds.lua also preserves the live cursor/scroll around :loadview.
+-- This works independently of sessions and of nvim-ufo.
 opt.viewoptions = { "folds" }
 
 -- ---------------------------------------------------------------------------

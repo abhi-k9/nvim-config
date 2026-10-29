@@ -1,8 +1,8 @@
 -- lua/plugins/ui.lua
 --
 -- The "chrome": statusline, bufferline, per-window filename, icons, and
--- LSP progress spinner. scope.nvim and bufferline load at startup because
--- session restore needs them (see their specs); lualine loads on VeryLazy,
+-- LSP progress spinner. scope.nvim (unless global buffers are selected) and
+-- bufferline load at startup for session restore; lualine loads on VeryLazy,
 -- incline with the first file, fidget with the first LSP client.
 
 local icons = require("config.icons")
@@ -23,7 +23,7 @@ end
 
 return {
   -- -------------------------------------------------------------------------
-  -- nvim-web-devicons — file-type icons. Required by lualine, bufferline,
+  -- nvim-web-devicons — file-type icons. Used by lualine, bufferline,
   -- telescope, trouble, etc. Loaded as a dependency of those plugins, but
   -- declared here so we can configure it once.
   -- -------------------------------------------------------------------------
@@ -250,8 +250,8 @@ return {
         current_menu_win = nil
 
         -- Width must fit BOTH the title and the longest action label.
-        -- The "  N. " prefix adds 6 cols to each label; the title has
-        -- " ... " padding on each side, so reserve 4 for it. Measure in
+        -- Reserve 6 columns for the numbered prefix and padding, and 4
+        -- around the title. Measure in
         -- display cells (strdisplaywidth), not bytes (#) — a multibyte
         -- filename in the title would otherwise over-allocate the menu
         -- and the title padding would come out wrong.
@@ -439,8 +439,8 @@ return {
             function()
               -- Switch a FILE window to `bufnum` first so
               -- BufferLineCloseOthers leaves the right buffer alive.
-              -- No focus-restore afterwards because "close others"
-              -- by definition leaves only one — `bufnum` is now it.
+              -- Keep focus on the requested buffer afterward. Modified
+              -- buffers among the others are preserved by close_command.
               in_file_window(function()
                 vim.cmd("buffer " .. bufnum)
                 vim.cmd("BufferLineCloseOthers")
@@ -497,8 +497,8 @@ return {
             -- stylua: ignore end
             return table.concat(parts, " ")
           end,
-          -- Show small superscript ordinals on each tab, mapping 1-1 to
-          -- the <leader>1..<leader>9 quick-jump keymaps above.
+          -- Show bufferline's superscript ordinals. Pinning can change its
+          -- displayed order without renumbering; <leader>1..9 use positions.
           numbers = function(opts)
             return supers[opts.ordinal] or ""
           end,

@@ -11,7 +11,8 @@
 -- file is plain text, but read it before you share it: :messages and the
 -- LSP log tails can contain file paths, source text and environment
 -- values (the dump's first line says so too). The DAP adapter and launch
--- config are redacted (M.redact); `:DiagnosticDump!` writes them as is.
+-- config receive key-based redaction (M.redact), which cannot recognize all
+-- secrets, especially in command arguments; `:DiagnosticDump!` writes them as is.
 --
 -- When nvim is TOTALLY hung this command can't run (no input). The
 -- workflow then is: force-kill, restart, run :DiagnosticDump in the
@@ -302,7 +303,8 @@ function M.dump(opts)
   table.insert(out, file_tail(vim.lsp.log.get_filename(), 64 * 1024))
 
   -- The previous generation too: autocmds/lsplog.lua rotates lsp.log to
-  -- lsp.log.old at startup once it passes 20 MB, so after a hang and a
+  -- lsp.log.old at startup once it passes retention.log_max_bytes (20 MiB
+  -- by default), so after a hang and a
   -- restart the relevant lines are usually THERE, not in the fresh file.
   local old = vim.lsp.log.get_filename() .. ".old"
   if vim.uv.fs_stat(old) then
@@ -323,12 +325,9 @@ function M.dump(opts)
     return nil
   end
 
-  -- Filename: timestamp at second resolution + PID. The PID gives us
-  -- uniqueness across (a) rapid double-invocations within the same
-  -- second from one instance and (b) concurrent dumps from multiple
-  -- Neovim instances debugging the same machine at once. Without it,
-  -- collision-overwrite was possible and silent.
-  -- A second dump in the same second gets a -2, -3, … suffix.
+  -- Filename: timestamp at second resolution + PID, separating concurrent
+  -- Neovim instances. Repeated dumps in the same second from one instance
+  -- get a -2, -3, … suffix instead of overwriting an existing report.
   local base = ("%s/diagnostic_%s_%d"):format(log_dir, os.date("%Y%m%d_%H%M%S"), vim.uv.os_getpid())
   local dest, n = base .. ".txt", 1
   while vim.uv.fs_lstat(dest) do

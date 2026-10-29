@@ -93,6 +93,20 @@ Content-editing policies are checked when their corresponding events run.
 Layout, glyph and folding-provider refinements remain ordinary plugin `opts`
 overrides rather than separate configuration keys.
 
+## Fold persistence and split sizing
+
+Fold structure comes from ufo's selected provider; open/closed state is saved
+per file in native view files, independently of sessions. Restoring folds
+preserves the live cursor and scroll. The first idle event reasserts that state
+to accommodate asynchronous providers, but does not wait indefinitely for a slow
+provider. Views older than the source file are skipped to avoid stale line ranges.
+
+`editing.equalize_windows` controls terminal-resize equalization, not the
+`<leader>wm` zoom toggle. Unzoom restores saved sizes only while the split layout
+is unchanged; after splits are added, removed or exchanged it equalizes instead.
+Debugger panel width protection has its own
+[fixed-column contract](debug-terminal-configuration.md#fixed-window-widths-during-debugging).
+
 ## Retention
 
 `retention.views_days` defaults to `90`. Set a finite positive number of days to

@@ -249,7 +249,8 @@ map("n", "<leader>wo", "<cmd>only<cr>",   { desc = "Close other windows" })
 -- Window zoom toggle (<leader>wm — "maximize")
 -- ---------------------------------------------------------------------------
 -- Temporarily make the focused window fill the screen, then restore the
--- exact layout on a second press. Useful for "I want to see neo-tree at
+-- saved sizes on a second press if the split layout is unchanged. Useful for
+-- "I want to see neo-tree at
 -- full height for a moment" / "let me get more vertical space on this
 -- buffer."
 --

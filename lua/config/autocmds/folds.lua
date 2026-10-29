@@ -17,9 +17,9 @@ local settings = require("config.settings")
 -- no "folds applied" event, and coupling to its internals is exactly what we're
 -- avoiding — we restore on BufWinEnter AND reassert once on the first
 -- CursorHold after entering. CursorHold fires after `updatetime` (250ms) of
--- idle, i.e. after ufo has settled, so the reassert lands last and wins without
--- this code ever mentioning ufo. If ufo is absent, native folds are ready at
--- BufWinEnter and the reassert is a harmless no-op. NOTE: viewoptions is
+-- idle. This usually follows ufo's initial work, but does not wait for an
+-- arbitrarily slow provider. The same native restore also works without ufo.
+-- NOTE: viewoptions is
 -- folds-only, but that alone does NOT hold the cursor still — :loadview can
 -- still shift it as a side effect of its fold-restore commands (the zE +
 -- fold-recreation motions leave the cursor wherever they finish, and with no
@@ -150,12 +150,12 @@ vim.api.nvim_create_autocmd("CursorHold", {
 -- View-file janitor. mkview above creates one file per edited buffer and
 -- Neovim never deletes them, so 'viewdir' would grow without bound (a few
 -- KB per file, but thousands of files after a year — and stale views for
--- long-gone projects). On exit, prune entries not touched in 90 days:
+-- long-gone projects). On exit, prune recognized entries older than
+-- retention.views_days (90 by default; false disables cleanup):
 -- loadview refreshes a file's mtime implicitly via the following mkview
 -- on leave, so anything 90 days cold belongs to files you no longer
--- open. Everything is pcall'd — a janitor must never turn quitting into
--- an error — and the scan is a flat readdir of small files, microseconds
--- in practice.
+-- open. Failed removals are ignored; the scan is flat and excludes unrelated
+-- filenames and directories.
 -- ---------------------------------------------------------------------------
 vim.api.nvim_create_autocmd("VimLeavePre", {
   group = augroup("view_janitor"),

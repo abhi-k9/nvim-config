@@ -13,10 +13,10 @@ Short version:
 | Situation | Do this |
 |---|---|
 | A prompt says "Swap file found" | Read the default button: Delete (nothing unsaved), Open read-only (disk is newer), Recover (unsaved work) |
-| A file opened read-only by itself | It's open in another Neovim. Close it there, then `:e!` |
+| A file opened read-only by itself | Read the notice: it may have a live owner, an owner on another host, or an unreadable swap. Resolve that case before `:e!`. |
 | You recovered a file | Save or discard, then `:SwapDelete` (the old swap stays until you do) |
 | Leftovers keep piling up | `:SwapClean` reviews all swaps and deletes the ones that hold no work |
-| Neovim won't start cleanly | `nvim --clean -r` lists every swap without loading the config |
+| Neovim won't start cleanly | `nvim --clean -r` lists swaps in the default search directories without loading the config |
 
 ## Where swaps live
 
@@ -28,8 +28,9 @@ Swaps go to `stdpath("state")/swap/` (Neovim's default `'directory'`):
 | Linux, macOS | `~/.local/state/nvim/swap/` (`$XDG_STATE_HOME/nvim/swap/` when that is set) |
 
 With `NVIM_APPNAME=foo` the `nvim` part becomes `foo`. To check on any
-machine: `:echo &directory`. WSL and Windows are separate machines here:
-each has its own swap folder.
+machine: `:echo &directory`. These are defaults, not a requirement: a custom
+`'directory'` can contain several locations, including per-file `.` entries.
+WSL and native Windows normally use separate swap folders.
 
 A swap's name is the edited file's full path with `%` for every path
 separator, plus `.swp`. When a swap with that name already exists, the
@@ -40,7 +41,7 @@ next one is `.swo`, then `.swn`, and so on. Examples:
 | `C%%Users%me%proj%main.cpp.swp` | `C:\Users\me\proj\main.cpp` |
 | `%home%me%proj%main.cpp.swp` | `/home/me/proj/main.cpp` |
 
-Big files (over 1 MB, see `bigfile.lua`) are opened without a swap.
+Big files (over `vim.g.big_file_size`, default 1 MiB) are opened without a swap.
 
 ## When you open a file that has a swap
 
@@ -55,6 +56,8 @@ long E325 prompt. What happens depends on who owns the swap:
   check cannot establish whether an editor is running on a different
   machine sharing the swap directory. Verify that editor is closed before
   taking over or deleting its swap.
+- **A different Unix user.** Neovim's stock prompt remains in force; the
+  guard does not choose for that owner.
 - **No running owner: a leftover.** A one-line prompt offers
   Recover / Open read-only / Edit anyway / Delete swap / Quit, and the
   default button is picked for you:
@@ -65,7 +68,7 @@ long E325 prompt. What happens depends on who owns the swap:
     newer edits. Compare first (see below).
   - `Esc` quits without touching anything.
 - **Unreadable swap** (empty, cut short by a crash, or from another
-  program). No prompt, so a session restore never stops on it. An empty
+  program). The guard avoids the stock E325 prompt during session restore. An empty
   swap older than a minute is deleted; anything else opens the file
   read-only with a notice. Run `:SwapDelete`, then `:e!`.
 
@@ -103,7 +106,7 @@ and deletes them together.
 
 ### Inside Neovim (all platforms): `:SwapClean`
 
-`:SwapClean` reads every swap in the swap folder and sorts it into one of
+`:SwapClean` reads swaps in the scannable `'directory'` entries and sorts them into
 two groups:
 
 - **Delete:** no running owner and no unsaved changes, or empty and more
@@ -122,6 +125,9 @@ against an editor changing the path immediately before deletion.
 Swaps of the Neovim you run it from are never listed. A swap whose
 recorded process ID now belongs to an unrelated running program is kept
 as "in use"; that errs on the safe side.
+Per-file `.` or `./subdirectory` entries cannot be scanned globally, so they
+are excluded from this inventory. Use `:SwapDelete` for the current file or an
+explicit swap path when those locations need attention.
 
 `:SwapDelete <path>` deletes one swap by path, for example a kept one you
 have checked. Paste the path as `:SwapClean` shows it: file-name
@@ -136,13 +142,18 @@ is closed; `:SwapClean` never forces deletion of these swaps.
 
 ### From a shell, without the config
 
-List every swap with its recorded file name, process ID and whether it
+List swaps with their recorded file name, process ID and whether they
 holds unsaved changes ("modified: YES"). This works the same on every OS
 and doesn't start an editor:
 
 ```sh
 nvim --clean -r
 ```
+
+This clean invocation uses Neovim's default swap search directories; it does
+not load a custom `'directory'` from this configuration. Check `:echo &directory`
+in the configured editor when its swaps live elsewhere. Keep the same
+`NVIM_APPNAME` and XDG environment when inspecting an alternate installation.
 
 Look at the folder directly:
 
@@ -157,24 +168,22 @@ Get-ChildItem "$env:LOCALAPPDATA\nvim-data\swap" | Sort-Object LastWriteTime |
 ls -lt "${XDG_STATE_HOME:-$HOME/.local/state}/nvim/swap"
 ```
 
-Delete leftovers by hand only when **no Neovim is running** and
-`nvim --clean -r` shows "modified: no" for them. To clear the whole
-folder in that situation:
+Delete a leftover by hand only after checking that its owner is closed and
+the swap holds no needed unsaved work. A local process list cannot check an
+owner on another host. Use the exact reviewed path, rather than clearing a
+directory that may also contain unrelated files:
 
 ```powershell
 # Windows: quit every Neovim first (terminals, VS Code, other sessions)
-Get-Process nvim -ErrorAction SilentlyContinue   # must print nothing
-Remove-Item "$env:LOCALAPPDATA\nvim-data\swap\*" -Force
+Get-Process nvim -ErrorAction SilentlyContinue   # check local instances
+Remove-Item -LiteralPath 'C:\exact\reviewed\swap.swp' -Confirm
 ```
 
 ```sh
 # Linux / macOS: quit every Neovim first (tmux panes, SSH sessions)
-pgrep -l nvim                                    # must print nothing
-rm -f "${XDG_STATE_HOME:-$HOME/.local/state}/nvim/swap/"*
+pgrep -l nvim                                    # check local instances
+rm -i -- '/exact/reviewed/swap.swp'
 ```
-
-Swap names start with `%` or a drive letter, never a dot, so `*` matches
-all of them, including the swaps of hidden files such as `.bashrc`.
 
 **Before a "nuclear" reset** (README → Clearing caches, level 3, which
 deletes the whole state folder): run `nvim --clean -r` first and recover

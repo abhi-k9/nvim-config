@@ -134,9 +134,10 @@ vim.api.nvim_create_autocmd("SwapExists", {
     -- Is a LIVE process holding this swap right now? A pid must be a real
     -- positive number before probing: Lua treats 0 as truthy and
     -- uv.kill(0, 0) signals the caller's OWN process group (always
-    -- "succeeds"), so a swap recording pid 0 — exactly what a crash
-    -- leftover reports, since swapinfo only records a pid for a still-
-    -- running owner — would masquerade as live. Signal 0 checks existence
+    -- "succeeds"), so a swap recording pid 0 would masquerade as live.
+    -- A recorded positive PID can also outlive its editor or be reused by
+    -- another process; the probe establishes process existence, not identity.
+    -- Signal 0 checks existence
     -- without signaling, and libuv implements it on Windows too.
     local live = type(info.pid) == "number" and info.pid > 0 and vim.uv.kill(info.pid, 0) == 0
 

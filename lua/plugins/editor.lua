@@ -10,7 +10,7 @@ local settings = require("config.settings")
 return {
   -- -------------------------------------------------------------------------
   -- nvim-autopairs — auto-close brackets, quotes, etc. Treesitter-aware,
-  -- so it won't add a `)` inside a string literal.
+  -- with configured exclusions for Lua strings and JS template strings.
   -- -------------------------------------------------------------------------
   {
     "windwp/nvim-autopairs",
@@ -68,7 +68,7 @@ return {
   -- -------------------------------------------------------------------------
   -- flash.nvim — search-and-label jumps + treesitter-aware node selection.
   -- Replaces hop/leap; works for both motions and operator-pending
-  -- (e.g. `dSs` deletes to a jump target).
+  -- (e.g. `ds` starts a Flash jump as the delete motion).
   -- -------------------------------------------------------------------------
   {
     "folke/flash.nvim",
@@ -205,8 +205,8 @@ return {
   },
 
   -- -------------------------------------------------------------------------
-  -- blink.indent — indent guides. Same author family as blink.cmp; very
-  -- lightweight (no autocmd-per-buffer overhead like indent-blankline).
+  -- blink.indent — indent guides from the blink.cmp author family.
+  -- Draws static guides and highlights the current scope.
   -- Its default `[i` / `]i` (top / bottom of the current scope) replace
   -- Vim's `[i` / `]i` (show the first / next line with the keyword).
   -- Panels (neo-tree, Trouble, lazy, Mason, terminals, help, …) are
@@ -243,8 +243,8 @@ return {
   -- mini.surround — adds surround verbs, on the `gz` prefix:
   -- `gza` / `gzd` / `gzr` (add / delete / replace), `gzf` / `gzF`
   -- (find right / left), `gzh` (highlight), `gzn` (update n_lines).
-  -- Examples: `gzaiw"` surrounds a word with quotes; `gzrb)` replaces
-  -- `()` with the next bracket type; `gzdt` deletes the surrounding
+  -- Examples: `gzaiw"` surrounds a word with quotes; `gzr)]` replaces
+  -- `()` with `[]`; `gzdt` deletes the surrounding
   -- HTML tag. Tiny, intuitive, and easy to live without — but easy to
   -- love.
   --

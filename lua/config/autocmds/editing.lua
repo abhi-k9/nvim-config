@@ -38,7 +38,7 @@ vim.api.nvim_create_autocmd("BufReadPost", {
 })
 
 -- ---------------------------------------------------------------------------
--- Resize splits proportionally when the host terminal resizes.
+-- Equalize split sizes when the host terminal resizes (configurable).
 -- nvim_win_call instead of `tabdo`: tabdo fires TabEnter/WinEnter/BufEnter
 -- in every tab, which scope.nvim reacts to by re-listing buffers.
 -- ---------------------------------------------------------------------------
@@ -61,13 +61,13 @@ vim.api.nvim_create_autocmd("VimResized", {
 --   * binary / diff buffers      — whitespace can be load-bearing
 --   * big_file buffers (>1 MB)   — a buffer-wide :s on a 50 MB log is a
 --                                  multi-second save-time stall
---   * markdown                   — trailing double-spaces are hard line
+--   * markdown (by default)      — trailing double-spaces are hard line
 --                                  breaks; stripping them changes rendering
 --   * EditorConfig files that set trim_trailing_whitespace (either way) —
 --                                  the project decides; Neovim's built-in
 --                                  editorconfig support trims when "true"
--- Add filetypes to the skip list below if you work in other formats
--- where trailing whitespace is meaningful.
+-- Set editing.trim_skip_filetypes to replace the configurable skip list;
+-- binary, diff, big-file and special-buffer safety checks remain in force.
 -- ---------------------------------------------------------------------------
 vim.api.nvim_create_autocmd("BufWritePre", {
   group = augroup("trim_whitespace"),
@@ -76,9 +76,8 @@ vim.api.nvim_create_autocmd("BufWritePre", {
     -- Read the EVENT buffer's options, not the ambient current buffer's.
     -- They're the same buffer in the common `:w` case, but during `:wa`
     -- Vim visits background buffers through the autocmd window; indexing
-    -- by args.buf keeps the guards correct regardless of context (and
-    -- the :s below operates on the current buffer, which IS args.buf
-    -- inside a BufWritePre callback).
+    -- by args.buf keeps the guards correct regardless of context; nvim_buf_call
+    -- below explicitly runs the substitute in that same event buffer.
     local buf = args.buf
     if vim.bo[buf].binary or vim.bo[buf].filetype == "diff" then return end
     if vim.b[buf].big_file then return end
@@ -139,9 +138,8 @@ vim.api.nvim_create_autocmd("FileType", {
 --     while reordering rebase todo lists;
 --   * a commit message is usually the ONLY window, so the :close was
 --     just an E444 error;
---   * "quit without saving" in a commit buffer means "abort the
---     commit", which deserves the explicit :q! / :cq, not a stray tap
---     of q.
+--   * aborting a commit deserves an explicit :cq, not a stray tap of q.
+--     :q! only discards buffer edits and may still accept a saved message.
 -- The `close` is wrapped in pcall for the same last-window reason —
 -- e.g. a help buffer opened in the sole window via `nvim +help`.
 -- ---------------------------------------------------------------------------
@@ -187,7 +185,7 @@ vim.api.nvim_create_autocmd("BufWritePre", {
 })
 
 -- ---------------------------------------------------------------------------
--- Reload files when they change on disk + notify on the gain
+-- Check for external file changes on focus gain and terminal events
 -- (relies on 'autoread', which is on by default).
 -- ---------------------------------------------------------------------------
 vim.api.nvim_create_autocmd({ "FocusGained", "TermClose", "TermLeave" }, {
