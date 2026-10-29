@@ -19,9 +19,10 @@
 #             duplicate <leader> maps, then runs the behaviour specs; because
 #             that path runs config.lazy, lazy.nvim clones the plugin set on
 #             first run (a couple of minutes, cached across runs) — hence git
-#             + a C toolchain + the tree-sitter CLI are installed so
-#             treesitter's parser build in that boot doesn't error. Ubuntu
-#             only: the full plugin/parser install is too slow and flaky to
+#             + a C toolchain + the tree-sitter CLI are available for plugin
+#             setup and health probes. Specs disable real parser provisioning
+#             and exercise installers with controlled tasks. Ubuntu
+#             only: the full plugin startup is too slow and flaky to
 #             gate on across OSes.
 #
 #   Both Neovim-running jobs run on `stable`. The declared floor is 0.12.0
@@ -41,9 +42,10 @@
 #   * test-seed — tests/offline_seed_test.py on Ubuntu, Windows and macOS:
 #             hostile seeds (path escapes, links, devices, sizes), install
 #             swap/rollback, checksum and lockfile gates, and the fail-closed
-#             completeness check. Python standard library only.
+#             completeness check. The harness uses the standard library; the
+#             native Windows launcher test also reads pip's bundled distlib.
 #
-# Runs the same targets as `make ci` (check, check-docs, test, test-scoper,
+# Runs the targets in `make ci` (check, check-docs, check-actions, test, test-scoper,
 # test-seed), but not in the same environment: CI is Linux (plus the Windows
 # and macOS jobs),
 # installs the latest stylua and tree-sitter CLI, and runs check-docs's
@@ -165,7 +167,7 @@ jobs:
           path: |
             ~/.local/share/nvim
             ~/.cache/nvim
-          # lazy-lock.json (if you commit it) pins plugin revisions, so it is
+          # The tracked lazy-lock.json pins plugin revisions, so it is
           # part of the key: a lock bump invalidates the cache.
           key: nvim-data-${{ runner.os }}-${{ matrix.nvim }}-${{ hashFiles('lua/plugins/**/*.lua', 'lazy-lock.json') }}
           restore-keys: |
@@ -229,8 +231,8 @@ jobs:
         with:
           persist-credentials: false
 
-      # Standard library only, against the runner's own Python: no Neovim
-      # (the completeness check runs a fake nvim), no network.
+      # Runner Python and its bundled pip/distlib launcher resource on Windows:
+      # no Neovim (the completeness check runs a fake nvim), no network.
       - name: Run offline-seed tests
         timeout-minutes: 3
         shell: bash

@@ -69,7 +69,7 @@ def warn(msg):
 
 
 def app_name():
-    """NVIM_APPNAME this config runs under (the name of its folder)."""
+    """Installed app name from the config folder, independently of shell NVIM_APPNAME."""
     return CONFIG_DIR.name
 
 
@@ -469,7 +469,7 @@ def tar_entries(t):
 def validate(entries, max_entries, max_total, max_file):
     """Refuse a seed unless every entry stays inside lazy/, mason/, site/ or the manifest.
 
-    No absolute, `..`, drive or backslash paths, no duplicates, no devices,
+    No absolute, `..`, drive or backslash paths, no repeated/conflicting files, no devices,
     nothing written through a symlink in the archive, and size limits so a
     hostile seed can't fill the disk. Returns the total unpacked size.
     """
@@ -566,7 +566,8 @@ def promote(staging, data_dir, tops):
     """Move staging/<top> into data_dir, moving any existing <top> to a backup folder first.
 
     os.replace renames a symlink or junction itself instead of writing through
-    it. If any move fails, every earlier one is undone. Returns the backup
+    it. If a move fails, attempt to undo earlier moves; rollback failures warn.
+    Returns the backup
     folder, or None if nothing had to be moved aside.
     """
     backup, done = None, []
@@ -1038,8 +1039,8 @@ def main():
     b.add_argument("--out-dir", default=".", help="where the archive goes (default: current dir)")
     b.add_argument("--only", help="comma list of lazy,mason,site (default: all)")
     b.add_argument("--allow-mismatch", action="store_true",
-                   help="pack even if plugins differ from lazy-lock.json or something is missing")
-    b.add_argument("--no-check", action="store_true", help="skip the Mason/parser completeness check")
+                   help="allow reported completeness gaps or plugin-commit differences")
+    b.add_argument("--no-check", action="store_true", help="skip the Neovim plugin/Mason/parser completeness check")
     b.set_defaults(func=cmd_build)
 
     i = sub.add_parser("install", help="unpack a seed into the data dir")

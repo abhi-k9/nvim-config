@@ -2,7 +2,9 @@
 
     python3 -m unittest discover -s tests -p "offline_seed_test.py" -v
 
-Standard library only. Everything happens in temporary folders; the real
+The harness uses the standard library; the native Windows launcher case also
+reads pip's vendored distlib launcher resource (without installing anything).
+Everything happens in temporary folders; the real
 Neovim data folder and the real nvim are never touched (the completeness
 check runs against a fake nvim put first on PATH).
 """

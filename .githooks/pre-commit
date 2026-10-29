@@ -4,7 +4,8 @@
 # Three fast, local gates that mirror CI, run before a commit lands:
 #
 #   1. luacheck on the staged *.lua files — accidental globals, typos in
-#      vim.* names, and unused locals caught before they land.
+#      configured globals, and unused locals caught before they land. It
+#      does not type-check Neovim APIs or detect every misspelled vim field.
 #   2. `stylua --check` on the staged *.lua files. Aligned blocks are
 #      protected with `-- stylua: ignore start/end`; see the Makefile header.
 #   3. the doc-sync guards (scripts/check-docs.sh) — the docs must still

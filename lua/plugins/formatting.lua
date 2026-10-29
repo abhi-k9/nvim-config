@@ -1,7 +1,7 @@
 -- lua/plugins/formatting.lua
 --
 -- conform.nvim — runs external formatters (prettier, stylua, clang-format,
--- …) and falls back to LSP formatting when no external one is configured.
+-- …) and falls back to LSP formatting when no external one is available.
 -- We deliberately do NOT format-on-save by default: it's a foot-gun on
 -- shared repos where everyone has slightly different formatter versions.
 -- Use `<leader>lf` (LSP) or `<leader>cf` (conform) to format explicitly.
@@ -12,11 +12,11 @@
 --
 -- INSTALLING THE FORMATTERS: conform only RUNS formatters; it never
 -- installs them. mason-lspconfig (lsp.lua) installs LSP servers; the
--- second spec in this file (mason-tool-installer) installs everything
--- else via Mason on startup: formatters, shellcheck and the debug
--- adapters. Without it, `<leader>cf` silently falls back to LSP
--- formatting where available (lua_ls can; pyright can't — so Python
--- wouldn't format at all).
+-- second spec in this file (mason-tool-installer) installs the selected
+-- non-server packages when their prerequisites are present. Ruff and Taplo
+-- are owned by the LSP installer and also provide formatting; tools already
+-- on PATH work without either installer. Where no configured external
+-- formatter is available, `<leader>cf` uses LSP formatting if a client offers it.
 
 return {
   -- =========================================================================
@@ -105,8 +105,8 @@ return {
         -- stylua: ignore end
         -- Fallback for any other filetype: LSP formatting when a client
         -- offers it (cssls for scss/less, clangd for objc/cuda), else
-        -- whitespace trimming — e.g. scheme and Windows batch (.bat/.cmd),
-        -- which have no formatter in the Mason / conform ecosystem.
+        -- whitespace trimming — e.g. Scheme and Windows batch (.bat/.cmd),
+        -- for which this config selects no external formatter.
         -- "prefer", not the default "fallback": trim_whitespace is always
         -- available, so "fallback" would never reach the LSP.
         ["_"] = { "trim_whitespace", lsp_format = "prefer" },
@@ -187,14 +187,14 @@ return {
   -- Deliberately NOT listed:
   --   rustfmt    — ships with the rustup toolchain and is found on PATH;
   --                a second Mason copy would just shadow it.
-  --   scheme     — no Scheme formatter exists in Mason/conform; Scheme
-  --                files fall through to trim_whitespace (above).
-  --   batch      — likewise nothing for Windows .bat/.cmd.
-  --   js-debug-adapter, delve — vscode-js-debug builds from source with
-  --                npm + gulp, and delve installs via `go install`; Mason
-  --                would retry a failing build on every startup. Add them
-  --                once node/npm or Go are on PATH and you debug JS/TS or Go
-  --                (and register the adapter in lua/config/dap.lua).
+  --   scheme     — no Scheme formatter is selected; these files use the
+  --                fallback above unless a user-supplied LSP formats them.
+  --   batch      — likewise no selected formatter for Windows .bat/.cmd.
+  --   js-debug-adapter, delve — not selected by this config. Add their Mason
+  --                packages and register adapters in lua/config/dap.lua when
+  --                needed, checking the packages' current runtime/build
+  --                requirements first. Prerequisite gating covers only the
+  --                known packages in config/tooling.lua, not arbitrary additions.
   --
   -- Keep every package here out of mason-lspconfig's ensure_installed list
   -- in lsp.lua: two installers queuing the same package on a fresh install
@@ -224,18 +224,17 @@ return {
         -- already installing"), so ruff has a single owner (the LSP spec) and
         -- conform simply calls the binary that install provides.
         "shfmt", -- Bash / sh
-        -- Not a formatter, but installed here for the same reason: bashls
-        -- produces NO diagnostics by itself — it shells out to shellcheck
-        -- when it finds it on PATH (Mason's bin dir is on PATH). Without it
-        -- a script with an unquoted $var and an unclosed `if` showed 0
-        -- diagnostics under bashls.
+        -- ShellCheck supplies shell-lint diagnostics through bashls when
+        -- found on PATH (Mason's bin directory is prepended there). Without
+        -- it, that linting is unavailable even if bashls itself starts.
         "shellcheck",
         -- JS/TS/JSON/YAML/Markdown/HTML/CSS formatter (formatters_by_ft
         -- tries prettierd, then prettier). Without it those files fall
         -- back to LSP formatting, or none for YAML/Markdown.
         "prettierd",
         -- Debug adapters (Mason package names; lua/config/dap.lua points
-        -- the adapters at their bin/ shims).
+        -- the adapters at their executable entry points; Windows native
+        -- adapter images are selected instead of .cmd wrappers).
         "debugpy",
         "codelldb",
         "cpptools",

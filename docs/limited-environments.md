@@ -9,8 +9,9 @@ See [customization](customization.md) and [tool selection](tooling-configuration
 to choose languages, explicit executables or deliberate provisioning opt-outs.
 
 Automatic tool installation remains enabled when prerequisites are available.
-The config checks the prerequisites for its configured packages before queuing
-installs or native builds. It records unsupported work for `:checkhealth config`
+The config checks known prerequisites for the shipped package selections before
+queuing installs or native builds. Custom packages retain their upstream
+installer requirements. It records unsupported work for `:checkhealth config`
 instead of generating a popup for every failed attempt.
 
 | Missing prerequisite | Behavior |
@@ -37,7 +38,9 @@ section alongside the existing system-tool checks. Health checks still flag
 missing prerequisites and invalid versions. These reports describe available
 integrations; missing optional components do not mean basic editing is broken.
 
-Install the relevant prerequisites, then restart Neovim to restore automatic
+Installing tools after startup does not invalidate every cached probe or re-enable
+every skipped LSP in the existing process. Install the relevant prerequisites,
+then restart Neovim to restore automatic
 installation/activation. `:Mason` and `:MasonInstall <package>` remain available
 for explicit installation; `:TSInstall <language>` can be used directly too.
 The explicit commands retain their normal errors when prerequisites are absent.

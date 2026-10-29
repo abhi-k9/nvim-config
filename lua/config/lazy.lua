@@ -134,7 +134,7 @@ require("lazy").setup({
     -- present at startup (colorscheme, session, scope, bufferline) plus
     -- dependency-only entries pulled in by another spec anyway.
     lazy = false,
-    version = false, -- always use the latest commit; pin individual plugins if you want stability
+    version = false, -- updates follow branch commits; lazy-lock.json records the tested revisions
   },
   install = {
     -- Pre-fetch the catppuccin colorscheme on first install so the install

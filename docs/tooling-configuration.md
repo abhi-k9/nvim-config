@@ -54,7 +54,9 @@ already installed server. Use `lsp.servers.NAME = false` for that, or override
 `mason-lspconfig.nvim`'s `automatic_enable` with `false`, an allowlist, or an
 `exclude` list. This preserves Mason's established installed-server behavior.
 
-Tool entries may use `condition = false` or a function returning a boolean.
+Entries in `tools.packages` may use `condition = false` or a function returning
+a boolean. Server entries in `tools.servers` are name/version strings; disable
+their installation and automatic activation with `lsp.servers.NAME = false`.
 These are deliberate opt-outs: runtime installation, health reporting and seed
 checking honor them. A prerequisite failure is different: it skips automatic
 work quietly while the requested tool remains visible as unavailable. An
@@ -97,6 +99,34 @@ Explicit `lsp.servers.pyright = false`/`ruff = false` also informs coordination.
 If manually enabling providers outside these installation lists, set the policy
 explicitly. Python formatting still requests `ruff_format` by default; replace
 `tools.formatters.python` when using another formatter or no Ruff binary.
+
+## Opt into format-on-save
+
+Formatting on save is disabled by default. `:FormatToggle` and `:FormatToggle!`
+change buffer/global flags; they do not install a save handler by themselves.
+To enable one without editing the shipped spec, add a normal Lazy override in
+`local.lua`:
+
+```lua
+return {
+  plugins = {
+    {
+      "stevearc/conform.nvim",
+      event = "BufWritePre", -- load before the first save
+      opts = {
+        format_on_save = function(bufnr)
+          if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then return end
+          return { timeout_ms = 500 }
+        end,
+      },
+    },
+  },
+}
+```
+
+The callback makes both toggle commands effective. It retains the shipped
+formatter selection and LSP fallback. Core trailing-whitespace cleanup is a
+separate save policy; see [editing customization](editing-ui-configuration.md).
 
 ## Compiler and runtime discovery
 

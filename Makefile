@@ -12,7 +12,7 @@
 #   make test-scoper — `make test` inside scoper.nvim/
 #   make test-seed   — Python tests for scripts/offline-seed.py
 #   make check-actions — offline immutable CI pin guard and updater tests
-#   make ci          — what CI runs: check + check-docs + test + test-scoper
+#   make ci          — what CI runs: check + check-docs + check-actions + test + test-scoper
 #                      + test-seed
 #   make hooks       — enable the tracked git pre-commit hook (.githooks/)
 #
@@ -37,8 +37,9 @@ PYTHON    ?= python3
 all: check check-docs test
 
 # Everything the CI workflow (.github/workflows/ci.yml) gates on, in one
-# local command: static analysis over both trees, the doc-sync guards, then
-# both spec suites and the offline-seed tests.
+# local command: static analysis over both trees, doc-sync/action-pin guards,
+# both spec suites and the offline-seed tests. CI also runs native platform
+# jobs (including the Windows adapter fixture) that this command cannot replace.
 ci: check check-docs check-actions test test-scoper test-seed
 
 check-actions:

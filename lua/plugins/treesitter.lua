@@ -6,7 +6,7 @@
 -- Why `main`: `master` is frozen and calls helpers Neovim removed
 -- (textobjects/move errors like "tsrange.lua:27: attempt to call method
 -- 'start'" on 0.12). The two plugins' `main` branches must be used
--- together, so both are pinned.
+-- together, so both specs select main; lazy-lock.json records their commits.
 --
 -- `main` specifics:
 --   * lazy = false is required (the plugin doesn't support lazy-loading).
@@ -59,9 +59,8 @@ local PARSERS = {
   "yaml",
 }
 
--- NOTE: scheme has a treesitter parser (highlighting) but NO LSP and NO
--- formatter in the Mason/conform ecosystem — so highlighting is the only
--- automatic tooling Scheme gets here. The FileType autocmd below starts
+-- NOTE: scheme has a treesitter parser (highlighting) but this config selects
+-- no Scheme LSP or external formatter. The FileType autocmd below starts
 -- it like any other parser once `:TSUpdate` compiles it. For structural
 -- editing (paredit/parinfer-style), add a dedicated plugin; none is
 -- bundled.

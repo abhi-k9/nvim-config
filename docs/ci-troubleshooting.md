@@ -1,5 +1,9 @@
 # CI failures and long runs — 2026-10-22
 
+This page records dated incident evidence, followed by the workflow's current
+execution bounds. The historical test totals and timings are not current suite
+sizes or performance guarantees.
+
 The CI follow-up found separate startup, missing-tool, installer-concurrency, tool-version, and
 platform-path problems. A successful local run with populated Neovim data did not exercise the
 same first-install path as a fresh Actions runner.
@@ -56,15 +60,28 @@ The parser probe now adds the parent's resolved, locked plugin source directorie
 to `runtimepath` directly. It keeps isolated scope state without running Lazy or
 installers, and asserts that it did not create a plugin installation directory.
 
+## Push batches and notifications
+
+The workflow starts for a push to `main`/`master` and for pull-request events.
+A single push containing several commits normally creates one push-triggered
+workflow run at the new branch tip, not one run per commit. Separate pushes
+create separate runs; a branch with a pull request can also have a distinct
+pull-request run. GitHub notification preferences and job reruns affect how many
+emails you receive, so email counts do not directly count commits or pushes.
+
+Concurrency cancels a superseded run on the same ref. It does not combine
+separate pushes into a single event, and a cancellation can itself be reported.
+Batching related commits into one push therefore reduces redundant runs.
+
 ## Execution bounds and failure visibility
 
 The workflow now sets explicit limits:
 
 | Job | Maximum job time | Test/check step limit |
 | --- | --- | --- |
-| Lint and documentation | 10 minutes | 3 minutes lint, 2 minutes docs |
+| Lint and documentation | 10 minutes | 3 minutes lint; 2 minutes each for docs and action-pin checks |
 | Full configuration | 20 minutes | 10 minutes tests |
-| Scoper, each OS | 10 minutes | 5 minutes tests |
+| Scoper, each OS | 10 minutes | 5 minutes specs; 2 minutes for the additional Windows adapter fixture |
 | Python seed tests, each OS | 5 minutes | 3 minutes tests |
 
 The Lua harness also bounds each spec process to 60 seconds. These limits cover

@@ -94,6 +94,14 @@ Then continue with the README's [first-time setup checklist](../../README.md#fir
 
 ## Install from a zip
 
+The extraction commands below assume an archive whose top-level folder is
+`nvim/`. GitHub's **Code → Download ZIP** and automatic source archives normally
+use `nvim-config-main/` or a tag-derived name instead. Extract those into a
+temporary folder, then move/rename the extracted repository folder to the
+config destination after backing up the old one. Preserve hidden files and
+check that `init.lua` is directly inside the final config folder. Do not extract
+an unknown archive layout over an existing configuration.
+
 1. Install the prerequisites (README, Prerequisites; there are per-platform
    recipes there).
 2. If you already have a Neovim config, move it out of the way. If it came
@@ -187,8 +195,10 @@ scoper scopes survive the update. Only the config folder is replaced.
 
    On Windows, use `git diff --no-index "$env:LOCALAPPDATA\nvim.bak" "$env:LOCALAPPDATA\nvim"`.
    Or open single files side by side with `nvim -d old new`.
-4. Start `nvim`. New plugins, Mason tools and parsers install by
-   themselves. Then bring the plugins in line with the new config:
+4. Start `nvim`. Missing plugins install when network/Git are available; selected
+   Mason tools and parsers provision when their prerequisites exist. Skipped
+   optional work remains visible in `:checkhealth config`. Then bring the plugins
+   in line with the new config:
    - `:Lazy restore` checks out exactly the commits in the new
      `lazy-lock.json` (the set this release was tested with). Follow it with
      `:Lazy clean` to remove the plugins the new config dropped.
@@ -196,6 +206,10 @@ scoper scopes survive the update. Only the config folder is replaced.
      dropped ones, and rewrites `lazy-lock.json`.
 
    `:MasonToolsUpdate` updates the Mason tools, and `:TSUpdate` the parsers.
+   Explicit Mason version pins remain requests for those versions; remove or
+   change a pin deliberately when moving to a new tool version. The immutable
+   GitHub Action pins are separate from local plugin/tool versions; refresh
+   them with `python3 scripts/update-ci-actions.py` and review the diff.
 5. Run `:checkhealth config`, and skim `CHANGES.md` for anything a release
    asks you to do by hand.
 6. When you're happy, delete `nvim.bak`.

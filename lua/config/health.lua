@@ -13,11 +13,11 @@
 -- completion empty in this C++ file?" is really "clangd isn't on PATH"). This
 -- healthcheck surfaces those in one place.
 --
--- SCOPE. It checks the SYSTEM prerequisites Mason cannot provide, plus the
--- C/C++ toolchain this config is built around. It deliberately does NOT
+-- SCOPE. It checks system/runtime prerequisites, state-directory access,
+-- selected C/C++ tools and recorded optional-install skips. It does NOT
 -- re-verify the language servers / formatters / debug adapters that Mason
 -- installs into its own prefix — that is `:checkhealth mason`'s job, and
--- duplicating it here would double-report and drift. Where a tool can come
+-- duplicating package inventory here would drift. Where a tool can come
 -- from either PATH or Mason (clangd, stylua, …) presence on PATH is treated
 -- as sufficient and Mason is pointed to otherwise.
 -- =============================================================================
@@ -218,9 +218,10 @@ function M.check()
     end
     -- nvim-treesitter's `main` branch builds EVERY parser with
     -- `tree-sitter build` — there are no prebuilt downloads. Without the CLI,
-    -- every entry in treesitter.lua's PARSERS fails with
+    -- unguarded installation of each entry in treesitter.lua's PARSERS fails with
     -- "ENOENT … 'tree-sitter'" and only Neovim's bundled parsers (c, lua,
-    -- markdown, query, vim, vimdoc) highlight. The minimum matches
+    -- markdown, query, vim, vimdoc) highlight unless another parser is installed.
+    -- Our readiness gate skips those automatic builds. The minimum matches
     -- nvim-treesitter's own health check.
     local ts_why = {
       "Required by nvim-treesitter (main) to build parsers; a C compiler alone",

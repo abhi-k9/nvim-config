@@ -1,7 +1,8 @@
 # Offline install: plugins, Mason tools and parsers without internet
 
-A normal first start downloads about 50 plugins, 22 Mason packages and 29
-treesitter parsers. On a machine without internet access, install an
+A first start with the shipped selections can download about 50 plugins, 22
+Mason packages and 29 treesitter parsers when prerequisites are available. Custom
+tool lists change those requirements. On a machine without internet access, install an
 **offline seed** instead: one archive with all of them, built on a machine
 where the config already works. `scripts/offline-seed.py` builds, checks and
 installs it. It needs only Python 3.8+ (standard library) and runs the same
@@ -18,12 +19,16 @@ or `python`.
   tools and the compiled parsers and plugin binaries (blink.cmp's matcher,
   telescope-fzf-native) are native code. A Windows seed doesn't work on
   Linux or macOS, and an x64 seed doesn't work on arm64.
+  Matching OS/CPU is necessary, but not sufficient: native artifacts may also
+  depend on compatible system libraries, C runtimes and Linux libc versions.
+  The platform check records OS/CPU, not every ABI or shared-library dependency.
 - Python 3.8+ to run the installer. Mason's PyPI tools (`debugpy`,
   `clang-format`) run in their own virtual environments and need the
   **same major.minor Python** as the build machine (the installer says
   which). The installer points them at the local Python itself.
-- `node` on PATH for the npm-based Mason tools: pyright, ts_ls, bashls,
-  jsonls, yamlls, html, cssls, prettierd.
+- `node` on PATH if using the selected Node-based tools: pyright, ts_ls, bashls,
+  jsonls, yamlls, html, cssls, prettierd and the Bash debug adapter. Other language
+  workflows still need their runtimes/toolchains (for example Rust's cargo/rustc).
 - **Not** needed: git, curl, tar, the tree-sitter CLI, a C compiler. They're
   only used to download or build, which the seed has already done.
 
@@ -59,16 +64,18 @@ or `python`.
    format), which `build` also prints.
 
    `build` runs the same check as step 2 and stops if it finds gaps or
-   can't run. It also stops if a plugin isn't checked out at its
-   `lazy-lock.json` commit (`:Lazy restore` fixes that), and it re-reads the
-   finished archive with the installer's own rules, so it never writes a seed
-   that `install` would refuse.
+   can't run. With Git on PATH, it also stops if a plugin isn't checked out at its
+   `lazy-lock.json` commit (`:Lazy restore` fixes that). Without Git it warns and
+   cannot verify plugin commits; keep Git available on the build machine for
+   that check. It re-reads the finished archive with the installer's entry rules
+   before publishing it. Platform/lockfile checks, free space and Python repair
+   on the destination remain separate installation requirements.
 
    | Option | Effect |
    |--------|--------|
    | `--data-dir DIR` | Read another data folder than this config's `stdpath('data')` |
    | `--only lazy,site` | Pack only some parts (`lazy`, `mason`, `site`) |
-   | `--allow-mismatch` | Pack anyway despite gaps or lockfile differences (warns) |
+   | `--allow-mismatch` | Allow reported completeness gaps or plugin-commit differences (warns); missing locked plugin directories still fail |
    | `--no-check` | Skip the Neovim-based completeness check |
 
 Copy the config zip, the seed **and its `.sha256` file** to the offline
@@ -103,7 +110,8 @@ machine and pass it with `--sha256` on the offline one.
       decoding, independently of the archive's file-size limits.
    3. Checks every entry before writing anything. Each one must sit under
       `lazy/`, `mason/` or `site/`, or be the manifest. These are refused:
-      absolute, `..`, drive-letter or backslash paths; duplicates; devices;
+      absolute, `..`, drive-letter or backslash paths; repeated/conflicting file
+      paths; devices;
       links that point out of the seed (except the Python links inside Mason
       venvs, which step 6 re-points); entries written through a link; and
       seeds over the size limits or larger than the free disk space.
@@ -113,8 +121,9 @@ machine and pass it with `--sha256` on the offline one.
       `--force`, any existing ones are first moved, not merged, to
       `offline-seed-backup-<date>-*/` in the data folder. This includes a
       link named `lazy`, so nothing is ever written through it. If a move
-      fails (usually because a running Neovim holds a file), every move is
-      undone and the data folder is left as it was.
+      fails (often because a running Neovim holds a file), it attempts to undo
+      earlier moves. A failed rollback emits warnings; inspect the reported
+      paths and backup before retrying rather than assuming recovery succeeded.
    6. Re-points Mason's Python venvs at this machine's Python. On POSIX it also
       rebases recognized console-script launchers to the installed venv,
       including paths with spaces. On Windows it rebases recognized unsigned
@@ -123,8 +132,11 @@ machine and pass it with `--sha256` on the offline one.
       remain refused.
       New seeds record the builder venv path for exact relocation; older seeds
       need an unambiguous venv creation command in `pyvenv.cfg`. Signed, custom,
-      ambiguous or oversized Python launchers are left intact and reported as
-      incomplete. Reinstall those packages at the final path. An incomplete
+      ambiguous or oversized recognized Windows Python launchers are left intact
+      and reported as incomplete. POSIX launcher repair is best-effort: unsupported
+      scripts can remain unchanged, and successful installation does not prove
+      every entry point is portable. Smoke-test the commands you need and reinstall
+      unsupported packages at the final path. An incomplete
       repair exits with an error after installation; any previous data remains
       in the backup. General virtual environments are not fully portable.
 
@@ -149,9 +161,14 @@ The data folder is `stdpath('data')`:
 | Linux | `~/.local/share/nvim/` |
 | macOS | `~/.local/share/nvim/` |
 
-`NVIM_APPNAME` and `XDG_DATA_HOME` change it, and the script follows both.
+`XDG_DATA_HOME` changes the base directory. The script derives the app name from
+its installed config folder (`nvim`, or `nvim-new` for a side-by-side install),
+rather than using the shell's `NVIM_APPNAME` override. Run the copy installed in
+the matching config directory; `--data-dir` can explicitly choose another data
+path. Completeness checks still require its final folder name to match that app's
+Neovim data-directory name (`nvim` on POSIX, `nvim-data` on Windows).
 The installer also writes `offline-seed-manifest.json` there: build date,
-platform, Neovim version, config commit, and the plugin commits and package
+platform, Neovim version, config commit, and the lockfile's plugin commits and package
 list.
 
 ## Keeping a seed current

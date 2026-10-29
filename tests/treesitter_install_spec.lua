@@ -30,8 +30,8 @@ describe("on-demand parser installation", function()
         return { "audit_parser" }
       end,
       install = function(languages)
-        -- The real init's deferred eager install can run while this stub
-        -- is active; count only the parser exercised by this test.
+        -- The config callback below also schedules its startup-list install;
+        -- count only this test's synthetic on-demand parser.
         if vim.tbl_contains(languages, "audit_parser") then attempts = attempts + 1 end
         return {
           await = function(_, callback)
