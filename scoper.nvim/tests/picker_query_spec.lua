@@ -40,6 +40,52 @@ describe("shared scope queries in pickers", function()
     vim.fn.delete(root, "rf")
   end)
 
+  local function save_external_change(update)
+    local path = assert(vim.fn.glob(vim.fn.stdpath("data") .. "/scoper/*.json", false, true)[1])
+    local contents = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
+    update(contents)
+    assert.is_true(require("scoper.util").atomic_write(path, { vim.json.encode(contents) }))
+  end
+
+  it(
+    "refreshes saved changes before the first search can reject an obsolete missing root",
+    function()
+      State.add_paths("missing-old-root")
+      save_external_change(function(contents)
+        contents.active = "remote"
+        contents.scopes.remote = { include = { "src/two.c" }, exclude = { "**/*.h" } }
+      end)
+
+      local ctx = Pickers._context()
+      assert.is_not_nil(ctx)
+      assert.equals("remote", ctx.name)
+      assert.same({ Path.normalize(root .. "/project/src/two.c") }, ctx.dirs)
+      assert.same({ "**/*.h" }, ctx.excludes)
+      assert.is_true(ctx.in_scope("src/two.c"))
+      assert.is_false(ctx.in_scope("src/one.c"))
+      assert.same(State.context(), ctx.context)
+      assert.is_not_nil((Pickers._find_in_scope(ctx, "two.c")))
+      assert.is_nil((Pickers._find_in_scope(ctx, "one.c")))
+    end
+  )
+
+  it("honors an externally saved restriction before the first replace invocation", function()
+    save_external_change(function(contents)
+      contents.scopes.default.include = { "src/one.c" }
+    end)
+    local previous_grug, opened = package.loaded["grug-far"], false
+    package.loaded["grug-far"] = {
+      open = function()
+        opened = true
+      end,
+    }
+    local ok, err = pcall(Pickers.replace)
+    package.loaded["grug-far"] = previous_grug
+    assert.is_true(ok, err)
+    assert.is_false(opened, "A restricted scope must refuse replacement on the first call")
+    assert.same({ "src/one.c" }, State.active_scope().include)
+  end)
+
   it("accepts a single file include and keeps exact native find/grep results", function()
     State.add_paths("src/one.c")
     local ctx = Pickers._context()

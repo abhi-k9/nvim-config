@@ -35,6 +35,8 @@ local M = {}
 -- behavior). `dirs` is nil when the whole cwd is in scope.
 -- ---------------------------------------------------------------------------
 local function get_context()
+  -- Refresh external saves before reading membership or rejecting stale roots.
+  local context = State.context()
   local scope = State.active_scope()
   if not scope then
     vim.notify("Scoper: no active scope", vim.log.levels.WARN)
@@ -58,7 +60,7 @@ local function get_context()
     excludes = query.excludes,
     restricted = query.restricted,
     in_scope = query.matches,
-    context = State.context(),
+    context = context,
   }
 end
 M._context = get_context
