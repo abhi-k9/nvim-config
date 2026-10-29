@@ -52,7 +52,7 @@ continues to use that backend's own options.
 
 Visibility fields are `hidden`, `respect_gitignore`, `follow_links` and
 `exclude_dirs`. `exclude_dirs` is a replacement list of **literal single
-directory names**, not globs or arbitrary paths. Empty lists disable these
+directory names** for file/grep searches, not globs or arbitrary paths. Empty lists disable these
 extra exclusions. Matching respects directory boundaries: excluding `.git` and
 `node_modules` retains `vendor.git` and `my_node_modules`. Invalid names containing
 separators or line breaks are ignored. Source flags and parsed-entry filtering
@@ -73,6 +73,14 @@ Link following defaults off for these config-owned ordinary file/grep commands.
 Neo-tree's filesystem traversal and search/replace retain their own backend
 semantics; the common setting does not promise to change either one. Neo-tree
 visibility options and `explorer.auto_open` are read during plugin initialization.
+For Neo-tree, `exclude_dirs` supplies `hide_by_name`: it hides matching files as
+well as directories. These are filtered entries, not `never_show` entries, so
+Neo-tree's `H` toggle can reveal them. They do not limit replacement operations.
+
+Extended fzf file-finder operators require fzf or Telescope's optional
+native fzf extension. If the native build is unavailable, Telescope keeps its
+Lua sorter; basic finding works, but fzf-specific operators are not guaranteed.
+Scoper's native `:find` fallback uses Vim patterns rather than the fuzzy syntax.
 
 Search/replace has a deliberate API boundary. The pinned grug-far version
 normalizes even absolute path prefills relative to whichever window is current
@@ -123,24 +131,39 @@ for manual sessions; `:AutoSession save`, `restore`, `search` and `delete` still
 work. Auto-session continues to name sessions by its own cwd contract; ordinary
 search and Scoper root policies do not rename sessions.
 
-By default home, Downloads, temporary directories and the filesystem root are
+By default the exact home, Downloads, configured temporary directory paths and
+filesystem root are suppressed. Their subdirectories are not automatically
 suppressed. `sessions.suppressed_dirs` replaces this list; `{}` clears it.
-Configured paths are literal except leading `~`, resolve relative to the global
-working directory, and retain realpath/native-separator handling. Supply absolute
-paths when registering preferences for several projects.
+The config resolves entries relative to the global working directory, expands a
+leading `~`, and prepares realpath/native-separator variants. Supply absolute
+paths when registering preferences for several projects. The backend then applies
+its own environment/glob expansion and matching: this is not an end-to-end literal
+path interface. Use `sessions.suppress` for explicit comparisons when a path
+contains `$NAME`, `*`, `?` or other expansion characters.
 
 `sessions.suppress=function(ctx) return ... end` adds an automatic save/restore
-veto. It receives the current `cwd` and the backend's display `session_name`.
-Return exactly `true` to suppress; keep this predicate pure. It does not block
+veto. It receives the current window/tab `cwd` and a `session_name` when one is
+available. A normal cwd-based autosave passes `nil` for the name; automatic
+restore supplies the backend's display name. Use `cwd` for ordinary directory
+checks and handle an absent name explicitly. Return exactly `true` to suppress;
+keep this predicate pure. It does not block
 explicit manual save/restore. The automatic save check runs before the backend's
-panel cleanup, so a suppressed save leaves the visible debugger layout intact.
+ignored-filetype cleanup and the config's debugger cleanup, so a suppressed save
+leaves the visible debugger layout intact.
 `config.session` owns one idempotent wrapper around the public `save_session`
 boundary; its detach operation restores the prior function only while it still
 owns that function. Automatic restore uses the backend's supported pre-restore
 hook. Explicit saves retain all debugger/explorer cleanup and scope serialization.
 
+Sessions store file names and layout, not unsaved buffer contents or a running
+debuggee. Save edits or retain swap recovery before quitting; session files are
+not a content backup. Session files are executable Vim scripts, so restore only
+files you trust. Session naming uses auto-session's global-cwd contract, even
+when a search or the suppression predicate observes a window-local directory.
+
 When launched with file arguments, automatic saving defaults to a minimum of
-two real listed file buffers **or** two tabs. `sessions.min_files` and `min_tabs`
+two listed ordinary named file buffers (including new files) **or** two tabs.
+`sessions.min_files` and `min_tabs`
 change these thresholds; each accepts a positive number or `false` to disable
 that side of the condition. Both `false` prevent file-argument autosaves.
 Normal directory launches retain auto-session's own automatic save rules.
@@ -167,3 +190,7 @@ Backend contracts were checked against the installed locked sources:
 [Neo-tree](https://github.com/nvim-neo-tree/neo-tree.nvim),
 [auto-session](https://github.com/rmagatti/auto-session), and
 [grug-far](https://github.com/MagicDuck/grug-far.nvim).
+The pinned [session path matcher](https://github.com/rmagatti/auto-session/blob/02a5588f677970a9bc784115c62bef9e5855499b/lua/auto-session/lib.lua#L615),
+[native fzf syntax](https://github.com/nvim-telescope/telescope-fzf-native.nvim/blob/b25b749b9db64d375d782094e2b9dce53ad53a40/README.md), and
+[fzf filename-first formatter](https://github.com/ibhagwan/fzf-lua/blob/d9725e6446b82ed38186686fe9d4f9826a98c269/lua/fzf-lua/defaults.lua#L385)
+explain the matching boundaries described above.

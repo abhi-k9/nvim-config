@@ -80,6 +80,11 @@
 </header>
 <div class="grid">
 
+<div class="card col-full">
+  <div class="card-header"><h2>Reading these recipes</h2></div>
+  <table><tr><td class="note">Keys and automation below describe shipped defaults. Keep machine preferences in the ignored root <code>local.lua</code>; lists replace defaults rather than append. See <a href="../customization.md">customization</a> for loading/overrides and the feature guides for supported settings.</td></tr></table>
+</div>
+
 <!-- ═══════════════════ NAVIGATION ═══════════════════ -->
 <div class="card">
   <div class="card-header"><div class="dot" style="background:var(--blue)"></div><h2>Navigate code</h2></div>
@@ -121,10 +126,10 @@
     <tr><td><kbd class="green">gzd"</kbd></td><td>Delete surrounding quotes</td></tr>
     <tr class="divider"><td colspan="2">Comment <span class="note">Neovim built-in</span></td></tr>
     <tr><td><kbd class="green">gcc</kbd></td><td>Toggle current line</td></tr>
-    <tr><td><kbd class="green">gcap</kbd></td><td>Toggle around paragraph <span class="note">includes the blank line after it (commented as a bare <code>--</code>); <kbd>gcip</kbd> stops at the paragraph</span></td></tr>
+    <tr><td><kbd class="green">gcap</kbd></td><td>Toggle around paragraph <span class="note">includes surrounding blank-line context; the comment marker follows the filetype. <kbd>gcip</kbd> uses the inner paragraph.</span></td></tr>
     <tr><td><kbd class="green">gc</kbd><span class="note">(visual)</span></td><td>Toggle selection</td></tr>
     <tr class="divider"><td colspan="2">Format</td></tr>
-    <tr><td><kbd class="green">&lt;leader&gt;cf</kbd></td><td>Run external formatter (conform)</td></tr>
+    <tr><td><kbd class="green">&lt;leader&gt;cf</kbd></td><td>Run Conform's available formatter, falling back to LSP formatting</td></tr>
     <tr><td><kbd class="green">&lt;leader&gt;lf</kbd></td><td>LSP format (fallback)</td></tr>
   </table>
 </div>
@@ -147,7 +152,7 @@
     <tr class="divider"><td colspan="2">Commit / push</td></tr>
     <tr><td><kbd class="red">&lt;leader&gt;tg</kbd></td><td>Lazygit float — commit / push / fetch from there</td></tr>
     <tr class="divider"><td colspan="2">Resolve merge conflicts</td></tr>
-    <tr><td><span class="step">1</span><code>git merge ...</code></td><td>Triggers conflict</td></tr>
+    <tr><td><span class="step">1</span><code>git merge ...</code></td><td>If Git reports conflicts, review them below</td></tr>
     <tr><td><span class="step">2</span><kbd class="red">&lt;leader&gt;gd</kbd></td><td>diffview opens; conflicted files listed</td></tr>
     <tr><td><span class="step">3</span></td><td>Open a conflicted file → OURS | THEIRS side by side, above the result you edit (no BASE pane)</td></tr>
     <tr><td><span class="step">4</span></td><td>Walk conflict regions with <kbd class="red">]x</kbd>/<kbd class="red">[x</kbd></td></tr>
@@ -162,13 +167,13 @@
   <table>
     <tr class="divider"><td colspan="2">First time only — per project</td></tr>
     <tr><td><span class="step">1</span><code>:Mason</code></td><td>Confirm the adapter is installed for your language</td></tr>
-    <tr><td colspan="2" class="note">Configured: Python → debugpy · C/C++/Rust → codelldb or cppdbg · Bash → bashdb. Any other language (JS, Go, …) also needs its adapter defined: install it (add its Mason package to mason-tool-installer's list in <span class="file">lua/plugins/formatting.lua</span>), then add <code>dap.adapters.&lt;name&gt;</code> and <code>dap.configurations.&lt;filetype&gt;</code> in <span class="file">lua/config/dap.lua</span>.</td></tr>
+    <tr><td colspan="2" class="note">Configured: Python → debugpy · C/C++/Rust → codelldb or cppdbg · Bash → bashdb. For another language, select any Mason package through <code>tools.packages</code> and define <code>debug.adapters</code>/<code>debug.configurations</code> in <code>local.lua</code>, or use its adapter plugin. Installation and adapter configuration are separate; see <a href="../debug-terminal-configuration.md">debugger customization</a>.</td></tr>
     <tr><td><span class="step">2</span></td><td>Drop a <code>.vscode/launch.json</code> in your project root. See <code>docs/templates/dap/launch.json.example</code> in this config for a template.</td></tr>
-    <tr><td colspan="2" class="note">Set <code>program</code> (binary), <code>args</code>, <code>cwd</code>, and the environment (<code>env</code> for codelldb and debugpy, <code>environment</code> for cppdbg) — same schema as VS Code. nvim-dap re-reads the file on every <kbd class="mauve">&lt;leader&gt;dc</kbd>, so edits take effect immediately. Use <kbd class="mauve">&lt;leader&gt;dL</kbd> to sanity-check the file (validates JSON, lists configs) without launching anything.</td></tr>
+    <tr><td colspan="2" class="note">Set adapter-specific <code>program</code>, <code>args</code>, <code>cwd</code>, and environment (<code>env</code> for codelldb/debugpy, <code>environment</code> for cppdbg). A newly selected launch reads current project configurations; continuing an active session and <kbd class="mauve">&lt;leader&gt;dl</kbd> reuse that session/last configuration. Use <kbd class="mauve">&lt;leader&gt;dL</kbd> to parse and preview the file without launching; successful JSON parsing does not validate adapter semantics.</td></tr>
     <tr class="divider"><td colspan="2">Start a session</td></tr>
     <tr><td><span class="step">1</span><kbd class="mauve">&lt;leader&gt;db</kbd></td><td>Toggle breakpoint on current line</td></tr>
     <tr><td><span class="step">2</span><kbd class="mauve">&lt;leader&gt;dc</kbd></td><td>Continue — picks a launch config from launch.json (falls back to "Pick executable" prompt)</td></tr>
-    <tr><td><span class="step">3</span></td><td>DAP UI opens automatically; stops at breakpoint</td></tr>
+    <tr><td><span class="step">3</span></td><td>DAP UI opens automatically by default; execution stops when a bound breakpoint is hit</td></tr>
     <tr class="divider"><td colspan="2">While stopped</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dc</kbd></td><td>Continue to next breakpoint</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;do</kbd></td><td>Step over</td></tr>
@@ -179,7 +184,7 @@
     <tr class="divider"><td colspan="2">Conditional &amp; logpoint</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dB</kbd></td><td>Prompt for a condition and/or hit count (e.g. <code>&gt;= 5</code>); both empty cancels</td></tr>
     <tr class="divider"><td colspan="2">Done</td></tr>
-    <tr><td><kbd class="mauve">&lt;leader&gt;dt</kbd></td><td>Terminate — UI closes</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dt</kbd></td><td>Terminate the current debug session; UI auto-close waits for other live sessions too</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dl</kbd></td><td>Re-run last config (handy)</td></tr>
   </table>
 </div>
@@ -189,10 +194,10 @@
   <div class="card-header"><div class="dot" style="background:var(--teal)"></div><h2>Use the language server</h2></div>
   <table>
     <tr class="divider"><td colspan="2">Add a new language</td></tr>
-    <tr><td><span class="step">1</span></td><td>Edit <span class="file">lua/plugins/lsp.lua</span></td></tr>
-    <tr><td><span class="step">2</span></td><td>Add server name to <code>ensure_installed</code></td></tr>
-    <tr><td><span class="step">3</span><code>:restart</code></td><td>Mason installs it on the next start — mason-lspconfig reads <code>ensure_installed</code> only at startup. Or <code>:MasonInstall &lt;pkg&gt;</code> right away.</td></tr>
-    <tr><td colspan="2" class="note">Treesitter parser: add it to the list in <span class="file">treesitter.lua</span>, then <code>:TSInstall &lt;lang&gt;</code> (or restart).</td></tr>
+    <tr><td><span class="step">1</span></td><td>Set <code>tools.servers</code> in <code>local.lua</code> using lspconfig server names; include the existing defaults you want to retain</td></tr>
+    <tr><td><span class="step">2</span></td><td>Use <code>lsp.servers.NAME</code> for settings/activation overrides. A parser, formatter and debugger remain separate selections.</td></tr>
+    <tr><td><span class="step">3</span><code>:restart</code></td><td>Eligible tools install when their prerequisites are present. <code>:MasonInstall &lt;pkg&gt;</code> can request a package manually; <code>:checkhealth config</code> explains missing prerequisites.</td></tr>
+    <tr><td colspan="2" class="note">Parsers use <code>tools.parsers</code>; additional supported languages may install on first use. Use <code>:TSInstall &lt;lang&gt;</code> for a manual build. See <a href="../tooling-configuration.md">tool selection and list rules</a>.</td></tr>
     <tr class="divider"><td colspan="2">Daily ops</td></tr>
     <tr><td><kbd class="teal">K</kbd></td><td>Hover docs</td></tr>
     <tr><td><kbd class="teal">&lt;leader&gt;lk</kbd></td><td>Function signature</td></tr>
@@ -215,18 +220,19 @@
     <tr><td><span class="step">2</span><kbd class="rosewater">a</kbd></td><td>Add — type name; end with <code>/</code> for a directory</td></tr>
     <tr><td colspan="2" class="note">Other in-tree keys: <kbd class="rosewater">r</kbd> rename · <kbd class="rosewater">d</kbd> delete · <kbd class="rosewater">y/x/p</kbd> copy/cut/paste <em>files</em> (neo-tree's own clipboard, not the system one) · <kbd class="rosewater">Y</kbd> copy path to system clipboard as text · <kbd class="rosewater">/</kbd> fuzzy filter · <kbd class="rosewater">H</kbd> toggle hidden</td></tr>
     <tr class="divider"><td colspan="2">Find a buffer fast</td></tr>
-    <tr><td><kbd class="rosewater">&lt;leader&gt;1</kbd>…<kbd class="rosewater">&lt;leader&gt;9</kbd></td><td>Jump by tab number (superscript on each tab)</td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;1</kbd>…<kbd class="rosewater">&lt;leader&gt;9</kbd></td><td>Jump by bufferline ordinal (superscript), not a Neovim tabpage number</td></tr>
     <tr><td><kbd class="rosewater">&lt;leader&gt;bj</kbd></td><td>Bufferline pick — press letter</td></tr>
     <tr><td><kbd class="rosewater">&lt;leader&gt;fb</kbd></td><td>Or fuzzy-pick</td></tr>
     <tr><td colspan="2" class="note">Right-click a bufferline tab for context-menu actions (copy path, pin, close others, etc.).</td></tr>
     <tr class="divider"><td colspan="2">Temporarily full-screen a window</td></tr>
-    <tr><td><kbd class="rosewater">&lt;leader&gt;wm</kbd></td><td>Focus a window, then this — fills the screen with that window. Second press restores the exact layout.</td></tr>
-    <tr><td colspan="2" class="note">Implementation: saves the current window sizes via <code>winrestcmd()</code>, clears <code>winfixwidth</code>/<code>winfixheight</code> on the zoomed window (so neo-tree and other fixed-size panes can grow), then maximizes via <code>:wincmd _</code> / <code>:wincmd |</code>. Restore replays the saved sizes and re-enables the winfix flags.</td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;wm</kbd></td><td>Maximize the focused split. Second press restores its prior sizes if the split layout still matches.</td></tr>
+    <tr><td colspan="2" class="note">Zoom temporarily clears the focused window's fixed-size flags. If splits were opened, closed or exchanged while zoomed, restoration equalizes the current layout instead of replaying sizes onto different windows. Fixed-size flags are restored for a surviving zoomed window.</td></tr>
     <tr class="divider"><td colspan="2">Sessions per directory</td></tr>
     <tr><td colspan="2" class="note">Open <code>nvim</code> (no file arguments) from a project dir → auto-restores last layout.<br>
-      Saved when Neovim exits. <code>nvim foo.c</code> restores nothing and saves only once 2+ files or tabs are open.
-      Never in <code>~</code>, <code>~/Downloads</code>, the temp dir or the drive root.
-      Browse other sessions with <kbd class="rosewater">&lt;leader&gt;wf</kbd>.</td></tr>
+      By default, saved when Neovim exits. <code>nvim foo.c</code> skips automatic restore and saves only once 2+ listed named file buffers or 2+ tabs exist.
+      The exact home, Downloads, temp paths and filesystem root are suppressed by default; descendants are not automatically suppressed.
+      Session names follow global cwd, not a search root. Sessions do not back up unsaved contents or running jobs.
+      Browse with <kbd class="rosewater">&lt;leader&gt;wf</kbd>; see <a href="../search-session-configuration.md#sessions-and-global-buffers">manual sessions, suppression and thresholds</a>.</td></tr>
     <tr><td><kbd class="rosewater">&lt;leader&gt;wD</kbd></td><td>Delete current session</td></tr>
   </table>
 </div>
@@ -264,8 +270,9 @@
     </tr>
     <tr><td colspan="4" class="note">
       Space = AND. <code>|</code> = OR (needs spaces around it: <code>a$ | b$</code>). <code>!</code> = exclude (exact substring).
-      Matching is against the whole displayed path, so <code>!compiled</code> / <code>!^build/</code> drop directories.
-      Identical syntax on all three file finders (telescope gets it from fzf-native, fzf-lua from fzf).
+      Unanchored terms can match directory names too; prefix/suffix anchors depend on the backend's match text.
+      These examples assume the matcher sees the original path. Telescope needs the optional fzf-native extension for this syntax; its Lua fallback does not promise the same operators. Scoper follows its selected backend; native <code>:find</code> uses Vim patterns.
+      fzf-lua's configured <code>path.filename_first</code> formatter rearranges the match text to filename then directory, so <code>^src/</code> and <code>.cpp$</code> may not anchor the original path. Use unanchored path terms or switch its formatter when path anchors matter.
     </td></tr>
 
     <tr class="divider"><td colspan="4">Live grep — regex first; in fzf-lua (<kbd class="sky">&lt;leader&gt;Fg</kbd>) file globs after <code>&nbsp;--&nbsp;</code></td></tr>
@@ -279,11 +286,11 @@
     </tr>
     <tr>
       <td colspan="2"><code>compute -- src/** *.h</code></td>
-      <td colspan="2">grep <code>compute</code> under <code>src/</code> and in <code>.h</code> files — each space-separated glob becomes an <code>rg --iglob</code> (a file passes if it matches any of them)</td>
+      <td colspan="2">grep <code>compute</code> under <code>src/</code> OR in <code>.h</code> files — each space-separated glob becomes an <code>rg --iglob</code>. This is a union, not “headers only under src”.</td>
     </tr>
     <tr>
       <td colspan="2"><code>(?=.*foo)(?=.*bar)</code></td>
-      <td colspan="2">both words, any order, on one line — needs <code>--pcre2</code> in <code>rg_opts</code></td>
+      <td colspan="2">both words, any order, on one line — needs a PCRE2-enabled ripgrep and <code>--pcre2</code> in its arguments</td>
     </tr>
     <tr><td colspan="4" class="note">
       In grep the prompt is a regex: a space is a literal space (<code>hello world</code> matches the phrase, no quotes needed),
@@ -294,7 +301,7 @@
     <tr class="divider"><td colspan="4">Restrict to / exclude a directory</td></tr>
     <tr>
       <td colspan="2"><b>In-query (no setup)</b></td>
-      <td colspan="2">Add a path token to the file-finder prompt: <code>hbr ^src/</code> (only under <code>src/</code>), or <code>hbr !vendor/</code> (everything but <code>vendor/</code>). For fzf-lua's grep, add a glob after <code>&nbsp;--&nbsp;</code>: <code>foo -- src/**</code> or <code>foo -- !vendor/**</code>.</td>
+      <td colspan="2">With an original-path matcher, use <code>hbr ^src/</code> or <code>hbr !vendor/</code>; see the formatter caveat above. For fzf-lua grep, use file globs after <code>&nbsp;--&nbsp;</code>: <code>foo -- src/**</code> or <code>foo -- !vendor/**</code>.</td>
     </tr>
     <tr>
       <td colspan="2"><b>Telescope, as a command</b></td>
@@ -302,11 +309,11 @@
     </tr>
     <tr>
       <td colspan="2"><b>fzf-lua, as a command</b></td>
-      <td colspan="2"><code>:FzfLua files cwd=src</code> (one root). For excludes: <code>:FzfLua files fd_opts="--exclude build"</code> (or <code>rg_opts="--glob=!build"</code>).</td>
+      <td colspan="2"><code>:FzfLua files cwd=src</code> selects one root. For persistent config-owned exclusions, set <code>search.fzf.exclude_dirs</code> in <code>local.lua</code>; raw backend commands retain fzf-lua's own option rules.</td>
     </tr>
     <tr>
       <td colspan="2"><b>Scope-wide</b></td>
-      <td colspan="2"><code>:ScoperFind</code> / <code>:ScoperGrep</code> already restrict to the active scope's directories — set those once with <code>:ScoperAdd</code> and every search is pre-filtered. Per-scope excludes (<code>:ScoperExclude</code>) are applied automatically.</td>
+      <td colspan="2"><code>:ScoperFind</code> / <code>:ScoperGrep</code> use active includes (directories, files or globs) and excludes. Add includes with <code>:ScoperAdd</code>, enable scoping and search. Disabled scoping or an empty include list is unrestricted and ignores excludes; add <code>.</code> for “project minus excludes”.</td>
     </tr>
   </table>
 </div>
@@ -316,36 +323,36 @@
   <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>Customize this config <span class="note">where do I edit X?</span></h2></div>
   <table class="wide">
     <tr>
-      <td>Add / change keymap</td><td><span class="file">lua/config/keymaps.lua</span></td>
-      <td>Add / change option</td><td><span class="file">lua/config/options.lua</span></td>
+      <td>Add / change keymap</td><td>Use a normal Lazy <code>keys</code> override for plugin maps; core-map extensions need explicit trusted Lua</td>
+      <td>Add / change option</td><td><code>local.lua</code> → <code>options</code></td>
     </tr>
     <tr>
-      <td>Add autocmd</td><td><span class="file">lua/config/autocmds/&lt;topic&gt;.lua</span></td>
-      <td>Change leader key</td><td><span class="file">lua/config/options.lua</span> (top)</td>
+      <td>Add autocmd</td><td>Use trusted Lua with a named augroup and deliberate lifecycle; shipped events are in <code>lua/config/autocmds/</code></td>
+      <td>Change leader key</td><td><code>local.lua</code> → <code>globals.mapleader</code>/<code>maplocalleader</code>, then restart</td>
     </tr>
     <tr>
-      <td>Add a plugin</td><td>New file in <span class="file">lua/plugins/</span></td>
-      <td>Disable a plugin</td><td>Add <code>enabled = false</code> to its spec, then <code>:Lazy clean</code> <span class="note">a file usually holds several plugins, so deleting it disables them all</span></td>
+      <td>Add a plugin</td><td><code>local.lua</code> → <code>plugins</code> list of ordinary Lazy specs</td>
+      <td>Disable a plugin</td><td>Add a matching <code>{ "owner/plugin", enabled = false }</code> override, restart, then <code>:Lazy clean</code> if desired</td>
     </tr>
     <tr>
-      <td>Change colorscheme</td><td><span class="file">plugins/colorscheme.lua</span> — set <code>flavour</code> &amp; <code>vim.cmd.colorscheme(...)</code></td>
-      <td>Lualine theme</td><td>auto-synced via <code>theme = "auto"</code> in <span class="file">plugins/ui.lua</span> — no manual change needed</td>
+      <td>Change colorscheme</td><td><code>ui.colorscheme</code> selects an installed/stock theme; add other theme plugins through <code>plugins</code></td>
+      <td>Lualine theme</td><td>Default <code>theme = "auto"</code> follows the colorscheme; use a normal lualine <code>opts</code> override for another theme</td>
     </tr>
     <tr>
-      <td>Add an LSP</td><td><span class="file">plugins/lsp.lua</span> — append to <code>ensure_installed</code></td>
-      <td>Add a treesitter lang</td><td><span class="file">plugins/treesitter.lua</span> — same idea</td>
+      <td>Add an LSP</td><td><code>tools.servers</code> selects installs; <code>lsp.servers</code> configures activation/settings</td>
+      <td>Add a treesitter lang</td><td><code>tools.parsers</code> selects startup builds; <code>tools.parsers_on_demand</code> controls additional languages</td>
     </tr>
     <tr>
-      <td>Add a formatter</td><td><span class="file">plugins/formatting.lua</span> — add to <code>formatters_by_ft</code></td>
-      <td>Enable format-on-save</td><td><span class="file">plugins/formatting.lua</span> — uncomment <code>format_on_save</code> and add <code>event = { "BufWritePre" }</code> to the conform spec</td>
+      <td>Add a formatter</td><td><code>tools.formatters.FILETYPE</code> changes the runner list; select any required package separately in <code>tools.packages</code></td>
+      <td>Enable format-on-save</td><td>Override Conform with <code>opts.format_on_save</code> and a <code>BufWritePre</code> lazy trigger. This is separate from core trailing-whitespace trimming.</td>
     </tr>
     <tr>
-      <td>Add DAP adapter</td><td><span class="file">plugins/formatting.lua</span> — add the Mason package to mason-tool-installer's <code>ensure_installed</code>; then define <code>dap.adapters.&lt;name&gt;</code> and <code>dap.configurations.&lt;ft&gt;</code> in <span class="file">config/dap.lua</span></td>
-      <td>Tweak diagnostics UI</td><td><span class="file">plugins/lsp.lua</span> — <code>vim.diagnostic.config({...})</code></td>
+      <td>Add DAP adapter</td><td><code>debug.adapters</code>/<code>debug.configurations</code>, plus any <code>tools.packages</code> install request</td>
+      <td>Tweak diagnostics UI</td><td>Use the LSP plugin's normal configuration override; preserve its other setup when replacing <code>config</code></td>
     </tr>
     <tr>
-      <td>Disable smear cursor</td><td><span class="file">plugins/editor.lua</span> — <code>enabled = false</code> in the smear-cursor spec</td>
-      <td>Disable indent guides</td><td><span class="file">plugins/editor.lua</span> — <code>enabled = false</code> in the blink.indent spec</td>
+      <td>Reduce motion</td><td><code>ui.reduced_motion = true</code> disables smear-cursor and Neoscroll at startup</td>
+      <td>Disable indent guides</td><td>Use <code>enabled = false</code> for <code>saghen/blink.indent</code> in <code>plugins</code></td>
     </tr>
   </table>
 </div>
@@ -354,13 +361,13 @@
 <div class="card">
   <div class="card-header"><div class="dot" style="background:var(--lavender)"></div><h2>Initial setup</h2></div>
   <table>
-    <tr><td><span class="step">0</span></td><td>Have Neovim ≥ 0.12.0, git, a C compiler, <code>tar</code> and <code>curl</code>, and the tree-sitter CLI ≥ 0.26.1 (not from npm) — see the README</td></tr>
-    <tr><td><span class="step">1</span></td><td>Extract the zip (it holds <code>nvim/</code>) into the parent folder: <code>Expand-Archive x.zip $env:LOCALAPPDATA</code> (Windows) · <code>unzip -q x.zip -d ~/.config</code> (Linux/macOS, any shell). Move an existing config aside first</td></tr>
-    <tr><td><span class="step">2</span></td><td>Launch <code>nvim</code> — lazy.nvim auto-installs everything</td></tr>
-    <tr><td><span class="step">3</span></td><td>Quit, relaunch (some plugins need a second pass)</td></tr>
-    <tr><td><span class="step">4</span><code>:checkhealth config</code></td><td>Install any flagged externals: tree-sitter CLI (required), Nerd Font, ripgrep, fd, fzf ≥ 0.45, node</td></tr>
+    <tr><td><span class="step">0</span></td><td>Have Neovim ≥ 0.12.0 and Git for an online install. Native parser builds additionally need a C compiler and tree-sitter CLI ≥ 0.26.1 (not npm); download/extraction tools and language runtimes depend on the selected packages.</td></tr>
+    <tr><td><span class="step">1</span></td><td>Back up an existing config, then clone directly into Neovim's config folder. A release zip and GitHub's source archive can have different top-level folders: inspect the archive and place <code>init.lua</code> at the config root. See <a href="../workflows/install-update-uninstall.md">platform-specific installation</a>.</td></tr>
+    <tr><td><span class="step">2</span></td><td>Launch <code>nvim</code> — Lazy installs plugins online; optional native tools are provisioned only when their prerequisites are available</td></tr>
+    <tr><td><span class="step">3</span></td><td>Wait for installs/builds to finish, then restart. Inspect failed installs before retrying them.</td></tr>
+    <tr><td><span class="step">4</span><code>:checkhealth config</code></td><td>Review missing capabilities and install the tools you need. Compiler, Rust/Lua runtimes and Node are not universal startup requirements; see <a href="../limited-environments.md">limited environments</a>. Use <code>ui.icons=false</code> when a Nerd Font is unavailable.</td></tr>
     <tr><td><span class="step">5</span><code>:Mason</code></td><td>Confirm LSPs / formatters / adapters arrived</td></tr>
-    <tr><td><span class="step">6</span><code>:TSInstall &lt;lang&gt;</code></td><td>Retry any parser that failed to build (<code>:TSUpdate</code> only updates the installed ones)</td></tr>
+    <tr><td><span class="step">6</span><code>:TSInstall &lt;lang&gt;</code></td><td>Build a requested parser after fixing compiler/CLI prerequisites. Existing parsers can work without a local build toolchain; <code>:TSUpdate</code> refreshes installed parsers.</td></tr>
     <tr><td colspan="2" class="note">No internet on the machine? Install an offline seed instead of steps 2–6: <code>docs/workflows/offline-install.md</code>.</td></tr>
   </table>
 </div>
@@ -371,14 +378,14 @@
   <table>
     <tr class="divider"><td colspan="2">Update to a new zip (sessions, undo, scopes are kept)</td></tr>
     <tr><td><span class="step">1</span></td><td>Quit every nvim; rename the config folder to <code>nvim.bak</code></td></tr>
-    <tr><td><span class="step">2</span></td><td>Extract the new zip as in Initial setup; carry over your edits (<code>git diff --no-index nvim.bak nvim</code>)</td></tr>
+    <tr><td><span class="step">2</span></td><td>Install the new config as above; carry over your ignored <code>local.lua</code> and review other edits (<code>git diff --no-index nvim.bak nvim</code>)</td></tr>
     <tr><td><span class="step">3</span><code>:Lazy restore</code></td><td>Plugins to the new lockfile's tested commits, then <code>:Lazy clean</code> · or <code>:Lazy sync</code> for the latest</td></tr>
     <tr><td><span class="step">4</span><code>:checkhealth config</code></td><td>Then skim <code>CHANGES.md</code>; delete <code>nvim.bak</code> when happy</td></tr>
     <tr><td colspan="2" class="note">Roll back: swap the folders back, then <code>:Lazy restore</code>.</td></tr>
     <tr class="divider"><td colspan="2">Uninstall (quit nvim first)</td></tr>
     <tr><td>Windows</td><td><code>%LOCALAPPDATA%\nvim</code>, <code>%LOCALAPPDATA%\nvim-data</code>, <code>%TEMP%\nvim</code></td></tr>
     <tr><td>Linux / macOS</td><td><code>~/.config/nvim</code>, <code>~/.local/share/nvim</code>, <code>~/.local/state/nvim</code>, <code>~/.cache/nvim</code></td></tr>
-    <tr><td colspan="2" class="note">Commands, side-by-side installs (<code>NVIM_APPNAME</code>) and what's left outside these folders: <code>docs/workflows/install-update-uninstall.md</code>.</td></tr>
+    <tr><td colspan="2" class="note">These are default paths, not a deletion checklist. Check <code>stdpath()</code> first when using XDG overrides or <code>NVIM_APPNAME</code>; preserve wanted state. Commands and side-by-side installation details: <a href="../workflows/install-update-uninstall.md">install/update/uninstall guide</a>.</td></tr>
   </table>
 </div>
 
@@ -412,33 +419,33 @@
     </tr>
     <tr>
       <td>Auto-session restores wrong dir</td>
-      <td>Sessions are keyed by the directory you start in, and never saved or restored in <code>~</code>, <code>~/Downloads</code>, the temp dir (<code>$TEMP</code>/<code>$TMP</code>/<code>$TMPDIR</code>) or the drive root (<code>C:\</code>; <code>/tmp</code> and <code>/</code> on Unix) — open from inside the project root, not its parent</td>
+      <td>Default session names use global cwd; <code>:lcd</code>/<code>:tcd</code> and search roots do not rename them. Check <code>:pwd</code>, <code>:lua =vim.fn.getcwd(-1, -1)</code> and <code>sessions.suppressed_dirs</code>. Suppression covers exact configured directories by default and does not prevent explicit manual saves/restores.</td>
       <td>Slow startup</td>
       <td><code>:Lazy profile</code> → sort by time, find the culprit, lazy-load it</td>
     </tr>
     <tr>
       <td>nvim hangs / sluggish</td>
-      <td><code>:DiagnosticDump</code> writes a snapshot (version, messages, LSPs, buffers, plugin list, lsp.log tail) to <code>stdpath('log')</code> — attach the file when reporting</td>
+      <td><code>:DiagnosticDump</code> writes a snapshot (version, messages, LSPs, buffers, plugin list, lsp.log tail) to <code>stdpath('log')</code>. Review paths/messages/log content before attaching it; <code>:DiagnosticDump!</code> also includes unredacted DAP configuration.</td>
       <td>Hang is total</td>
-      <td>Force-kill, restart in the same project, <code>:DiagnosticDump</code> — the LSP log persists across kills and is the high-yield artefact</td>
+      <td>If Neovim cannot respond, terminate it with the OS and preserve recovery/log files. A dump after restarting describes the new process, not the frozen one; startup rotation may move the previous log to <code>lsp.log.old</code>.</td>
     </tr>
     <tr>
       <td><code>:bd</code> wrecks the layout</td>
-      <td>Plain <code>:bd</code> closes <em>every</em> window showing the buffer. Use <kbd class="sky">&lt;leader&gt;bd</kbd> instead — it re-points each window to another buffer first, so the splits stay. (Neo-tree's <code>close_if_last_window</code> is deliberately off in this config: its upstream WinClosed handler races with incline's float teardown and can leave a broken triple-split when quitting with a modified buffer — see explorer.lua. So <code>:q</code> on the last file window leaves the tree open; quit with <code>:q</code> again or <code>:qa</code>.)</td>
+      <td>Plain <code>:bd</code> can close windows showing the buffer. <kbd class="sky">&lt;leader&gt;bd</kbd> first moves ordinary windows to replacement buffers and skips dirty buffers. Windows with <code>winfixbuf</code> may still close because they refuse replacement. Neo-tree's <code>close_if_last_window=false</code> means closing the last file window can leave the tree open; quit again or use <code>:qa</code>.</td>
       <td><code>:bd</code> with the last buffer behaves differently</td>
       <td>Expected — Vim replaces the buffer with <code>[No Name]</code> instead of closing the window. Same idea as the smart wrapper, just built in.</td>
     </tr>
     <tr>
       <td>Picker paths truncated</td>
-      <td>Telescope buffers/git_files/git_status ignore <code>path_display</code> (telescope issue #3157). In any Telescope picker press <kbd>&lt;C-y&gt;</kbd> to yank the highlighted entry's full path + show via notify — non-closing.</td>
+      <td>Some Telescope picker entry makers do not use the usual <code>path_display</code>. In insert-mode file/buffer pickers, <kbd>&lt;C-y&gt;</kbd> copies the selected entry's resolved path (or URI) and notifies without closing. Non-file entries are ignored; clipboard access needs a working provider.</td>
       <td>Same problem in fzf-lua pickers</td>
-      <td>fzf-lua already shows filenames first via <code>formatter = "path.filename_first"</code> in <code>finder.lua</code> — the leftmost column is always the readable part.</td>
+      <td>fzf-lua uses <code>formatter = "path.filename_first"</code> for supported path pickers, placing the filename before its directory. Very long filenames can still truncate.</td>
     </tr>
     <tr>
       <td>Swap-file prompt every time you open a file</td>
-      <td>A previous session left a swap on disk. At the prompt pick <kbd>R</kbd>ecover or <kbd>D</kbd>elete (the default already fits: Delete when the swap holds no unsaved changes, Open read-only when the file is newer than the swap); to clear a leftover afterwards run <code>:SwapDelete</code> — it shows the path, confirms, then removes it (no digging in the state dir). Many leftovers: <code>:SwapClean</code> reviews them all and deletes those without unsaved work. After a Recover, save, then <code>:SwapDelete</code>, or the prompt returns. <code>:SwapGuardToggle</code> flips between the concise prompt and stock Neovim behaviour. Full guide: <code>docs/workflows/swap-files.md</code>.</td>
+      <td>A previous session may have left a swap. For a recognized same-user, same-host crash leftover, defaults favor Delete when no unsaved changes are recorded and read-only when the source is newer. Use <code>:SwapDelete</code> to inspect/confirm removal of a leftover; <code>:SwapClean</code> reviews eligible candidates in bulk. Recover and save any needed work first. Foreign/unknown-host swaps stay read-only because local PID checks cannot establish remote liveness. See <a href="../workflows/swap-files.md">swap recovery and deletion rules</a>.</td>
       <td>File opened read-only out of nowhere</td>
-      <td>The swap guard found the file already open in another running Nvim and opened it read-only here. Close it there and <code>:e!</code> to take over, or <code>:SwapGuardToggle</code> to turn the guard off. If the notice says the swap can't be read, it's a damaged leftover: <code>:SwapDelete</code>, then <code>:e!</code>. (More: plugins.html &rarr; Swap files.)</td>
+      <td>The swap guard may have found a live local editor, an unreadable swap or a foreign/unknown host. Read the notice before taking over. Close a known other writer first; do not delete a swap solely because its PID is absent locally. Reopen after resolving ownership/recovery. <code>:SwapGuardToggle</code> restores stock collision handling, not permission to overwrite another editor's work.</td>
     </tr>
   </table>
 </div>

@@ -4,13 +4,9 @@
 --   <leader>f...   → telescope (lua-native, hugely extensible)
 --   <leader>F...   → fzf-lua   (uses real fzf binary, snappier on huge repos)
 --
--- Telescope shines for things like LSP picker UIs, diagnostics, and
--- extensions (todo-comments, ui-select, etc.). fzf-lua wins on a 100k-file
--- monorepo where telescope's pure-lua sorter starts to chug.
-
--- Telescope buffers-picker delete action (<C-d> / <M-d>). Collect the
--- targets, hand them to the shared helper, then drop exactly the rows
--- whose buffers are gone (skipped/dirty ones stay listed).
+-- Telescope provides extension-based pickers; fzf-lua delegates matching to
+-- fzf. Telescope can also use the optional native sorter below. Performance
+-- depends on the workload and which native tools are installed.
 local function telescope_search(method, kind)
   return function()
     require("telescope.builtin")[method](require("config.search").telescope_options(kind))
@@ -23,6 +19,8 @@ local function fzf_search(method, kind)
   end
 end
 
+-- Telescope buffers-picker delete action (<C-d> / <M-d>). Drop only rows
+-- whose buffers are gone; skipped/dirty ones stay listed.
 local function picker_delete_buffers(prompt_bufnr)
   local state = require("telescope.actions.state")
   local picker = state.get_current_picker(prompt_bufnr)
@@ -65,13 +63,14 @@ return {
     cmd = "Telescope",
     dependencies = {
       "nvim-lua/plenary.nvim",
-      -- Native C sorter; massively speeds up the matching algorithm. Built
+      -- Optional native C sorter, built
       -- at install/update time. Rather than guess by OS, pick whichever build
-      -- toolchain is available: prefer `make` (cc on Unix, gcc on Windows),
+      -- toolchain is available: normally `make` (cc on Unix, gcc on Windows),
       -- else fall back to `cmake` (needs CMake + a C toolchain,
       -- e.g. the MSVC Build Tools on Windows where `make` is usually absent).
+      -- An explicit compiler path prefers CMake to preserve literal argv.
       -- Detected when the spec loads; if you install a tool later, restart
-      -- Neovim so this re-evaluates, then :Lazy build telescope-fzf-native.
+      -- Neovim so this re-evaluates, then :Lazy build telescope-fzf-native.nvim.
       {
         "nvim-telescope/telescope-fzf-native.nvim",
         build = require("config.tooling").native_sorter_build(),
@@ -79,9 +78,9 @@ return {
       -- Routes vim.ui.select (code actions, etc.) through telescope.
       "nvim-telescope/telescope-ui-select.nvim",
     },
-    -- telescope loads on first use, but vim.ui.select should reach
-    -- ui-select from the start: the first call loads telescope (its config
-    -- replaces vim.ui.select) and is then handed to the new function.
+    -- Install the selected lazy UI provider on the first selection request.
+    -- Native/false leave the previous selector alone; an unavailable fzf
+    -- falls back to it. Telescope's config installs ui-select only when owned.
     init = function()
       local provider = require("config.settings").get("selector.provider", "telescope")
       if provider == false or provider == "native" then return end
@@ -159,12 +158,11 @@ return {
           -- spaces / stacked multi markers). Using an ASCII caret of the
           -- same 2-cell width sidesteps the glyph-width ambiguity entirely
           -- and keeps every row aligned. entry_prefix and multi_icon are
-          -- pinned to telescope's defaults explicitly so the
+          -- fixed explicitly here so the
           -- caret/prefix/icon set stays width-consistent (2 / 2 / 1 cells).
           --
-          -- Want the arrow glyph back? It works ONLY if your terminal +
-          -- Nerd Font render it as exactly one cell; if rows drift, the
-          -- font is the reason, not this config.
+          -- A replacement arrow should occupy one display cell before the
+          -- trailing space. Return to ASCII if terminal/font widths disagree.
           -- stylua: ignore start
           selection_caret = "> ", -- 2 cells, cell-stable (ASCII)
           entry_prefix    = "  ", -- 2 cells
@@ -197,12 +195,12 @@ return {
               -- override to close immediately, which feels less surprising.
               ["<Esc>"] = actions.close,
               -- Send all results to quickfix in one go, then open them
-              -- (Trouble will pick up the qflist). Handy when a grep
+              -- (the list is also available to Trouble). Handy when a grep
               -- returns 100+ hits you want to walk through systematically.
               ["<C-q>"] = actions.send_to_qflist + actions.open_qflist,
 
-              -- <C-y> ("yank") yanks the highlighted entry's full absolute
-              -- path to both the system clipboard and the unnamed register,
+              -- <C-y> ("yank") copies a file entry's resolved path (or URI)
+              -- to both the system clipboard and the unnamed register,
               -- and echoes it via vim.notify. Non-closing — you can keep
               -- navigating to peek at multiple paths.
               --
@@ -235,22 +233,21 @@ return {
               end,
             },
           },
-          -- Always-ignored patterns. Deliberately minimal. The fd /
+          -- Default exclusions are deliberately minimal and replaceable via
+          -- search.exclude_dirs or search.telescope.exclude_dirs. The fd /
           -- ripgrep binaries behind find_files and live_grep already
           -- respect .gitignore, so build output (dist/, build/, target/)
           -- is normally excluded at the source. Telescope matches these
           -- as UNANCHORED Lua patterns against the full path, so a
-          -- "build/" entry would hide sources under any */build*/
-          -- directory and "%.lock" would hide Cargo.lock / flake.lock
-          -- from grep. Keep only the two that are never useful in
-          -- interactive finding; [/\\] because Windows paths use either
-          -- separator.
+          -- "build/" pattern can also match a component ending in "build/",
+          -- while "%.lock" hides Cargo.lock / flake.lock. The shared helper
+          -- uses exact directory boundaries and both path separators.
           file_ignore_patterns = require("config.search").component_patterns(
             require("config.search").visibility("telescope", "find").exclude_dirs
           ),
         },
         pickers = {
-          -- Dotfiles are shown, but .git/ is excluded AT THE SOURCE: with
+          -- By default dotfiles are shown and .git/ is excluded at the source: with
           -- hidden=true fd/rg otherwise list every object under .git/ and
           -- file_ignore_patterns throws them away afterwards (tens of
           -- thousands of entries on a large repo). nil command = telescope's
@@ -285,7 +282,7 @@ return {
         },
         extensions = {
           -- ui-select uses the "dropdown" theme — small popup near the
-          -- cursor, no preview. Right for short choice lists (LSP code
+          -- editor center by default, no preview. Suits short choice lists (LSP code
           -- actions, refactor menus) where a full split would be overkill.
           ["ui-select"] = { require("telescope.themes").get_dropdown({}) },
           -- telescope-fzf-native: C sorter built via make or cmake,
@@ -314,7 +311,7 @@ return {
   },
 
   -- -------------------------------------------------------------------------
-  -- fzf-lua — same idea, different engine. Particularly fast on huge repos.
+  -- fzf-lua — similar pickers with the external fzf matching engine.
   -- -------------------------------------------------------------------------
   {
     "ibhagwan/fzf-lua",
@@ -355,11 +352,10 @@ return {
         border = "rounded",
         -- stylua: ignore end
         -- Previewer choice. "builtin" uses Neovim's own buffer with
-        -- treesitter highlighting — no external binary, works anywhere.
-        -- "bat" is prettier and faster on huge files, but requires the
-        -- bat binary on PATH (not present on a fresh Windows install,
-        -- and the resulting error in the preview pane is opaque:
-        -- "operable program or batch file"). Switch to "bat" if you
+        -- treesitter highlighting where available, without requiring bat.
+        -- The picker itself still needs fzf. A bat preview needs its binary
+        -- on PATH; missing binaries produce an error in the preview pane.
+        -- Switch to a bat preview if you
         -- install it (`scoop install bat` / `cargo install bat`).
         preview = { default = "builtin", border = "rounded" },
       },

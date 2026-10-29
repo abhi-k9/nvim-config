@@ -5,6 +5,9 @@ local M = {}
 local owners = setmetatable({}, { __mode = "kv" })
 
 function M.suppressed(session_name)
+  -- A normal automatic save passes nil; restore passes a display name.
+  -- This context's cwd is active/window-local, while backend session names
+  -- are based on the global cwd unless the user explicitly names a session.
   local predicate = require("config.settings").get("sessions.suppress")
   return type(predicate) == "function"
     and predicate({ cwd = vim.fn.getcwd(), session_name = session_name }) == true

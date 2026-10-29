@@ -107,7 +107,7 @@ return {
 
   -- -------------------------------------------------------------------------
   -- diffview+ (dlyongemallo/diffview-plus.nvim) — full diff/merge UI. A
-  -- maintained fork of sindrets/diffview.nvim (frozen since 2024): same
+  -- fork of sindrets/diffview.nvim: same
   -- commands and `require("diffview")` module, plus multi-file selection,
   -- file history pinned to the working copy, the worktree overview and
   -- out-of-git file/dir diffs. `:DiffviewOpen` shows the working tree vs
@@ -143,9 +143,8 @@ return {
     opts = {
       enhanced_diff_hl = true, -- punchier highlighting for +/- lines
       view = {
-        -- 3-way merge view for resolving conflicts: shows OURS / THEIRS /
-        -- BASE alongside the merged result, instead of the unhelpful
-        -- ascii-only <<<<<<< / ======= / >>>>>>> markers in the file.
+        -- Three-pane merge view: OURS and THEIRS above the editable result.
+        -- BASE is available to conflict actions without a separate BASE pane.
         merge_tool = {
           layout = "diff3_mixed",
           disable_diagnostics = true, -- LSP errors mid-conflict are noise

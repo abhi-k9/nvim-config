@@ -2,7 +2,7 @@
 --
 -- atone.nvim — modern undo-tree visualizer.
 --
--- Pressing <leader>u opens a side pane showing the buffer's full undo
+-- Pressing <leader>u opens a side pane showing the buffer's retained undo
 -- *tree* (not just the linear history). Each node is a buffer state;
 -- arrow / j / k walk between nodes, <CR> reverts the buffer to the node
 -- under the cursor. A live diff pane shows what each node changed, with
@@ -28,8 +28,7 @@ return {
   {
     "XXiaoA/atone.nvim",
     -- Lazy-load until first :Atone command or the <leader>u keymap.
-    -- No startup cost — the plugin only loads the first time you open
-    -- the tree.
+    -- Plugin setup is deferred until the first command/key invocation.
     cmd = "Atone",
     keys = {
       { "<leader>u", "<cmd>Atone toggle<cr>", desc = "Undo tree (atone)" },

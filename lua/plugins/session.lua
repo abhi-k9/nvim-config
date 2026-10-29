@@ -1,14 +1,14 @@
 -- lua/plugins/session.lua
 --
 -- auto-session — saves/restores your buffer list, window layout, and cwd
--- per directory. Open Neovim in a project and pick up exactly where you
--- left off. Pairs nicely with bufferline + telescope buffers.
+-- per global working directory. Unsaved contents and running jobs are not
+-- session backups. Pairs with bufferline + telescope buffers.
 --
 -- Keymaps live under <leader>w (window+session). Save-session uses the
 -- uppercase form (<leader>wS) so the lowercase <leader>ws can keep its
 -- "horizontal split" meaning from keymaps.lua.
 --
--- Load order: scope.nvim and bufferline (lua/plugins/ui.lua) load at
+-- Load order: scope.nvim (unless global buffers are selected) and bufferline load at
 -- startup because this plugin restores the session in VimEnter and both
 -- hook SessionLoadPost; the session picker loads telescope on demand.
 
@@ -30,8 +30,9 @@ do
   local is_win = vim.fn.has("win32") == 1
   local function add(p)
     if not p or p == "" then return end
-    -- Shipped defaults accept conventional home/env paths. Configured paths
-    -- are literal except a leading home shorthand (no $NAME expansion).
+    -- Shipped defaults accept conventional home/env paths. Our preprocessing
+    -- leaves configured $NAME/globs literal; auto-session's matching layer
+    -- later expands them. Use sessions.suppress for exact path comparisons.
     if configured == nil then
       p = vim.fn.expand(p)
     else
@@ -114,7 +115,8 @@ return {
     auto_restore = require("config.settings").get("sessions.auto_restore", true),
     -- Launched with files (`nvim foo.c`)? auto-session's default is to
     -- never auto-save then. We save only when the work grew into
-    -- something worth keeping — 2+ real file buffers or 2+ tabs — so a
+    -- something worth keeping — by default 2+ listed named file buffers or
+    -- 2+ tabs — so a
     -- quick one-file edit never overwrites the project's session.
     args_allow_files_auto_save = function()
       local settings = require("config.settings")
@@ -370,8 +372,8 @@ return {
       end,
     },
 
-    -- Even if a panel slips past pre_save_cmds (e.g. user opened dapui
-    -- without an active session), close it by filetype before saving.
+    -- The backend closes these filetypes BEFORE pre_save_cmds, also covering
+    -- debugger panels that are not currently tracked by dapui's layout state.
     -- "checkhealth" is auto-session's own default for this list.
     close_filetypes_on_save = {
       "checkhealth",

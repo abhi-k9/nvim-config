@@ -30,9 +30,9 @@ return {
     },
 
     -- Search/replace the word under the cursor. `<cword>` is Vim's
-    -- "current word" expansion — letters, digits, underscores — so this
-    -- works for identifiers in any language without language-specific
-    -- helpers.
+    -- "current word" expansion, controlled by the buffer's 'iskeyword'.
+    -- The prefill remains a search expression for the selected engine;
+    -- it is not a language-aware rename or a literal-quoting operation.
     {
       "<leader>sw",
       function()
