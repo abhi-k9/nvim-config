@@ -6,6 +6,19 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-10-28 — Add workflow and Visual Studio migration guides
+
+### Docs
+
+- Add a short workflow guide covering a first session, navigation, editing,
+  replacement, builds/tests, debugging, Git, layouts/sessions and optional Scoper.
+- Add a detailed Visual Studio migration and feature reference with its own
+  quick start, C++/MSBuild/CMake setup, debugger recipes, project/context model,
+  feature boundaries and troubleshooting.
+- Link both guides from the README and existing workflow/Visual Studio
+  cheatsheets. Keep platform installation and advanced settings in their
+  existing maintained guides.
+
 ## 2026-10-28 — Audit documentation, examples and source comments
 
 ### Fixed
