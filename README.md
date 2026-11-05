@@ -27,6 +27,10 @@ and install the enabled plugin set. Wait for installation to finish before
 relaunching; downloads and supported native builds can take several minutes.
 
 For daily use, start with the [workflow quick start](docs/quick-start.md).
+Inside Neovim, `<leader>h` / `:ConfigHelp` opens these guides, with Tab-completed
+topics such as `buffers`, `workspace` and `debugging`. `<leader>wi` /
+`:WorkspaceInfo` compares directories, visible tree roots, Scoper/build state,
+attached language servers and debugging context. Both work without optional plugins.
 For keys inside each feature, see the [context-help guide](docs/context-help.md).
 Coming from Visual Studio? The [migration and feature guide](docs/visual-studio-migration.md)
 has its own quick start, IDE-to-Neovim feature mappings, build/debug recipes and
@@ -240,6 +244,10 @@ nvim/
 ├── lua/
 │   ├── config/
 │   │   ├── settings.lua      early machine settings, trusted overlays and root intents
+│   │   ├── commands.lua      plugin-independent guide, workspace and launch command registration
+│   │   ├── guides.lua        on-demand reader for the maintained workflow documents
+│   │   ├── readonly.lua      scoped read-only reference windows with close hints
+│   │   ├── workspace.lua     inspect existing roots, scopes, clients and debug state
 │   │   ├── search.lua        literal visibility policies and backend root resolution
 │   │   ├── session.lua       automatic-save veto before layout/scope cleanup
 │   │   ├── tool_intent.lua   selected package identities, pins and intentional opt-outs
@@ -343,6 +351,8 @@ nvim/
 │   ├── session_ui_visibility_spec.lua  preserve visible debugger layouts on save
 │   ├── dap_ui_lifecycle_spec.lua  shared debugger UI across sessions
 │   ├── dap_sidebar_width_spec.lua  generic fixed columns, real debugger layouts and Neo-tree
+│   ├── workflow_guides_spec.lua  real guide contents and plugin-free reference commands
+│   ├── workspace_info_spec.lua  directory scopes, optional status APIs and source-window refresh
 │   ├── search_literal_paths_spec.lua  literal environment-like file names
 │   ├── navigation_paths_spec.lua  Telescope picker-relative clipboard paths
 │   ├── lsp_lifecycle_spec.lua  LSP attachment and per-buffer capabilities
@@ -356,7 +366,7 @@ nvim/
 │   ├── session_scope_spec.lua  tab scope persistence after moving tabs
 │   ├── session_dap_spec.lua    preserve normal files with debugger-like names
 │   └── offline_seed_test.py  Python tests for scripts/offline-seed.py (make test-seed)
-├── docs/                     Human-facing docs (not loaded by nvim)
+├── docs/                     Human-facing docs (read on demand by :ConfigHelp)
 │   ├── quick-start.md         common daily workflows and first-session essentials
 │   ├── context-help.md        in-feature help, native hints, input modes and reference commands
 │   ├── visual-studio-migration.md  Visual Studio migration, quick start and feature reference
@@ -466,6 +476,7 @@ To disable one locally, add `{ "owner/repository", enabled = false }` under
 | `<leader>w`    | window + session (pure prefix)           |
 | `<leader>x`    | diagnostics / trouble                    |
 | `<leader>?`    | show buffer-local keymaps                |
+| `<leader>h`    | workflow guides (`:ConfigHelp [topic]`)   |
 
 Save lives on **`<C-s>`** (works in normal, insert, and visual mode) so
 `<leader>w` can stay a pure prefix — chording `<leader>w` no longer

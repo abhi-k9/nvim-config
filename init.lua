@@ -19,8 +19,10 @@
 --                     body queries dap/lazy via pcall when invoked, but
 --                     registration itself is just nvim_create_user_command
 --                     and doesn't need any plugin loaded.
---   6. lazy         – bootstraps lazy.nvim and imports `lua/plugins/*.lua`.
---   7. health reminder – periodic, persisted prompt to review optional tools.
+--   6. commands     – on-demand workspace and guide commands; plugin
+--                     availability is checked when an integration is used.
+--   7. lazy         – bootstraps lazy.nvim and imports `lua/plugins/*.lua`.
+--   8. health reminder – periodic, persisted prompt to review optional tools.
 --
 -- Each file under lua/config/ and lua/plugins/ is heavily commented; start
 -- there if you want to tweak something.
@@ -57,5 +59,6 @@ settings.apply_options()
 require("config.keymaps")
 require("config.autocmds")
 require("config.diagnostics")
+require("config.commands")
 require("config.lazy")
 require("config.health_reminder").setup()

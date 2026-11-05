@@ -21,6 +21,8 @@
 --   <leader>?     → which-key buffer-local keys
 
 local map = vim.keymap.set
+map("n", "<leader>h", "<cmd>ConfigHelp<cr>", { desc = "Workflow guides" })
+map("n", "<leader>wi", "<cmd>WorkspaceInfo<cr>", { desc = "Workspace summary" })
 local settings = require("config.settings")
 
 -- ---------------------------------------------------------------------------
