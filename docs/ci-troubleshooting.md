@@ -60,6 +60,29 @@ The parser probe now adds the parent's resolved, locked plugin source directorie
 to `runtimepath` directly. It keeps isolated scope state without running Lazy or
 installers, and asserts that it did not create a plugin installation directory.
 
+## Installer filesystem mismatch — 2026-11-04
+
+In [run 41975763982](https://github.com/abhi-k9/nvim-config/actions/runs/41975763982),
+Linux setup failed before tests with `EXDEV: cross-device link not permitted`.
+The pinned installer extracts under Node's `os.tmpdir()`, then renames the
+directory into `os.homedir()/nvim-stable`. On that runner, `/tmp` and the home
+directory were on different filesystems. Its error text also suggested checking
+the release asset, but this failure was a local filesystem rename.
+
+The workflow now obtains the actual Linux home directory through a shell step
+output and sets `TMPDIR` to that output for the Neovim setup step only. Extraction
+and installation then share a parent filesystem. The action pin and other steps'
+temporary-directory settings are retained. Node on Windows uses `TEMP`/`TMP`
+instead, so its installation policy is unchanged. A literal `TMPDIR: $HOME` in an
+action's `env` would not perform shell expansion; the step output is deliberate.
+
+Upstream evidence: [temporary-directory creation](https://github.com/rhysd/action-setup-vim/blob/febef33995d6649302e9d88dda81e071b68f16a7/src/system.js#L29-L34)
+and [installation rename](https://github.com/rhysd/action-setup-vim/blob/febef33995d6649302e9d88dda81e071b68f16a7/src/neovim.js#L144-L162).
+
+The same run also caught raw-versus-normalized Windows path comparisons in the
+new database-resolution spec. That fixture was corrected independently; Scoper's
+production path normalization was already behaving as intended.
+
 ## Push batches and notifications
 
 The workflow starts for a push to `main`/`master` and for pull-request events.

@@ -152,8 +152,17 @@ jobs:
           tree-sitter --version
           rg --version
 
+      # The pinned installer renames from os.tmpdir() into os.homedir().
+      # Stage beside the destination: /tmp can be a separate filesystem.
+      - name: Locate Neovim staging filesystem
+        id: nvim-temp
+        shell: bash
+        run: printf 'directory=%s\n' "$HOME" >> "$GITHUB_OUTPUT"
+
       - name: Set up Neovim
         uses: rhysd/action-setup-vim@febef33995d6649302e9d88dda81e071b68f16a7 # v1
+        env:
+          TMPDIR: ${{ steps.nvim-temp.outputs.directory }}
         with:
           neovim: true
           version: ${{ matrix.nvim }}
@@ -191,8 +200,18 @@ jobs:
         with:
           persist-credentials: false
 
+      # Keep Linux extraction on the install destination's filesystem.
+      # Windows Node uses TEMP/TMP instead of TMPDIR, retaining its policy.
+      - name: Locate Neovim staging filesystem
+        if: runner.os == 'Linux'
+        id: nvim-temp
+        shell: bash
+        run: printf 'directory=%s\n' "$HOME" >> "$GITHUB_OUTPUT"
+
       - name: Set up Neovim
         uses: rhysd/action-setup-vim@febef33995d6649302e9d88dda81e071b68f16a7 # v1
+        env:
+          TMPDIR: ${{ steps.nvim-temp.outputs.directory }}
         with:
           neovim: true
           version: ${{ matrix.nvim }}

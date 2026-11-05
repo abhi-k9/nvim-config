@@ -6,6 +6,17 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-04 — Stage CI Neovim installs on the destination filesystem
+
+### Fixed
+
+- Set Linux setup's temporary directory to the resolved home directory for the
+  pinned Neovim action. A runner with `/tmp` on another filesystem failed its
+  extraction-to-installation rename with `EXDEV`, before executing tests.
+- Keep the override scoped to Neovim setup and retain the immutable action pin.
+  Document the source-confirmed cause and the separate Windows fixture correction
+  in [CI troubleshooting](docs/ci-troubleshooting.md#installer-filesystem-mismatch--2026-11-04).
+
 ## 2026-11-04 — Normalize the database-resolution test fixture on Windows
 
 ### Fixed
