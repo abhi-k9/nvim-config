@@ -41,6 +41,24 @@ describe("local customization lifecycle", function()
     assert.same({}, settings.get("tools.servers"))
   end)
 
+  it("reads machine settings without resolving cwd until an overlay is registered", function()
+    settings.configure({ example = { enabled = true } })
+    local getcwd = vim.fn.getcwd
+    vim.fn.getcwd = function()
+      error("machine-only settings must not resolve cwd")
+    end
+    local ok, value = pcall(settings.get, "example.enabled")
+    vim.fn.getcwd = getcwd
+    assert.is_true(ok, value)
+    assert.is_true(value)
+
+    settings.for_project(root .. "/project", { example = { enabled = false } })
+    vim.cmd.cd(root .. "/project")
+    assert.is_false(settings.get("example.enabled"))
+    vim.cmd.cd(root .. "/other")
+    assert.is_true(settings.get("example.enabled"))
+  end)
+
   it("loads machine policy before options and preserves explicit pre-set false", function()
     vim.fn.writefile(
       { 'return { globals = { mapleader = "," }, options = { shiftwidth = 7 } }' },

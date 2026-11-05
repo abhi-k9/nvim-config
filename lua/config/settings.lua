@@ -59,6 +59,8 @@ local function key(path)
 end
 
 local function matching_projects()
+  -- Most installations have no overlays; ordinary reads need no cwd work.
+  if next(projects) == nil then return {} end
   local cwd, out = key(global_cwd()), {}
   for root, item in pairs(projects) do
     local prefix = root:sub(-1) == "/" and root or root .. "/"

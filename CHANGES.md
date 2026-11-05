@@ -6,6 +6,17 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-04 — Avoid path work for machine-only settings
+
+### Changed
+
+- Skip working-directory resolution on settings reads when no trusted project
+  overlays are registered. Later registration and directory changes still take
+  effect immediately; no settings or directory cache is introduced.
+- A Neovim 0.12.6 Linux microbenchmark of 100,000 scalar reads fell from about
+  439 ms to 38 ms, eliminating 200,000 cwd lookups. This isolates getter overhead,
+  not total startup or interactive latency; ordinary startup has far fewer reads.
+
 ## 2026-11-04 — Explain directory switching and diagnostics panel controls
 
 ### Docs
