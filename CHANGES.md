@@ -6,6 +6,21 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-04 — Improve Telescope typing and prompt rendering
+
+### Fixed
+
+- Replace the growing-history `smart` path formatter with width-based truncation.
+  Result redraws no longer compare each label with previously displayed paths;
+  complete matching/opening paths and native fuzzy sorting are preserved.
+- Disable smear-cursor overlays in Telescope prompt buffers, keeping the native
+  input caret and ordinary editor animation. Prompt text is not trimmed or altered.
+
+### Docs
+
+- Explain picker rendering costs, the native caret, complete-path access and the
+  existing fzf/Scoper alternatives for very large file lists.
+
 ## 2026-10-28 — Add workflow and Visual Studio migration guides
 
 ### Docs

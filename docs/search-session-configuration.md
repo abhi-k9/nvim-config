@@ -90,6 +90,25 @@ before opening the replacement UI. Current-file replacement keeps its existing
 saved-file and literal-path checks. Common search visibility fields do not
 silently rewrite replacement flags; configure grug-far's normal options instead.
 
+## Picker responsiveness
+
+Telescope uses width-based path truncation for displayed results. Its `smart`
+path formatter compares entries against a growing history of displayed paths;
+that work can slow redraws as you browse, even with a healthy native fzf sorter.
+Truncation changes only the label: matching, opening and `<C-y>` path copying
+still use the original complete path. Normal Lazy `opts.defaults.path_display`
+overrides remain available, but enabling `smart` restores that cost.
+
+Cursor animation is disabled in Telescope's prompt so typing uses the real
+cursor instead of additional animated overlays. A native insertion caret after
+the final character is expected; it is not an extra space in the query. Literal
+spaces that you type retain their normal matching semantics.
+
+For a very large repository, `<leader>Ff` offers the existing external fzf file
+picker when `fzf` is installed. Or use `:ScoperFind` for a deliberately bounded
+working set. `:checkhealth telescope` checks the optional native sorter; a healthy
+sorter does not remove result-formatting, preview or UI rendering costs.
+
 ## Scoper picker queries
 
 Scoper searches use the loaded Scoper project root, independently of ordinary

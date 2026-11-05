@@ -86,6 +86,11 @@ configured half-page navigation uses native centered scrolling. Disabling
 `mappings.navigation` also leaves Neoscroll unloaded so it cannot reinstall
 those navigation maps.
 
+With normal motion enabled, smear-cursor excludes `TelescopePrompt` by default.
+This keeps animated cursor overlays out of finder input while preserving cursor
+animation in code buffers. A Lazy override of `filetypes_disabled` replaces that
+list; retain `"TelescopePrompt"` when adding other exclusions.
+
 Theme, icon, motion, global/tab buffer ownership and navigation-map decisions are
 startup settings. Restart Neovim after changing them; registering a trusted
 project overlay after plugins have loaded does not undo existing plugin hooks.
