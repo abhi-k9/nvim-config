@@ -50,6 +50,15 @@ integration. `lsp.clangd=false` keeps automatic integration off, while explicit
 `:ScoperLspReload` and `clangd_cmd()` remain available for compatibility. This
 legacy manual behavior differs from the explicit `"disabled"` mode.
 
+`:ScoperToggle` OFF disables **scope filtering**, not clangd. In the shipped
+automatic filtered integration, clangd switches to the complete selected
+database. A saved/configured build selection still wins over default discovery;
+OFF does not necessarily mean the database at the project root if another was
+selected. A correct database path alone does not guarantee a definition result:
+the entry paths/flags must be usable, clangd must be attached, and its background
+index may still be catching up after expanding from a small scope. This differs
+from configuring `lsp.mode = "disabled"`, which releases Scoper's integration.
+
 `lsp.clangd_args`, `extra_args` and `query_drivers` append to an inherited or
 explicit argv. Selecting a database replaces an existing
 `--compile-commands-dir=...` flag; unrelated flags stay intact. `cmd_env`,

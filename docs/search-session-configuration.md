@@ -90,6 +90,55 @@ before opening the replacement UI. Current-file replacement keeps its existing
 saved-file and literal-path checks. Common search visibility fields do not
 silently rewrite replacement flags; configure grug-far's normal options instead.
 
+## Changing directories after startup
+
+Use `:cd` to switch the global working directory after `nvim .`. For example:
+
+```vim
+:cd C:/work/OtherProject
+:pwd
+```
+
+On Linux/macOS, substitute the actual directory, such as `/home/me/project` or
+`/Users/me/project`. Use Vim filename completion/escaping for paths with spaces.
+`:cd ..` moves up and `:cd -` returns to the previous directory.
+
+| Operation | Directory scope | Scoper project with shipped defaults |
+| --- | --- | --- |
+| `:cd PATH` | Global; clears local cwd for the current window and tab | Switches to that directory's saved state/build selection |
+| `:tcd PATH` | Current tab; clears the current window's local cwd | Unchanged |
+| `:lcd PATH` | Current window | Unchanged |
+| Neo-tree `.` / Backspace | Set selected directory as tree root / navigate up; sidebar cwd is tab-local | Unchanged |
+
+Window-local cwd overrides tab-local cwd, which overrides global cwd. Other
+tabs/windows can retain their own local directories after a global change.
+`:pwd` shows the active directory; `:verbose pwd` identifies its scope.
+`:lua print(vim.fn.getcwd(-1, -1))` prints global cwd, and `:ScoperShow` shows
+Scoper's actual project/database state.
+
+With default root policies, the components respond as follows:
+
+| Component | Effect of changing global cwd |
+| --- | --- |
+| Neo-tree | Its bound filesystem tree follows the directory change. Tree navigation can itself set a tab-local cwd, as above. |
+| Scoper | Loads the new project's saved scope/build state and reconciles automatic clangd integration. A subdirectory is a separate project unless a root resolver keeps the enclosing project fixed. |
+| Telescope/fzf file and grep mappings | New pickers resolve the active cwd at invocation. Reopen an existing picker after switching. |
+| Language servers | Discover roots independently for files. A cwd change does not turn an existing client into a client for another project; old buffers can retain old clients. |
+| Debugger | Newly selected launches use the new default debug root/launch file. Active sessions and Run Last retain their captured configuration. |
+| Terminal/lazygit | New jobs start at invocation cwd. Existing jobs retain their cwd/environment; the default lazygit handle is reused across projects. |
+| Sessions | A directory change does not automatically save one layout and restore another: auto-session's `cwd_change_handling` is off by default. Existing buffers/windows remain. |
+
+These are defaults, not a universal root override. `project.root`,
+`scoper.project.root`, search/debug root settings and ordinary plugin overrides
+can alter the applicable policy. A tree root, an LSP root and a selected build
+database remain separate choices.
+
+For an unrelated project, save edits and explicitly save the old session first
+if you want its layout preserved (`<leader>wS`). Select a saved session with
+`<leader>wf` when a layout switch is intended. Starting another Neovim process
+from the new project's prepared shell also keeps project/environment ownership
+separate; changing cwd cannot import a new shell's SDK/setup variables.
+
 ## Picker responsiveness
 
 Telescope uses width-based path truncation for displayed results. Its `smart`

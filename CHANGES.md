@@ -6,6 +6,18 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-04 — Explain directory switching and diagnostics panel controls
+
+### Docs
+
+- Document `:cd`, `:tcd`, `:lcd` and Neo-tree's tab-local root navigation, with
+  the effects on Scoper, searches, language servers, debugging, terminals and
+  sessions. Add quick-start instructions and migration-guide cross-references.
+- Explain Trouble toggle/close/jump controls, focused-window `:q` behavior and
+  the diagnostics statusline label in the guides and cheatsheets.
+- Clarify full selected database behavior with scope filtering off, independently
+  of disabling clangd integration or waiting for a usable project index.
+
 ## 2026-11-04 — Improve Telescope typing and prompt rendering
 
 ### Fixed

@@ -420,12 +420,14 @@
     <tr><td><code>:Trouble loclist</code></td><td>Location list</td></tr>
     <tr><td><code>:Trouble todo</code></td><td>TODOs</td></tr>
     <tr class="divider"><td colspan="2">Inside the list</td></tr>
+    <tr><td><kbd class="peach">q</kbd></td><td>Close this Trouble panel; <code>:Trouble diagnostics close</code> closes diagnostics explicitly from any window</td></tr>
     <tr><td><kbd class="peach">&lt;CR&gt;</kbd></td><td>Jump to item</td></tr>
     <tr><td><kbd class="peach">o</kbd></td><td>Jump &amp; close</td></tr>
     <tr><td><kbd class="peach">p</kbd></td><td>Preview</td></tr>
     <tr><td><kbd class="peach">P</kbd></td><td>Toggle preview window</td></tr>
     <tr><td><kbd class="peach">r</kbd></td><td>Refresh</td></tr>
     <tr><td><kbd class="peach">?</kbd></td><td>Help</td></tr>
+    <tr><td colspan="2" class="note">Enter keeps the list open; <kbd>o</kbd> jumps and closes. Escape returns to the editor without closing the panel. After a jump, <code>:q</code> closes the focused file window, not the remaining Trouble panel. The statusline's “Diagnostics” label identifies Trouble.</td></tr>
   </table>
 </div>
 

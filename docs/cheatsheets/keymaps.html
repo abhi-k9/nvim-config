@@ -411,8 +411,8 @@
 <div class="card">
   <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>Diagnostics — Trouble</h2></div>
   <table>
-    <tr><td><kbd class="peach">&lt;leader&gt;xx</kbd></td><td>Workspace diagnostics</td></tr>
-    <tr><td><kbd class="peach">&lt;leader&gt;xX</kbd></td><td>Buffer diagnostics</td></tr>
+    <tr><td><kbd class="peach">&lt;leader&gt;xx</kbd></td><td>Toggle workspace diagnostics; press again to close</td></tr>
+    <tr><td><kbd class="peach">&lt;leader&gt;xX</kbd></td><td>Toggle buffer diagnostics</td></tr>
     <tr><td><kbd class="peach">&lt;leader&gt;xs</kbd></td><td>Symbols (LSP outline)</td></tr>
     <tr><td><kbd class="peach">&lt;leader&gt;xl</kbd></td><td>LSP refs / defs / impl</td></tr>
     <tr><td><kbd class="peach">&lt;leader&gt;xL</kbd></td><td>Location list</td></tr>
@@ -421,6 +421,7 @@
     <tr class="divider"><td colspan="2">Navigate items</td></tr>
     <tr><td><kbd class="peach">]q</kbd> <kbd class="peach">[q</kbd></td><td>Next / prev item (Trouble or qf)</td></tr>
     <tr><td><kbd class="peach">]t</kbd> <kbd class="peach">[t</kbd></td><td>Next / prev TODO</td></tr>
+    <tr><td colspan="2" class="note">Inside Trouble: <kbd>q</kbd> closes, Enter jumps and keeps the list, <kbd>o</kbd> jumps and closes. <code>:Trouble diagnostics close</code> is explicit from any window; <code>:q</code> acts on whichever window currently has focus.</td></tr>
   </table>
 </div>
 

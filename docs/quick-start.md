@@ -31,6 +31,20 @@ Press Space and wait for the which-key menu whenever you forget a mapping.
 active directory. Launching here sets the initial directory context; opening a
 file does not import a Visual Studio solution or select a build configuration.
 
+## Change the working directory
+
+After `nvim .`, use `:cd /path/to/project` (Windows: `:cd C:/work/OtherProject`),
+then `:pwd` to check it. `:cd ..` goes up; `:cd -` returns to the previous cwd.
+With the shipped defaults, this moves Scoper's project and newly opened ordinary
+searches together. Prefer the repository root: changing to a subdirectory also
+changes Scoper's project identity unless you configured a project-root resolver.
+
+Neo-tree's `.` sets the selected directory as its root and Backspace navigates
+up, but its sidebar uses **tab-local** cwd by default. This can move ordinary
+searches while Scoper stays at the global cwd. Use `:cd` for a project-wide
+switch. See [directory scopes and plugin behavior](search-session-configuration.md#changing-directories-after-startup)
+for `:tcd`, `:lcd`, sessions, terminals, language servers and debug launches.
+
 ## Find files, text and symbols
 
 | Task | Keys | What to expect |
@@ -73,6 +87,13 @@ edits (`:wa` writes all file buffers). `:ls` helps find buffers marked modified.
 For system clipboard copying, select text and type `"+y`; paste in Normal mode
 with `"+p`. This requires a working clipboard provider; plain `y` / `p` use
 Neovim's registers by default.
+
+To close the diagnostics panel, press `<leader>xx` again from any window, or
+`q` while focused inside Trouble. `:Trouble diagnostics close` closes it
+explicitly. Enter jumps to an item and leaves the panel open; `o` jumps and
+closes it. `:q` closes whichever window currently has focus, which may be your
+file window after a jump. The statusline's `Diagnostics` label identifies the
+Trouble panel; it is not a separate editing mode.
 
 ## Replace text with a preview
 

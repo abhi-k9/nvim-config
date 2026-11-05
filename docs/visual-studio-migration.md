@@ -97,6 +97,13 @@ project per editor, and matching `local.lua` project overlays use global cwd.
 or activating another overlay. Separate tabs do not create independent Scoper
 project instances.
 
+After `nvim .`, use `:cd PATH` to switch the global project directory. Neo-tree
+sidebar navigation (`.` to set root, Backspace to go up) uses tab-local cwd by
+default, so it can move file searches without moving Scoper. Existing buffers,
+clients, terminal jobs and debug sessions are not all recreated by `:cd`.
+See [directory-switching behavior](search-session-configuration.md#changing-directories-after-startup)
+for the per-plugin effects and session handling.
+
 Ordinary `Space f f` / `Space f g` searches do not automatically become Scoper
 searches. An LSP root is also not a guarantee that grep, terminals, sessions and
 debugging share that root. Configure the supported root policies when needed;
@@ -309,6 +316,13 @@ standalone `clang-tidy` command also have different configuration boundaries.
 Use the [C++ template guide](templates/cpp/README.md) and
 [diagnostic reference](cheatsheets/cpp-diagnostics.html) for placement, suppression
 and version-specific settings.
+
+To dismiss the Error List equivalent, toggle `<leader>xx` again or run
+`:Trouble diagnostics close`. Inside Trouble, `q` closes, Enter jumps while
+keeping the list open, and `o` jumps and closes. Escape returns focus to the
+editor without closing the list. After jumping, `:q` may close the file window
+instead; a remaining `Diagnostics` statusline label identifies Trouble, not a
+stuck Normal/Insert mode.
 
 ## Build, run and test
 
