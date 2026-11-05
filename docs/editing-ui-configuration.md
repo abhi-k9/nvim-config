@@ -98,6 +98,36 @@ Content-editing policies are checked when their corresponding events run.
 Layout, glyph and folding-provider refinements remain ordinary plugin `opts`
 overrides rather than separate configuration keys.
 
+## Bufferline diagnostic counts
+
+`ui.bufferline_diagnostic_cache` defaults to `true`. A local adapter caches
+native diagnostic counts by buffer and namespace. It reads the workspace once,
+then refreshes only changed buffers on the next eligible redraw. Repeated
+`DiagnosticChanged` events coalesce; wiping a buffer drops its cached counts.
+Namespace, buffer and global enable/disable changes remain live because redraws
+check each group's enabled state without scanning individual diagnostics.
+
+Error, warning, info and hint indicators retain their existing appearance.
+Insert/replace mode keeps the previous counts unless Neovim's diagnostic
+`update_in_insert` setting permits updates. Other diagnostic providers delegate
+to Bufferline's original getter.
+
+The plugin and its lockfile revision stay unchanged. Bufferline exposes no
+custom source hook, so this adapter replaces only `bufferline.diagnostics.get`;
+it never replaces Neovim diagnostic functions. Regression tests exercise the
+real renderer and getter contract. Recheck those tests when updating Bufferline.
+Setup is idempotent; disposal restores the getter only if the adapter still owns
+it and removes its event handlers.
+
+To return to the plugin's original getter, add this to `local.lua` and restart:
+
+```lua
+return { ui = { bufferline_diagnostic_cache = false } }
+```
+
+The [responsiveness review](performance-review-2026-11-04.md#follow-up-local-bufferline-cache--2026-11-05)
+records the before/after measurements and their limits.
+
 ## Fold persistence and split sizing
 
 Fold structure comes from ufo's selected provider; open/closed state is saved

@@ -66,7 +66,33 @@ per render for aggregation alone. Its locked implementation already reuses
 results during insert mode, but normal-mode refreshes aggregate again. There is
 no supported custom diagnostic getter to replace just this work. A useful
 future improvement would be upstream invalidation on diagnostic changes rather
-than a local monkeypatch or removing diagnostic indicators by default.
+than removing diagnostic indicators by default. The local follow-up below
+supersedes this initial deferral without changing the plugin itself.
+
+## Follow-up: local Bufferline cache — 2026-11-05
+
+The config now installs a narrow adapter around `bufferline.diagnostics.get`.
+It caches counts rather than diagnostic objects, refreshes changed buffers on
+`DiagnosticChanged`, and checks enablement once per buffer/namespace group on
+redraw. This keeps global, buffer and namespace toggles accurate even though
+Neovim does not emit a diagnostic-change event for enable/disable operations.
+Insert/replace update policy, severity counts and native rendering are retained;
+other providers delegate to the original getter. No fork, upstream edit or
+lockfile update is needed. See [configuration and rollback](editing-ui-configuration.md#bufferline-diagnostic-counts).
+
+A fresh comparison used the original pinned plugin, 20 buffers, 100 real normal-mode
+renders per sample and the median of three samples per case on Linux/Neovim 0.12.6:
+
+| Diagnostics | Aggregation per redraw, original → cached | Native diagnostic reads over 100 unchanged redraws | Enable checks over 100 redraws, original → cached |
+| --- | --- | --- | --- |
+| 1,000 | 1.02 ms → 0.004 ms | 100 → 0 | 100,000 → 2,000 |
+| 10,000 | 12.86 ms → 0.006 ms | 100 → 0 | 1,000,000 → 2,000 |
+
+At 10,000 diagnostics, total time for 100 headless renders fell from about
+1,539 ms to 149 ms. These warmed stress measurements isolate redraw behavior;
+they do not promise an equivalent typing/startup improvement or native Windows
+timing. Initial seeding and a changed buffer still require reading its diagnostics.
+Regression tests assert freshness, coalescing and avoided calls rather than timing.
 
 ## Deferred: forcing asynchronous Neo-tree scans
 

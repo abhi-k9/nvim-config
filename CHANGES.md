@@ -6,6 +6,22 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-05 — Cache Bufferline diagnostic counts locally
+
+### Changed
+
+- Cache native diagnostic counts per buffer/namespace in a local adapter;
+  refresh changed buffers instead of scanning the workspace on every redraw.
+  Poll enabled state per group so toggles remain live without diagnostic events.
+- Preserve native insert/replace update policy and severity indicators; delegate
+  other providers and restore only the owned getter during disposal. Keep the
+  original Bufferline source and lockfile unchanged. Disable the adapter with
+  `ui.bufferline_diagnostic_cache = false` in `local.lua`.
+- In a 20-buffer Linux fixture, 10,000-diagnostic aggregation fell from about
+  12.86 ms to 0.006 ms per warmed redraw; 100 unchanged renders made zero native
+  diagnostic reads instead of 100. Record methods and limits in the
+  [responsiveness review](docs/performance-review-2026-11-04.md#follow-up-local-bufferline-cache--2026-11-05).
+
 ## 2026-11-04 — Stage CI Neovim installs on the destination filesystem
 
 ### Fixed
