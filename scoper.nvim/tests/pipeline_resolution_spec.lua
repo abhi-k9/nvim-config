@@ -4,11 +4,12 @@ local Pipeline = require("scoper.pipeline")
 local Database = require("scoper.database")
 local LSP = require("scoper.lsp")
 local Cdb = require("scoper.cdb")
+local Path = require("scoper.path")
 
 describe("operation-local compilation database resolution", function()
   local root, previous, config, resolve, run, calls, env
   before_each(function()
-    root, previous = vim.fn.tempname(), vim.fn.getcwd()
+    root, previous = Path.normalize(vim.fn.tempname()), vim.fn.getcwd()
     env = { vim.env.XDG_DATA_HOME, vim.env.XDG_CACHE_HOME }
     vim.env.XDG_DATA_HOME, vim.env.XDG_CACHE_HOME = root .. "/data", root .. "/cache"
     vim.fn.mkdir(root .. "/src", "p")

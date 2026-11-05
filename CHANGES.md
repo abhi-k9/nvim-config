@@ -6,6 +6,15 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-04 — Normalize the database-resolution test fixture on Windows
+
+### Fixed
+
+- Normalize the new test fixture's temporary root before constructing expected
+  paths and clangd arguments. Native Windows CI exposed comparisons between raw
+  backslash/uppercase-drive temp paths and Scoper's normalized paths; production
+  path handling remains unchanged.
+
 ## 2026-11-04 — Record the responsiveness review
 
 ### Docs
