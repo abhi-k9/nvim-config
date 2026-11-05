@@ -11,3 +11,12 @@ end, {
   end,
   desc = "Read a configuration workflow guide",
 })
+vim.api.nvim_create_user_command("DapLaunch", function()
+  require("config.dap_launch").choose()
+end, { desc = "Choose a debug launch with setup details" })
+vim.api.nvim_create_user_command("DapLaunchInfo", function()
+  require("config.dap_launch").info()
+end, { desc = "Inspect launch settings without starting a session" })
+vim.api.nvim_create_user_command("DapEditLaunch", function()
+  require("config.dap_launch").edit()
+end, { desc = "Open the configured launch file in a split" })

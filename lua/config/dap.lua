@@ -29,6 +29,48 @@ function M.launch_file(root)
   return vim.fs.normalize(path, { expand_env = false })
 end
 
+function M.hover()
+  local ok, widgets = pcall(require, "dap.ui.widgets")
+  if not ok or type(widgets) ~= "table" or type(widgets.hover) ~= "function" then
+    vim.notify(
+      "Debug value preview unavailable. Check :Lazy or :ConfigHelp debugging.",
+      vim.log.levels.WARN
+    )
+    return
+  end
+  local shown, view = pcall(widgets.hover)
+  if not shown then
+    vim.notify(
+      "Debug value preview failed: " .. tostring(view) .. ". Inspect :DapShowLog.",
+      vim.log.levels.WARN
+    )
+    return
+  end
+  if type(view) ~= "table" or not view.win or not vim.api.nvim_win_is_valid(view.win) then
+    return view
+  end
+  local win, buf = view.win, vim.api.nvim_win_get_buf(view.win)
+  local border = vim.api.nvim_win_get_config(win).border
+  if not border or border == "none" then border = "rounded" end
+  vim.api.nvim_win_set_config(win, {
+    border = border,
+    footer = " q / Esc: close ",
+    footer_pos = "right",
+  })
+  for _, key in ipairs({ "q", "<Esc>" }) do
+    vim.keymap.set("n", key, function()
+      if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf then
+        if type(view.close) == "function" then
+          view.close()
+        else
+          vim.api.nvim_win_close(win, true)
+        end
+      end
+    end, { buffer = buf, desc = "Close debug value preview" })
+  end
+  return view
+end
+
 -- Bind only workspace variables; nvim-dap retains ownership of file/env/input
 -- expansion. A callable VS Code configuration keeps its input prompt behavior.
 local function bind_workspace(value, root)
@@ -185,7 +227,10 @@ function M.setup()
       return
     end
     if vim.fn.filereadable(path) == 0 then
-      vim.notify(("No %s in debug root (%s)"):format(path, cwd), vim.log.levels.WARN)
+      vim.notify(
+        ("No %s in debug root (%s). Use :DapEditLaunch or :ConfigHelp debugging."):format(path, cwd),
+        vim.log.levels.WARN
+      )
       return
     end
     local ok, vscode = pcall(require, "dap.ext.vscode")
@@ -195,7 +240,13 @@ function M.setup()
     end
     local parsed_ok, configs = pcall(vscode.getconfigs, path)
     if not parsed_ok then
-      vim.notify(("Failed to parse %s:\n%s"):format(path, tostring(configs)), vim.log.levels.ERROR)
+      vim.notify(
+        ("Failed to parse %s:\n%s\nUse :DapEditLaunch to correct it; :ConfigHelp debugging explains the format."):format(
+          path,
+          tostring(configs)
+        ),
+        vim.log.levels.ERROR
+      )
       return
     end
     if not configs or #configs == 0 then

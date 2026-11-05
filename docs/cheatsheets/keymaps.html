@@ -153,7 +153,7 @@
     <tr><td><kbd class="sky">&lt;leader&gt;wm</kbd></td><td>Zoom current window (toggle). A second press restores saved sizes if the split layout is unchanged; otherwise it equalizes the new layout. Works with neo-tree and other fixed-width buffers.</td></tr>
     <tr class="divider"><td colspan="2">Buffers (bufferline)</td></tr>
     <tr><td><kbd class="sky">&lt;S-l&gt;</kbd> <kbd class="sky">&lt;S-h&gt;</kbd></td><td>Next / prev buffer <span class="note">bufferline visual order (pins first) — also scrolls hidden tabs into view; the strip has no view-only scroll and its truncation markers are not clickable buttons</span></td></tr>
-    <tr><td><kbd class="sky">&lt;leader&gt;bd</kbd></td><td>Close buffer <span class="note">keeps the window — switches to next listed buffer first</span></td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;bd</kbd></td><td>Close buffer <span class="note">keeps the window — switches to next listed buffer first; disk file stays</span></td></tr>
     <tr><td><kbd class="sky">&lt;leader&gt;bD</kbd></td><td>Close buffer and discard unsaved changes</td></tr>
     <tr><td><kbd class="sky">&lt;leader&gt;bm</kbd></td><td>Tab context menu <span class="note">keyboard version of right-clicking the tab: pin, copy path, open in split, close, close others. j/k + <kbd>&lt;CR&gt;</kbd>, or 1-8 to pick; q/<kbd>&lt;Esc&gt;</kbd> to dismiss</span></td></tr>
     <tr><td colspan="2" class="note">Plain <code>:bd</code> still works but also closes the buffer's window — use the keymap above when you want to keep your split layout intact.</td></tr>
@@ -373,7 +373,10 @@
   <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>Debug (DAP)</h2></div>
   <table>
     <tr class="divider"><td colspan="2">Session control</td></tr>
-    <tr><td><kbd class="mauve">&lt;leader&gt;dc</kbd></td><td>Continue / start <span class="note">reads project launch configurations when selecting a new launch; continuing a session does not reload it</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dc</kbd></td><td>Continue / choose launch <span class="note">new choices show program, cwd and adapter command presence; continuing a session does not reload it</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;da</kbd></td><td>Choose a launch (<code>:DapLaunch</code>); cancel starts nothing</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dI</kbd></td><td>Inspect full launch details (<code>:DapLaunchInfo</code>); q / Esc closes</td></tr>
+    <tr><td><code>:DapEditLaunch</code></td><td>Open configured launch file in a split without writing it</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dL</kbd></td><td>Validate launch.json &amp; preview its configs (sanity check)</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dC</kbd></td><td>Run to cursor</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dl</kbd></td><td>Run last</td></tr>
@@ -399,12 +402,12 @@
     <tr><td><kbd class="mauve">&lt;leader&gt;de</kbd></td><td>Eval expression (n / v)</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dk</kbd></td><td>Stack: up</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dj</kbd></td><td>Stack: down</td></tr>
-    <tr><td><kbd class="mauve">&lt;leader&gt;dw</kbd></td><td>Hover value under cursor / selection <span class="note">small widgets float, no full UI (n / v)</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dw</kbd></td><td>Hover value under cursor / selection <span class="note">small widgets float (n / v); q / Esc closes just this preview</span></td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dv</kbd></td><td>Toggle inline end-of-line values</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dU</kbd></td><td>Toggle UI auto-close on program exit <span class="note">off = stay open to inspect post-mortem; sets <code>vim.g.dap_autoclose_ui</code></span></td></tr>
     <tr><td colspan="2" class="note">Inline variable values show at end-of-line while stopped (nvim-dap-virtual-text — like VS inline values); <kbd class="mauve">&lt;leader&gt;dv</kbd> hides/shows them.</td></tr>
     <tr class="divider"><td colspan="2">VS Code function keys</td></tr>
-    <tr><td><kbd class="mauve">&lt;F5&gt;</kbd></td><td>Continue / start</td></tr>
+    <tr><td><kbd class="mauve">&lt;F5&gt;</kbd></td><td>Continue / choose launch</td></tr>
     <tr><td><kbd class="mauve">&lt;F6&gt;</kbd></td><td>Pause</td></tr>
     <tr><td><kbd class="mauve">&lt;F9&gt;</kbd></td><td>Toggle breakpoint <span class="note">persistent, like <kbd class="mauve">&lt;leader&gt;db</kbd></span></td></tr>
     <tr><td><kbd class="mauve">&lt;F10&gt;</kbd></td><td>Step over</td></tr>

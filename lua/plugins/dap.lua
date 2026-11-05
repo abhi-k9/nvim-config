@@ -41,6 +41,7 @@ return {
   -- -------------------------------------------------------------------------
   {
     "mfussenegger/nvim-dap",
+    cmd = { "DapLoadLaunchJSON" },
     dependencies = { "mason-org/mason.nvim" }, -- resolve its configured root before adapter defaults
     keys = {
       -- ---- Breakpoints ----------------------------------------------------
@@ -118,7 +119,9 @@ return {
         desc = "Clear all breakpoints",
       },
       -- stylua: ignore start
-      { "<leader>dc", function() require("dap").continue() end,         desc = "Continue / start" },
+      { "<leader>dc", function() require("config.dap_launch").start() end, desc = "Continue / choose launch" },
+      { "<leader>da", "<cmd>DapLaunch<cr>", desc = "Choose debug launch" },
+      { "<leader>dI", "<cmd>DapLaunchInfo<cr>", desc = "Inspect debug launch settings" },
       { "<leader>dC", function() require("dap").run_to_cursor() end,    desc = "Run to cursor" },
       { "<leader>di", function() require("dap").step_into() end,        desc = "Step into" },
       { "<leader>do", function() require("dap").step_over() end,        desc = "Step over" },
@@ -193,12 +196,12 @@ return {
       -- Lightweight hover on the symbol under the cursor (or the visual
       -- selection) in a small floating window, without opening the whole
       -- dap-ui. The locked widgets implementation focuses the new float so
-      -- it can be scrolled; use :close to dismiss it. Complements <leader>de,
+      -- it can be scrolled; q/Esc closes only that preview. Complements <leader>de,
       -- which opens dapui.eval's expression float.
       {
         "<leader>dw",
         function()
-          require("dap.ui.widgets").hover()
+          require("config.dap").hover()
         end,
         mode = { "n", "x" },
         desc = "Hover value (widgets float)",
@@ -212,7 +215,7 @@ return {
       -- a universal requirement. Those actions stay on the portable
       -- <leader>dt / <leader>dO / <leader>dR chords instead.
       -- stylua: ignore start
-      { "<F5>",  function() require("dap").continue() end,   desc = "Debug: continue / start (VS F5)" },
+      { "<F5>",  function() require("config.dap_launch").start() end, desc = "Debug: continue / choose launch (F5)" },
       { "<F6>",  function() require("dap").pause() end,       desc = "Debug: pause (VS F6)" },
       { "<F9>",  function() require("persistent-breakpoints.api").toggle_breakpoint() end,
         desc = "Debug: toggle breakpoint (VS F9)" }, -- persistent variant, matches <leader>db

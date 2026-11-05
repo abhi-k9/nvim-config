@@ -262,6 +262,7 @@ nvim/
 │   │   │   ├── lsplog.lua        LSP log rotation
 │   │   │   └── swap.lua          swap guard, :SwapGuardToggle, :SwapDelete
 │   │   ├── dap.lua           nvim-dap setup: adapters, fallback configs, signs
+│   │   ├── dap_launch.lua    detailed launch selection, inspection and guarded recovery
 │   │   ├── dap_ui_layout.lua  preserve fixed columns across debugger layout changes
 │   │   ├── diagnostics.lua   :DiagnosticDump (hang triage)
 │   │   ├── bufferline_diagnostics.lua  event-invalidated counts for the pinned Bufferline getter
@@ -351,6 +352,7 @@ nvim/
 │   ├── session_ui_visibility_spec.lua  preserve visible debugger layouts on save
 │   ├── dap_ui_lifecycle_spec.lua  shared debugger UI across sessions
 │   ├── dap_sidebar_width_spec.lua  generic fixed columns, real debugger layouts and Neo-tree
+│   ├── dap_launch_spec.lua    launch selection, dynamic fields, missing APIs and preview closing
 │   ├── workflow_guides_spec.lua  real guide contents and plugin-free reference commands
 │   ├── workspace_info_spec.lua  directory scopes, optional status APIs and source-window refresh
 │   ├── search_literal_paths_spec.lua  literal environment-like file names
@@ -483,6 +485,13 @@ Save lives on **`<C-s>`** (works in normal, insert, and visual mode) so
 incurs the which-key disambiguation delay. `<leader>W` still saves all.
 `<C-s>` is guarded on `buftype`, so in a non-file buffer (neo-tree,
 Trouble, a terminal, …) it's a silent no-op instead of an `E382` error.
+
+F5 / `<leader>dc` continues an existing debugger session or opens a launch chooser
+with program, cwd and adapter command status. `<leader>da` / `:DapLaunch` explicitly
+chooses a launch; `<leader>dI` / `:DapLaunchInfo` opens full details without starting
+one. `:DapEditLaunch` opens the configured launch file in a split. Missing debugger
+plugins or commands give recovery hints; command presence alone does not verify a
+working debugger. See [debugging](docs/debug-terminal-configuration.md).
 
 A few standalone motions worth knowing right away:
 

@@ -19,7 +19,7 @@
 --                     body queries dap/lazy via pcall when invoked, but
 --                     registration itself is just nvim_create_user_command
 --                     and doesn't need any plugin loaded.
---   6. commands     – on-demand workspace and guide commands; plugin
+--   6. commands     – on-demand workspace, guide and launch commands; plugin
 --                     availability is checked when an integration is used.
 --   7. lazy         – bootstraps lazy.nvim and imports `lua/plugins/*.lua`.
 --   8. health reminder – periodic, persisted prompt to review optional tools.
