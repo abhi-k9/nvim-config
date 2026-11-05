@@ -15,7 +15,7 @@
 --   s/S = open in vsplit/split         P = toggle floating preview
 --   <C-s> = quick-jump (labels each node; type a label to jump+open/toggle)
 --   <Tab> = multi-select toggle        <C-;> = clear selection
---   ?   = full keymap help
+--   ? / g? / <F1> = full keymap help
 -- (<C-s> quick-jump and <Tab>/<C-;> select are neo-tree defaults that only
 -- exist on branch="main", set below. Many terminals don't transmit <C-;>.)
 --
@@ -54,6 +54,43 @@ local function buffer_delete_keep_windows(state)
   require("neo-tree.sources.manager").refresh("buffers")
 end
 
+-- Derive the next view from Neo-tree's visible state, never a second toggle
+-- flag. Returning to filesystem leaves its remembered root untouched.
+local function toggle_buffers_view()
+  local available, command = pcall(require, "neo-tree.command")
+  if not available then
+    vim.notify("Neo-tree is unavailable; check :Lazy for installation errors.", vim.log.levels.WARN)
+    return
+  end
+  local ok, err = pcall(function()
+    local manager = require("neo-tree.sources.manager")
+    local state = manager.get_state_for_window()
+    if not state then
+      for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+        local candidate = manager.get_state_for_window(win)
+        if candidate and (not state or candidate.name == "buffers") then state = candidate end
+        if state and state.name == "buffers" then break end
+      end
+    end
+    local args = {
+      action = "focus",
+      source = state and state.name == "buffers" and "filesystem" or "buffers",
+      -- Do not reveal an unrelated current file and change the tree's root.
+      reveal = false,
+      position = state and state.current_position or nil,
+    }
+    -- Focusing first also prevents position=current from replacing the editor;
+    -- Neo-tree can reuse an existing source window without focusing it itself.
+    if state and state.winid ~= vim.api.nvim_get_current_win() then
+      vim.api.nvim_set_current_win(state.winid)
+    end
+    command.execute(args)
+  end)
+  if not ok then
+    vim.notify("Explorer source switch failed: " .. tostring(err), vim.log.levels.WARN)
+  end
+end
+
 return {
   "nvim-neo-tree/neo-tree.nvim",
   -- `main`, NOT `v3.x`: the quick_jump / select / clear_selection commands
@@ -76,7 +113,7 @@ return {
     { "<leader>E", "<cmd>Neotree reveal<cr>",            desc = "Explorer reveal current file" },
     { "<leader>fe", "<cmd>Neotree focus<cr>",            desc = "Explorer focus" },
     { "<leader>ge", "<cmd>Neotree git_status<cr>",       desc = "Explorer: git status" },
-    { "<leader>be", "<cmd>Neotree buffers<cr>",          desc = "Explorer: open buffers" },
+    { "<leader>be", toggle_buffers_view,                desc = "Explorer: buffers / files" },
     -- stylua: ignore end
   },
   -- Auto-open neo-tree if Neovim is launched with a directory argument
@@ -189,6 +226,8 @@ return {
         ["<space>"] = "none", -- free <space> so leader still works in the tree
         ["l"] = "open",
         ["h"] = "close_node",
+        ["<F1>"] = "show_help",
+        ["g?"] = "show_help",
 
         -- ---- copy path-as-text (custom; branch-independent) ----
         -- <C-S-c> follows the Windows "copy path" convention; Y is a
