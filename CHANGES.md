@@ -6,6 +6,27 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-05 — Extend native help to undo, diff and scope workflows
+
+### Changed
+
+- Add F1 to Atone's native tree/diff help while preserving `?` / `g?`.
+- Reuse Diffview's existing help callbacks for F1 in every native help context,
+  including merge layouts, file/history/options panels and worktree overview.
+  Each context retains its own mappings; no default table is mutated.
+- Add close hints and named mappings to Scoper's read-only report. Give native
+  multi-selection actions readable labels, mark/confirm hints and Telescope
+  help aliases, including standalone Scoper searches without host configuration.
+
+### Docs
+
+- Add a [context-help guide](docs/context-help.md) covering the other feature
+  families: LSP/Git, completion, debugger panes/REPL, terminals/lazygit,
+  alignment, jump labels, folds, quickfix, selectors and tool inspection.
+- Link it from the README, quick start, debugger guide and cheatsheets. Distinguish
+  native help from local mapping lists and external-program input; document that
+  Neo-tree's help can execute actions, with Esc as its cancel key.
+
 ## 2026-11-05 — Expose live context help and safe buffer actions
 
 ### Changed

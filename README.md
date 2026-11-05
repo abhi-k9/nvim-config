@@ -27,6 +27,7 @@ and install the enabled plugin set. Wait for installation to finish before
 relaunching; downloads and supported native builds can take several minutes.
 
 For daily use, start with the [workflow quick start](docs/quick-start.md).
+For keys inside each feature, see the [context-help guide](docs/context-help.md).
 Coming from Visual Studio? The [migration and feature guide](docs/visual-studio-migration.md)
 has its own quick start, IDE-to-Neovim feature mappings, build/debug recipes and
 the boundaries to know before replacing an established workflow.
@@ -357,6 +358,7 @@ nvim/
 │   └── offline_seed_test.py  Python tests for scripts/offline-seed.py (make test-seed)
 ├── docs/                     Human-facing docs (not loaded by nvim)
 │   ├── quick-start.md         common daily workflows and first-session essentials
+│   ├── context-help.md        in-feature help, native hints, input modes and reference commands
 │   ├── visual-studio-migration.md  Visual Studio migration, quick start and feature reference
 │   ├── customization.md       local override lifecycle, trust and feature guide index
 │   ├── generalization-verification.md  test environment, acceptance cases and platform limits

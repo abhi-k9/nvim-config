@@ -28,6 +28,18 @@ On Windows the example interpreter would normally be
 `vim.fs.joinpath(root, ".venv", "Scripts", "python.exe")`. An explicit path is
 used as given; this resolver does not install an interpreter or activate a shell.
 
+## Finding debugger and terminal help
+
+In a debugger pane, use F1 or `<leader>?` in Normal mode for the focused
+element's local mappings; Space-d discovers the global debugger commands.
+DAP UI has no native help-page action, and its available actions vary by element.
+The REPL has a separate native command list: type `.help` at its prompt.
+
+Inside a terminal, use the running program's help. Esc-Esc enters terminal
+Normal mode, where F1 lists local mappings; lazygit has its own `?` keybinding
+menu. No global terminal-input help binding intercepts program input. See the
+[context-help guide](context-help.md) for the other native references.
+
 ## Debug defaults and extension points
 
 | Setting | Shipped behavior |

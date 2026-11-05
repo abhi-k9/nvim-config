@@ -38,12 +38,17 @@ key reference. Telescope's result border reminds you of F1; its buffer picker
 also shows the mark/close keys. Help reflects the active mappings, including
 our custom actions.
 
+The [context-help guide](context-help.md) covers the other workflows, including
+Git/merge/history panels, undo history, Scoper, completion, debugging and terminals.
+
 | Context | Other help keys |
 | --- | --- |
 | Telescope | `g?` or `?` in its Normal mode; Ctrl-/ (often Ctrl-_) while typing. |
 | Neo-tree / Trouble | `g?` or `?` inside the panel. |
 | Mason / grug-far | `g?` opens the native help page. |
 | Lazy | `?` opens its native help page. |
+| Diffview / Atone undo tree | F1 or `g?` opens native context help; Atone also keeps `?`. |
+| Scoper status / multi-selection | Status shows `q` / Esc close hints; Telescope selectors have F1 and mark/confirm hints. |
 | Other buffers | F1 in Normal mode, or `<leader>?`, lists local mappings through which-key; with no local mappings or no which-key, it opens Neovim help. |
 
 Telescope's reference is a compact overlay for the current picker mode, not a
