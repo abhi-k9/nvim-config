@@ -54,6 +54,62 @@ describe("portable UI policies", function()
     assert.are.equal(".", plugin(ui, "j-hui/fidget.nvim").opts.progress.display.progress_icon)
   end)
 
+  it("keeps Telescope typing on the real cursor while retaining code-window animation", function()
+    local dir, checkout = vim.fn.tempname(), vim.fn.getcwd()
+    vim.fn.mkdir(dir, "p")
+    local smear_dir = assert(require("lazy.core.config").plugins["smear-cursor.nvim"]).dir
+    local script = ([=[
+vim.opt.rtp:prepend(%q)
+vim.opt.rtp:append(%q)
+local specs = dofile(%q)
+local opts
+for _, spec in ipairs(specs) do
+  if spec[1] == "sphamba/smear-cursor.nvim" then opts = spec.opts end
+end
+assert(opts, "Missing smear-cursor configuration")
+local smear = require("smear_cursor")
+smear.setup(opts)
+-- Drain setup work before observing this operation's event gate. This does
+-- not assert that an animation already in flight disappears on a transition.
+vim.wait(50, function() return false end, 5)
+local animation = require("smear_cursor.animation")
+local events = require("smear_cursor.events")
+local replacements, scheduled = 0, 0
+local original_replace, original_defer = animation.replace_real_cursor, vim.defer_fn
+animation.replace_real_cursor = function() replacements = replacements + 1 end
+vim.defer_fn = function() scheduled = scheduled + 1 end
+vim.bo.filetype = "lua"
+events.move_cursor()
+assert(replacements == 1 and scheduled == 1, "Code windows lost cursor animation")
+replacements, scheduled = 0, 0
+vim.bo.filetype = "TelescopePrompt"
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { "sprin" })
+for _ = 1, 20 do events.move_cursor() end
+assert(replacements == 0, "Prompt typing replaced the real cursor")
+assert(scheduled == 0, "Prompt typing scheduled cursor animation")
+assert(vim.api.nvim_get_current_line() == "sprin", "Cursor handling changed prompt text")
+animation.replace_real_cursor, vim.defer_fn = original_replace, original_defer
+smear.enabled = false
+io.stdout:write("Prompt cursor stays native\n")
+]=]):format(checkout, smear_dir, checkout .. "/lua/plugins/editor.lua")
+    vim.fn.writefile(vim.split(script, "\n", { plain = true }), dir .. "/cursor.lua")
+    local result = vim
+      .system({ vim.v.progpath, "--headless", "--noplugin", "-u", "NONE", "-l", dir .. "/cursor.lua" }, {
+        text = true,
+        env = {
+          XDG_CONFIG_HOME = dir .. "/config",
+          XDG_DATA_HOME = dir .. "/data",
+          XDG_STATE_HOME = dir .. "/state",
+          XDG_CACHE_HOME = dir .. "/cache",
+          NVIM_LOG_FILE = dir .. "/nvim.log",
+        },
+      })
+      :wait(10000)
+    vim.fn.delete(dir, "rf")
+    assert.equals(0, result.code, (result.stderr or "") .. (result.stdout or ""))
+    assert.is_truthy(result.stdout:find("Prompt cursor stays native", 1, true))
+  end)
+
   it("allows global buffers without enabling the tab ownership plugin", function()
     settings.configure({ sessions = { global_buffers = true } })
     assert.is_false(plugin(dofile("lua/plugins/ui.lua"), "tiagovla/scope.nvim").cond())

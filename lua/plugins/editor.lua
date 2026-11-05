@@ -197,6 +197,8 @@ return {
     end,
     event = "VeryLazy",
     opts = {
+      -- Prompt typing should use the real cursor, without animated overlays.
+      filetypes_disabled = { "TelescopePrompt" },
       stiffness = 0.8, -- 0..1, higher = snappier
       trailing_stiffness = 0.5,
       distance_stop_animating = 0.5,
