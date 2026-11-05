@@ -5,7 +5,7 @@ describe("finder path clipboard action", function()
   before_each(function()
     require("lazy.core.loader").load("telescope.nvim", { cmd = "spec" })
     state = require("telescope.actions.state")
-    action = require("plugins.finder")[1].opts().defaults.mappings.i["<C-y>"]
+    action = require("plugins.finder")[1].opts().defaults.mappings.i["<C-y>"][1]
     original_selected, original_picker = state.get_selected_entry, state.get_current_picker
     original_setreg, original_notify = vim.fn.setreg, vim.notify
     old_cwd = vim.fn.getcwd()

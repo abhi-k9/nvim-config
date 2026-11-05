@@ -19,6 +19,11 @@ local function fzf_search(method, kind)
   end
 end
 
+-- Native help reads these descriptions from the actual registered mappings.
+local function telescope_action(fn, description)
+  return { fn, type = "action", opts = { desc = description } }
+end
+
 -- Telescope buffers-picker delete action (<C-d> / <M-d>). Drop only rows
 -- whose buffers are gone; skipped/dirty ones stay listed.
 local function picker_delete_buffers(prompt_bufnr)
@@ -36,13 +41,15 @@ local function picker_delete_buffers(prompt_bufnr)
   end
   require("config.util").delete_buffers_from_picker(bufs)
   picker:delete_selection(function(selection)
-    local b = selection.bufnr
-    return not (vim.api.nvim_buf_is_valid(b) and vim.bo[b].buflisted)
+    -- Scope can show valid, unlisted buffers from other tabs. A skipped
+    -- dirty row must remain visible there too; the helper wipes on success.
+    return not vim.api.nvim_buf_is_valid(selection.bufnr)
   end)
 end
 
 -- fzf-lua ctrl-x for the buffers and tabs pickers (same shared helper).
 local fzf_delete_buffers = {
+  desc = "Close selected buffers (keep windows)",
   fn = function(selected, opts)
     local fzf_path = require("fzf-lua.path")
     local bufs = {}
@@ -115,7 +122,13 @@ return {
             require("telescope.builtin").buffers()
           else
             require("telescope").load_extension("scope")
-            vim.cmd("Telescope scope buffers")
+            -- The extension is a separate picker: explicitly share buffer
+            -- actions/hints without replacing its cross-tab open behavior.
+            local buffers = require("telescope.config").pickers.buffers or {}
+            require("telescope").extensions.scope.buffers({
+              attach_mappings = buffers.attach_mappings,
+              results_title = buffers.results_title,
+            })
           end
         end,
         desc = "Buffers (all tabs)",
@@ -143,8 +156,21 @@ return {
     },
     opts = function()
       local actions = require("telescope.actions")
+      local buffer_maps = {
+        ["<C-d>"] = telescope_action(picker_delete_buffers, "Close buffers (keep windows)"),
+        ["<M-d>"] = telescope_action(picker_delete_buffers, "Close buffers (keep windows)"),
+        ["<Tab>"] = telescope_action(
+          actions.toggle_selection + actions.move_selection_worse,
+          "Mark buffer and next"
+        ),
+        ["<S-Tab>"] = telescope_action(
+          actions.toggle_selection + actions.move_selection_better,
+          "Mark buffer and previous"
+        ),
+      }
       return {
         defaults = {
+          results_title = "Results (F1: keys)",
           disable_devicons = not require("config.settings").get("ui.icons", true),
           prompt_prefix = require("config.icons").misc.search .. " ",
           -- selection_caret drives the leading column on the SELECTED row.
@@ -185,6 +211,7 @@ return {
           },
           mappings = {
             i = {
+              ["<F1>"] = actions.which_key,
               -- C-j / C-k for navigation are the dominant convention from
               -- vim/tmux/fzf — easier on the wrist than the default arrows.
               ["<C-j>"] = actions.move_selection_next,
@@ -213,7 +240,7 @@ return {
               -- path; even if the notification is blocked by the picker UI,
               -- the path is in the clipboard, so you can close the picker
               -- and paste/view it.
-              ["<C-y>"] = function(prompt_bufnr)
+              ["<C-y>"] = telescope_action(function(prompt_bufnr)
                 local state = require("telescope.actions.state")
                 local entry = state.get_selected_entry()
                 if not entry then return end
@@ -233,8 +260,9 @@ return {
                 vim.fn.setreg("+", full)
                 vim.fn.setreg('"', full)
                 vim.notify(full, vim.log.levels.INFO, { title = "Yanked path" })
-              end,
+              end, "Copy full path"),
             },
+            n = { ["<F1>"] = actions.which_key, ["g?"] = actions.which_key },
           },
           -- Default exclusions are deliberately minimal and replaceable via
           -- search.exclude_dirs or search.telescope.exclude_dirs. The fd /
@@ -264,6 +292,7 @@ return {
             ),
           },
           buffers = {
+            results_title = "F1: keys | Tab: mark | Ctrl-d: close",
             -- <Tab>/<S-Tab> multi-select, then <C-d> deletes every selected
             -- buffer (or the highlighted one). Dirty buffers are skipped
             -- and keep their windows; the picker stays open with the
@@ -272,15 +301,16 @@ return {
             -- default for the stock actions.delete_buffer, which closes
             -- every window showing the buffer (:h :bdelete) — it is bound to
             -- the same safe action so there is no layout-breaking variant.
-            mappings = {
-              i = {
-                ["<C-d>"] = picker_delete_buffers,
-                ["<M-d>"] = picker_delete_buffers,
-              },
-              n = {
-                ["<M-d>"] = picker_delete_buffers,
-              },
-            },
+            -- Passing descriptions explicitly also works for per-picker
+            -- attachments (whose shorthand mappings discard opts.desc).
+            attach_mappings = function(_, map)
+              for _, mode in ipairs({ "i", "n" }) do
+                for lhs, action in pairs(buffer_maps) do
+                  map(mode, lhs, action[1], action.opts)
+                end
+              end
+              return true
+            end,
           },
         },
         extensions = {
