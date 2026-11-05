@@ -6,6 +6,37 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-05 — Expose live context help and safe buffer actions
+
+### Changed
+
+- Add native F1 help to Telescope, Neo-tree and Trouble, plus Normal-mode `g?`
+  aliases. Retain native help keys and fzf-lua's existing F1. Normal-mode F1
+  elsewhere shares the which-key local-mapping reference, falling back to
+  Neovim help for empty contexts or missing which-key.
+- Advertise picker help and buffer mark/close keys in result titles. Give custom
+  actions readable live descriptions without a separate help renderer/manual.
+  Literal prompt input and terminal input retain their existing bindings.
+- Share safe Ctrl-d/Alt-d closing and mark actions across both buffer-picker
+  modes and the all-tabs Scope picker, preserving its native cross-tab opening.
+  Keep skipped, unlisted buffers from other tabs visible after a close attempt.
+
+### Docs
+
+- Document help entry points, mode/terminal limits, multi-buffer closing and
+  native reference behavior in the quick start, migration guide and cheatsheets.
+
+## 2026-11-05 — Toggle Neo-tree buffers and filesystem views
+
+### Changed
+
+- Make repeated `<leader>be` switch the visible tree between buffers and files.
+  Derive state from Neo-tree instead of keeping a second toggle flag; preserve
+  native roots/position and avoid automatic reveal changing the remembered root.
+- Catch unavailable modules and source-switch errors without adding cwd, Scoper
+  or project-root coupling. Verify actual source/root behavior and focused
+  regressions for windows, tabs, closed trees and dependency failure.
+
 ## 2026-11-05 — Cache Bufferline diagnostic counts locally
 
 ### Changed

@@ -250,11 +250,12 @@
     <tr><td><kbd class="blue">&lt;leader&gt;fG</kbd></td><td>Git status</td></tr>
     <tr><td><kbd class="blue">&lt;leader&gt;fT</kbd></td><td>TODO comments</td></tr>
     <tr class="divider"><td colspan="2">Inside the picker</td></tr>
+    <tr><td><kbd class="blue">&lt;F1&gt;</kbd> / <kbd class="blue">g?</kbd></td><td>Live picker key reference <span class="note">F1 in either mode; g? in Normal mode. Query and selection stay intact.</span></td></tr>
     <tr><td><kbd class="blue">&lt;C-j&gt;</kbd> <kbd class="blue">&lt;C-k&gt;</kbd></td><td>Move selection</td></tr>
     <tr><td><kbd class="blue">&lt;C-q&gt;</kbd></td><td>Send all → quickfix → open</td></tr>
     <tr><td><kbd class="blue">&lt;C-y&gt;</kbd></td><td>Yank the entry's full path <span class="note">to the clipboard and <code>"</code>; picker stays open</span></td></tr>
     <tr><td><kbd class="blue">&lt;Esc&gt;</kbd></td><td>Close at once <span class="note">no normal-mode stop; <kbd>&lt;C-u&gt;</kbd> clears the prompt as in any input line</span></td></tr>
-    <tr><td><kbd class="blue">&lt;C-d&gt;</kbd> / <kbd class="blue">&lt;M-d&gt;</kbd></td><td>Delete buffer(s) (buffers picker) <span class="note"><kbd>&lt;Tab&gt;</kbd>/<kbd>&lt;S-Tab&gt;</kbd> multi-select first to bulk-close, scoper-style; picker stays open, windows are preserved, dirty buffers are skipped with a warning</span></td></tr>
+    <tr><td><kbd class="blue">&lt;C-d&gt;</kbd> / <kbd class="blue">&lt;M-d&gt;</kbd></td><td>Close buffer(s) (this-tab/all-tabs picker, either mode) <span class="note"><kbd>&lt;Tab&gt;</kbd>/<kbd>&lt;S-Tab&gt;</kbd> multi-select first to bulk-close, scoper-style; picker stays open, windows are preserved, dirty buffers are skipped with a warning</span></td></tr>
   </table>
 </div>
 
@@ -483,7 +484,7 @@
     <tr><td><kbd class="rosewater">&lt;leader&gt;E</kbd></td><td>Reveal current file</td></tr>
     <tr><td><kbd class="rosewater">&lt;leader&gt;fe</kbd></td><td>Focus existing tree</td></tr>
     <tr><td><kbd class="rosewater">&lt;leader&gt;ge</kbd></td><td>Git status panel</td></tr>
-    <tr><td><kbd class="rosewater">&lt;leader&gt;be</kbd></td><td>Buffers panel <span class="note"><kbd>d</kbd> / <kbd>bd</kbd> delete the buffer like <kbd>&lt;leader&gt;bd</kbd>: splits kept, unsaved buffers skipped</span></td></tr>
+    <tr><td><kbd class="rosewater">&lt;leader&gt;be</kbd></td><td>Toggle buffers ↔ files view <span class="note">Press again to return to the remembered filesystem root. <kbd>d</kbd> / <kbd>bd</kbd> delete the buffer like <kbd>&lt;leader&gt;bd</kbd>: splits kept, unsaved buffers skipped</span></td></tr>
     <tr class="divider"><td colspan="2">Inside the tree</td></tr>
     <tr><td><kbd class="rosewater">a</kbd></td><td>Add file (end with <code>/</code> for dir)</td></tr>
     <tr><td><kbd class="rosewater">d</kbd> <kbd class="rosewater">r</kbd></td><td>Delete / rename</td></tr>
@@ -496,7 +497,7 @@
     <tr><td><kbd class="rosewater">P</kbd></td><td>Toggle floating preview</td></tr>
     <tr><td><kbd class="rosewater">&lt;C-s&gt;</kbd></td><td>Quick-jump: type a node's label to jump + open/toggle it</td></tr>
     <tr><td><kbd class="rosewater">&lt;Tab&gt;</kbd> <span class="note">/ <kbd class="rosewater">&lt;C-;&gt;</kbd></span></td><td>Multi-select toggle / clear selection</td></tr>
-    <tr><td><kbd class="rosewater">?</kbd></td><td>Full keymap help</td></tr>
+    <tr><td><kbd class="rosewater">?</kbd> / <kbd class="rosewater">g?</kbd> / <kbd class="rosewater">&lt;F1&gt;</kbd></td><td>Full keymap help</td></tr>
     <tr><td colspan="2" class="note"><kbd>&lt;C-s&gt;</kbd> quick-jump and <kbd>&lt;Tab&gt;</kbd>/<kbd>&lt;C-;&gt;</kbd> select are neo-tree defaults on its <code>main</code> branch, which <code>explorer.lua</code> tracks (<code>:Lazy sync</code> after changing the branch). <kbd>&lt;C-;&gt;</kbd> also needs a terminal that transmits Ctrl+punctuation.</td></tr>
     <tr class="divider"><td colspan="2">auto-session</td></tr>
     <tr><td><kbd class="rosewater">&lt;leader&gt;wf</kbd></td><td>Find session (picker) <span class="note"><code>:AutoSession search</code></span></td></tr>

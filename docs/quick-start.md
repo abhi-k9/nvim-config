@@ -31,6 +31,33 @@ Press Space and wait for the which-key menu whenever you forget a mapping.
 active directory. Launching here sets the initial directory context; opening a
 file does not import a Visual Studio solution or select a build configuration.
 
+## Discover actions inside a feature
+
+Press **F1** in Telescope, fzf-lua, Neo-tree or Trouble for that feature's live
+key reference. Telescope's result border reminds you of F1; its buffer picker
+also shows the mark/close keys. Help reflects the active mappings, including
+our custom actions.
+
+| Context | Other help keys |
+| --- | --- |
+| Telescope | `g?` or `?` in its Normal mode; Ctrl-/ (often Ctrl-_) while typing. |
+| Neo-tree / Trouble | `g?` or `?` inside the panel. |
+| Mason / grug-far | `g?` opens the native help page. |
+| Lazy | `?` opens its native help page. |
+| Other buffers | F1 in Normal mode, or `<leader>?`, lists local mappings through which-key; with no local mappings or no which-key, it opens Neovim help. |
+
+Telescope's reference is a compact overlay for the current picker mode, not a
+scrollable manual. Press F1 again, or perform an action, to dismiss it and keep
+your query. Literal `?` and `g?` still type normally in search prompts.
+On a Mac, F1 may require Fn+F1; terminal/system shortcuts can intercept function
+keys. Use the alternate keys above. Ctrl-Shift-? is deliberately not required
+because some terminals encode it as Backspace/Delete.
+
+`<leader>be` opens Neo-tree's buffers view; press it again to return to its
+remembered filesystem view. A closed tree starts in buffers view. This changes
+the view without selecting a new project root. If Neo-tree is unavailable, the
+mapping reports that condition without throwing an error.
+
 ## Change the working directory
 
 After `nvim .`, use `:cd /path/to/project` (Windows: `:cd C:/work/OtherProject`),
@@ -166,6 +193,12 @@ between windows, `<leader>wm` toggles zoom, and `<leader>wc` closes a window.
 A buffer is the open document; a window is a view of it. `<leader>bd` closes a
 buffer while preserving splits and refuses unsaved changes. Closing a terminal
 buffer can stop its running job.
+
+To close a chosen set, open `<leader>fb` (this tab) or `<leader>fB` (all tabs),
+mark rows with Tab/Shift-Tab, then press Ctrl-d or Alt-d. The action works in
+both picker modes, keeps the picker and editor splits open, and skips unsaved
+buffers. F1 lists the actual actions; `<leader>bP` closes unpinned buffers and
+`<leader>bm` offers **Close others**.
 
 Sessions normally save/restore eligible cwd-based work. `<leader>wS` saves,
 `<leader>wf` selects a saved session, and `<leader>wr` restores one. Save files

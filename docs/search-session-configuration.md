@@ -158,6 +158,43 @@ picker when `fzf` is installed. Or use `:ScoperFind` for a deliberately bounded
 working set. `:checkhealth telescope` checks the optional native sorter; a healthy
 sorter does not remove result-formatting, preview or UI rendering costs.
 
+## Context help and buffer actions
+
+F1 opens Telescope's native live keymap overlay from either picker mode; `g?`
+also opens it from picker Normal mode. Native `?` (Normal) and Ctrl-/ / Ctrl-_
+(Insert) remain available. The overlay lists mappings for the current mode,
+leaves focus in the prompt and does not alter the query or selection. F1 again
+or the next picker action dismisses it. Long lists can be clipped by the native
+overlay on small terminals; this is a quick reference, not a scrollable manual.
+
+The results border advertises F1. Buffers pickers show the mark/close hints too:
+Tab/Shift-Tab mark or unmark a row and move; Ctrl-d or Alt-d closes the marked
+set, or the highlighted row when none is marked. Both picker modes use the same
+safe close action. Unsaved rows stay visible, including unlisted buffers owned
+by other tabs; successful closes preserve editor windows and refresh the list.
+
+`<leader>fB` explicitly shares these actions and hints with Scope's all-tabs
+picker while retaining its cross-tab Enter behavior and Ctrl-w action. This
+extension is a separate picker and does not automatically inherit ordinary
+Telescope buffers-picker configuration.
+
+fzf-lua already provides native F1 help; its Ctrl-x buffer-close action now has a
+readable description there. Native help is generated on demand from registered
+mappings, with no per-keystroke help rendering or duplicate manual to maintain.
+
+Neo-tree's F1 / `g?` / `?` show its native keymaps. `<leader>be` toggles its visible
+buffers/filesystem source in the current tab, preferring the focused tree if more
+than one exists. Switching back preserves the remembered filesystem root and
+window placement; it does not reveal an unrelated current file or change the
+global working directory. With no visible tree, the mapping opens buffers view.
+There is no separate config-owned source flag, project-root resolver or Scoper
+dependency. Missing Neo-tree modules or command failures produce a warning.
+
+F1 in Normal mode elsewhere uses the existing which-key local-mapping reference;
+native buffer-local F1 mappings take precedence. No new Insert/terminal-mode
+binding intercepts terminal input. Mason and grug-far retain `g?`, Lazy retains
+`?`, and `<leader>?` remains an alternate local-key reference.
+
 ## Scoper picker queries
 
 Scoper searches use the loaded Scoper project root, independently of ordinary

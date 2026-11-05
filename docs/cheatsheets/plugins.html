@@ -651,7 +651,7 @@
     </tr>
     <tr>
       <td><b>auto-session</b></td><td>Per-cwd session, saved on exit and restored when <code>nvim</code> starts without file arguments. Never in <code>~</code>, <code>~/Downloads</code>, the temp dir (<code>$TEMP</code>/<code>$TMP</code>/<code>$TMPDIR</code>) or the drive root (<code>C:\</code> on Windows; <code>/tmp</code>, <code>/</code> elsewhere). <code>:AutoSession save|restore|delete|search</code>; browse sessions with <kbd class="lavender">&lt;leader&gt;wf</kbd> (Telescope picker).</td>
-      <td><b>which-key</b></td><td>Popup appears after which-key's own <code>delay</code> (200 ms; instantly for marks, registers and spelling). <code>'timeoutlen'</code> (400 ms) only decides when an ambiguous mapping fires. <kbd class="lavender">&lt;leader&gt;?</kbd> shows buffer-local mappings only. <code>:WhichKey</code> shows everything.</td>
+      <td><b>which-key</b></td><td>Popup appears after which-key's own <code>delay</code> (200 ms; instantly for marks, registers and spelling). <code>'timeoutlen'</code> (400 ms) only decides when an ambiguous mapping fires. <kbd class="lavender">&lt;F1&gt;</kbd> (Normal mode) or <kbd class="lavender">&lt;leader&gt;?</kbd> shows buffer-local mappings; empty contexts or missing which-key open Neovim help. Native panel/picker F1 mappings take precedence. <code>:WhichKey</code> shows everything.</td>
     </tr>
   </table>
 </div>

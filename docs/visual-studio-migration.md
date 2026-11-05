@@ -71,6 +71,11 @@ Most mappings in this guide are Normal-mode mappings unless stated otherwise.
 `Space f c` searches commands. `:Tutor` teaches the editing model without requiring
 you to learn the entire plugin set first.
 
+For context-specific keys, press F1: pickers and supported panels show their
+native reference; other Normal-mode buffers show local mappings or Neovim help.
+Mason/grug-far also use `g?`; Neo-tree/Trouble use `g?` or `?`. See
+[in-feature discovery](quick-start.md#discover-actions-inside-a-feature).
+
 Use the portable leader mapping when a function-key chord does not arrive at
 Neovim. Modified keys depend on terminal/multiplexer encoding. See the
 [terminal notes](../README.md#terminal--multiplexer-notes).
