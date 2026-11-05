@@ -417,6 +417,8 @@ terminal launching needs client configuration; see the
 | Action | Keys |
 | --- | --- |
 | Start/select configuration or Continue | F5 / `<leader>dc` |
+| Explicitly choose / inspect launch settings | `<leader>da` / `<leader>dI` |
+| Edit the configured launch file | `:DapEditLaunch` |
 | Pause | F6 / `<leader>dp` |
 | Toggle persistent breakpoint | F9 / `<leader>db` |
 | Conditional/hit-count breakpoint | `<leader>dB` |
@@ -443,6 +445,14 @@ Finish an active session and select a new configuration after editing
 Restart reuse its existing configuration. `<leader>dL` validates/previews without
 launching. For PID attach, use the template or select the generated CodeLLDB
 attach fallback; access rights and OS attach policy still apply.
+
+The launch chooser shows program, cwd and adapter command presence before
+launching, including a single choice. Computed fields and placeholders remain
+unevaluated until launch. `<leader>dI` opens unclipped details with `q` / Esc to
+close; a found command is not a complete debugger readiness check. The small
+`<leader>dw` value preview also uses `q` / Esc to close only its float.
+Use `<leader>wi` for directory/build/debug context and `<leader>h` /
+`:ConfigHelp migration` to read the maintained guides inside Neovim.
 
 Breakpoints can persist across editor starts, but a session file cannot restore
 a running debuggee. Keeping panels visible after exit also does not preserve a

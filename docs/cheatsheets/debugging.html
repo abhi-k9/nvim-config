@@ -101,11 +101,15 @@
     <tr><td><kbd class="mauve">&lt;leader&gt;du</kbd></td><td>Toggle DAP UI</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dr</kbd></td><td>Toggle REPL / DEBUG CONSOLE</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;de</kbd></td><td>Eval expression under cursor / selection (n, x)</td></tr>
-    <tr><td><kbd class="mauve">&lt;leader&gt;dw</kbd></td><td>Hover value in a widgets float <span class="note">lighter than <kbd class="mauve">de</kbd>; no full UI (n, x)</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dw</kbd></td><td>Hover value in a widgets float <span class="note">lighter than <kbd class="mauve">de</kbd> (n, x); q / Esc closes only this preview</span></td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dv</kbd></td><td>Toggle inline end-of-line values</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dU</kbd></td><td>Toggle UI auto-close on exit <span class="note">off = retain console/panel display; ended sessions cannot answer new variable queries. Option <code>vim.g.dap_autoclose_ui</code></span></td></tr>
     <tr class="divider"><td colspan="2">VS Code function keys <span class="note">unmodified only</span></td></tr>
-    <tr><td><kbd class="mauve">&lt;F5&gt;</kbd> <kbd class="mauve">&lt;F6&gt;</kbd></td><td>Continue / start &nbsp;·&nbsp; Pause</td></tr>
+    <tr><td><kbd class="mauve">&lt;F5&gt;</kbd> <kbd class="mauve">&lt;F6&gt;</kbd></td><td>Continue / choose launch &nbsp;·&nbsp; Pause</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;da</kbd> / <code>:DapLaunch</code></td><td>Choose a new launch with program, cwd and adapter status</td></tr>
+    <tr><td><kbd class="mauve">&lt;leader&gt;dI</kbd> / <code>:DapLaunchInfo</code></td><td>Full read-only details; placeholders/functions stay unevaluated, command presence is not a full readiness check. q / Esc closes.</td></tr>
+    <tr><td><code>:DapEditLaunch</code></td><td>Open the configured launch file in a split; save deliberately</td></tr>
+    <tr><td><code>:WorkspaceInfo</code> / <code>:ConfigHelp debugging</code></td><td>Compare roots and active debug context / read the maintained guide inside Neovim</td></tr>
     <tr><td><kbd class="mauve">&lt;F9&gt;</kbd></td><td>Toggle breakpoint <span class="note">persistent, like <kbd class="mauve">db</kbd></span></td></tr>
     <tr><td><kbd class="mauve">&lt;F10&gt;</kbd> <kbd class="mauve">&lt;F11&gt;</kbd></td><td>Step over &nbsp;·&nbsp; Step into</td></tr>
     <tr><td colspan="2" class="note">Shift+F5 (stop), Shift+F11 (step out) &amp; Ctrl+Shift+F5 (restart) are deliberately <em>not</em> bound: support depends on terminal/multiplexer key encoding and forwarding. Use <kbd class="mauve">&lt;leader&gt;dt</kbd> / <kbd class="mauve">dO</kbd> / <kbd class="mauve">dR</kbd> instead.</td></tr>

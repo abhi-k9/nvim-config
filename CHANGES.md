@@ -6,6 +6,33 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-05 — Make workspace, guide and debug workflows easier to discover
+
+### Changed
+
+- Add `<leader>h` / `:ConfigHelp [topic]` to read maintained guides inside Neovim,
+  with completion, topic selection, search and scoped close keys. References
+  skip FileType provisioning and remain usable without optional plugins.
+- Add `<leader>wi` / `:WorkspaceInfo` to compare cwd scopes, visible tree roots,
+  Scoper/build state, attached LSP roots and debugging context. Refresh retains
+  the original source window; missing status APIs and resolver errors are isolated.
+- Show program/cwd and adapter command presence in the local launch chooser.
+  Add `:DapLaunch`, `:DapLaunchInfo` and `:DapEditLaunch`, with `<leader>da` and
+  `<leader>dI` shortcuts. Preserve native configuration values, dynamic launch
+  evaluation, existing-session Continue, Run Last and Restart. Cancel stale
+  discovery/selection, handle unavailable integrations and never auto-launch on
+  selector failure. No plugin source, dependency or lockfile changes.
+- Use close-buffer labels consistently and name discard-changes actions. Add
+  recovery commands to common buffer, formatter and launch failures. Buffer
+  menus and native debugger value previews show scoped `q` / Esc close hints;
+  Esc also closes Atone help without restoring an undo node.
+
+### Docs
+
+- Update the quick start, context-help/directory/debugger/migration guides,
+  README and cheatsheets with new workflows, close/delete/quit terminology,
+  inspection limits and missing-plugin recovery.
+
 ## 2026-11-05 — Extend native help to undo, diff and scope workflows
 
 ### Changed

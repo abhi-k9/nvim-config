@@ -10,6 +10,12 @@ For an IDE-oriented introduction, use the [Visual Studio migration guide](visual
 Keep this guide for daily tasks and the [keymap sheet](cheatsheets/keymaps.html)
 for the larger reference.
 
+Read the guides inside Neovim with `<leader>h` / `:ConfigHelp`. Choose a topic,
+or type `:ConfigHelp buffers`, `:ConfigHelp workspace` or `:ConfigHelp debugging`.
+Tab completes topic names. These read-only copies use the repository's actual
+documents: `/` searches, `b` returns to topics, and `q` / Esc closes just the guide.
+They work without finder/help plugins and do not start language tools for the guide.
+
 ## First session
 
 1. Open a terminal in your project directory and run `nvim`. If your build needs
@@ -30,6 +36,9 @@ Press Space and wait for the which-key menu whenever you forget a mapping.
 `<leader>fk` searches mappings; `<leader>fh` searches help; `:pwd` shows the
 active directory. Launching here sets the initial directory context; opening a
 file does not import a Visual Studio solution or select a build configuration.
+Use `<leader>wi` / `:WorkspaceInfo` when different features seem to disagree about
+the project. Its footer offers `r` to refresh the original source window's context
+and `h` to read the directory guide; `q` / Esc closes only the report.
 
 ## Discover actions inside a feature
 
@@ -169,11 +178,20 @@ terminal job keeps its shell environment and original cwd when reopened.
 2. Copy/adapt the [launch template](templates/dap/launch.json.example) into the
    project's `.vscode/launch.json`. Select the correct adapter and set `program`,
    `cwd`, arguments and environment for that actual build.
-3. Use `<leader>dL` to validate/preview configurations without launching.
+3. Use `<leader>dL` to validate/preview the launch file. `:DapEditLaunch` opens
+   that configured file in a split without writing it. `<leader>dI` shows full
+   launch details, including generated fallbacks, without starting a session.
 4. Set a breakpoint with F9, then F5 to choose/start a launch configuration.
+   The chooser shows program, cwd and adapter command status, even for one choice.
+   Computed values remain unevaluated until launch; a found command is not a
+   complete debugger check. `<leader>da` explicitly opens the chooser again.
    F10 steps over, F11 steps into, `<leader>dO` steps out, and F6 pauses.
 5. Inspect variables/stack in DAP UI; `<leader>de` evaluates an expression and
    `<leader>du` toggles the panels. `<leader>dt` terminates the session.
+
+`<leader>dw` opens a small native value preview; `q` / Esc closes just that float.
+If an adapter command is missing, the chooser does not start that launch and points
+to setup/health commands. Use `:ConfigHelp debugging` for recovery instructions.
 
 Without a launch file, a generated fallback can prompt for an executable. It
 does not build it. F5 during a live session continues that session; stop it and
@@ -198,6 +216,14 @@ between windows, `<leader>wm` toggles zoom, and `<leader>wc` closes a window.
 A buffer is the open document; a window is a view of it. `<leader>bd` closes a
 buffer while preserving splits and refuses unsaved changes. Closing a terminal
 buffer can stop its running job.
+
+Labels use **close buffer** for removing an open document, **close window** for
+removing a view, **delete file** for removing a disk file, and **quit** for leaving
+the editor. `<leader>bD` closes a buffer and discards unsaved changes;
+`<leader>Q` quits all and discards them. Ordinary buffer closes do not delete disk
+files. **Preview** inspects; **restore/revert** applies a change. In Atone, Enter
+restores the selected undo node, so inspect its diff first; `q` / Esc closes its
+help without restoring anything. Esc in the tree itself retains its native action.
 
 To close a chosen set, open `<leader>fb` (this tab) or `<leader>fB` (all tabs),
 mark rows with Tab/Shift-Tab, then press Ctrl-d or Alt-d. The action works in
@@ -238,8 +264,8 @@ The shipped clangd mode can filter its database by scope; see the
 | A shortcut seems to type text | Esc, then retry in Normal mode; press Space and wait for which-key. |
 | No completion, definition or rename | `:checkhealth vim.lsp`; check the attached server and, for C/C++, the compilation database. |
 | No formatter or tool | `:checkhealth config`, `:Mason`, `:ConformInfo`; selected tools still need supported prerequisites. |
-| A debugger cannot start | Check adapter installation, `program`/`cwd`, and build symbols; `<leader>dL` checks JSON, not executable readiness. |
-| A file is absent from search | Check cwd, ignore/visibility policy and whether this is an ordinary or Scoper picker. |
+| A debugger cannot start | `<leader>dI` inspects raw launch fields and command presence; `<leader>dL` checks the launch file. Use `:DapShowLog` for runtime failures and `:ConfigHelp debugging` for setup. |
+| A file is absent from search | `<leader>wi` compares roots and Scoper state; then check ignore/visibility policy and whether this is an ordinary or Scoper picker. |
 
 For a limited machine, read [optional-tool behavior](limited-environments.md).
 Put persistent preferences in the ignored root `local.lua`, using

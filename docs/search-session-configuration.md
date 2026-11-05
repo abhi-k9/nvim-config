@@ -116,6 +116,22 @@ tabs/windows can retain their own local directories after a global change.
 `:lua print(vim.fn.getcwd(-1, -1))` prints global cwd, and `:ScoperShow` shows
 Scoper's actual project/database state.
 
+`<leader>wi` / `:WorkspaceInfo` collects these distinctions in a read-only report:
+source file, window/tab/global cwd, configured project root, visible current-tab
+Neo-tree source/root, Scoper scope ON/OFF, explicit build selection and resolved
+clangd database/preparation status, attached LSP roots, and debugging context.
+Debug context includes the next launch root/file and the active session's name,
+type, program and cwd; environment/argument tables are not dumped.
+
+Press `r` to refresh the original source window, `h` to read this guide, or
+`q` / Esc to close just the report. An unavailable plugin/API is named instead
+of failing the whole report. Closed trees' saved roots are deliberately not
+queried: asking Neo-tree for fresh state could create it. The report never
+requires optional plugin modules, changes cwd, starts a debugger or prepares a
+database. Trusted configured root/launch-file resolvers and loaded Scoper status
+discovery run on demand, so custom callbacks should remain suitable for inspection.
+Use `:ScoperShow` and `:checkhealth config` for deeper state and tooling details.
+
 With default root policies, the components respond as follows:
 
 | Component | Effect of changing global cwd |

@@ -112,11 +112,52 @@ files and review adapter commands before launching them.
 
 ## Selecting a launch and choosing program input/output
 
-`<leader>dc` reads the launch provider when choosing a new configuration. During
-an active session it continues that session; `<leader>dl` (Run Last) and
-`<leader>dR` (Restart) reuse an existing configuration. To apply launch-file
-edits, finish the session and choose a configuration again. `<leader>dL`
-validates/previews the file without starting a process.
+F5 / `<leader>dc` delegates to native Continue when sessions exist. Otherwise it
+opens a chooser over nvim-dap's documented `dap.providers.configs`, showing each
+configuration's name, adapter/request, program, cwd and adapter command status.
+See `:help dap-providers` and `:help dap-adapter` for the native extension points.
+Even a single configuration is offered for confirmation. `<leader>da` /
+`:DapLaunch` explicitly opens this chooser, including during a live session.
+Canceling it starts nothing. Switching the source buffer/directory while discovery
+or selection is pending cancels that attempt; retry from the intended code window.
+
+`<leader>dI` / `:DapLaunchInfo` opens full details if long picker labels are
+clipped. `/` searches and `q` / Esc closes only the report. Providers are read,
+but configuration/field functions, adapter factories, input prompts and variable
+expansion are left to native DAP at launch. Literal placeholders remain visible;
+computed fields are marked. Inspection does not execute launch-field callbacks,
+probe remote adapters or start programs. Custom providers themselves may perform
+work, as they do for native configuration discovery.
+
+**Command found** means only that a statically declared adapter command is
+executable. It does not establish debugger/runtime compatibility, target existence,
+symbols or successful connection. Dynamic commands/registrations and remote
+adapters remain delegated to DAP. Custom adapter cwd/environment overrides are
+marked **custom launch context** and left to DAP/libuv; Neovim's own PATH cannot
+verify those lookups. Callable configurations can resolve their adapter at launch.
+Missing ordinary static commands/adapters stop that
+choice with a health/setup hint; adapter availability is rechecked on selection.
+Missing plugins, incomplete provider APIs and failed selectors give recovery
+messages. A failed selector never auto-launches; `:DapLaunchInfo` still provides
+inspection without a picker. These changes are local configuration wrappers;
+the original plugin, configuration tables and lockfile remain unchanged.
+
+`:DapEditLaunch` opens the configured launch file in a split without writing it
+or creating directories. Save deliberately when ready; `debug.launch_file = false`
+is respected. `<leader>dL` / `:DapLoadLaunchJSON` validates/previews that file.
+Use `:DapShowLog` for adapter/runtime errors and `:ConfigHelp debugging` for this
+guide. `<leader>wi` / `:WorkspaceInfo` compares the next launch root/file against
+the active session and the editor's other directory scopes.
+
+`<leader>dl` (Run Last) and `<leader>dR` (Restart) reuse their existing native
+configuration. To apply launch-file edits, finish the session and choose a
+configuration again. The richer chooser changes neither launch values nor
+native session continuation, Run Last or Restart.
+
+For a quick variable inspection, `<leader>dw` opens the native widgets float.
+Its footer shows `q` / Esc; these close just that preview. `<leader>de` uses DAP
+UI's separate expression evaluator. Missing widgets give a setup hint rather
+than an unhandled require error.
 
 CodeLLDB's `terminal = "console"` sends program output to the DAP console and
 avoids the terminal-launch handshake that caused problems in the tested Windows

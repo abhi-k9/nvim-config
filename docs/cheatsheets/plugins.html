@@ -304,6 +304,8 @@
       without launching anything (same as <code>:DapLoadLaunchJSON</code>). <code>${workspaceFolder}</code> uses the resolved debug root;
       the default inherits nvim-dap's current-directory discovery, while <code>debug.root</code> can override it.
       See <code>docs/templates/dap/launch.json.example</code> for a template.</td></tr>
+    <tr><td><code>:DapLaunch</code> / <code>:DapLaunchInfo</code></td><td>Choose with program/cwd/adapter command status / inspect full read-only details. Computed fields stay unevaluated until launch. q / Esc closes the details.</td></tr>
+    <tr><td><code>:DapEditLaunch</code></td><td>Open configured launch file in a split without creating/writing it; disabled launch-file policy is respected.</td></tr>
     <tr class="divider"><td colspan="2">QOL (Visual-Studio-like)</td></tr>
     <tr><td>inline values</td><td>nvim-dap-virtual-text paints each variable's value at end-of-line while stopped (VS inline values)</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dp</kbd> / <kbd class="mauve">dT</kbd></td><td>Pause without the thread picker / toggle the picker back for non-stop adapters</td></tr>
@@ -357,6 +359,7 @@
     <tr><td><kbd class="lavender">s</kbd></td><td>Open mark picker (fuzzy find)</td></tr>
     <tr class="divider"><td colspan="2">Pane controls</td></tr>
     <tr><td><kbd class="lavender">&lt;F1&gt;</kbd> <kbd class="lavender">?</kbd> <kbd class="lavender">g?</kbd></td><td>Show native in-pane help</td></tr>
+    <tr><td><kbd class="lavender">q</kbd> <kbd class="lavender">&lt;Esc&gt;</kbd> <kbd class="lavender">&lt;C-c&gt;</kbd> in help</td><td>Close only the help; no undo node is restored</td></tr>
     <tr><td><kbd class="lavender">q</kbd> <kbd class="lavender">&lt;C-c&gt;</kbd></td><td>Close all atone windows</td></tr>
     <tr><td colspan="2" class="note">Diff preview is TreeSitter-syntax-highlighted with word-level
       inline diff. Pairs with <code>undofile = true</code> in <code>options.lua</code>
@@ -448,7 +451,7 @@
     <tr><td><kbd>&lt;C-j&gt;</kbd> / <kbd>&lt;C-k&gt;</kbd></td><td>Next / previous result</td></tr>
     <tr><td><kbd>&lt;C-q&gt;</kbd></td><td>Send all results to quickfix + open</td></tr>
     <tr><td><kbd>&lt;C-y&gt;</kbd></td><td>Yank highlighted entry's full path to clipboard &amp; show via notify <span class="note">non-closing — peek without leaving picker</span></td></tr>
-    <tr><td><kbd>&lt;C-d&gt;</kbd></td><td>Delete buffer <span class="note">buffers picker only</span></td></tr>
+    <tr><td><kbd>&lt;C-d&gt;</kbd></td><td>Close buffer <span class="note">buffers picker only; disk file stays</span></td></tr>
     <tr><td><kbd>&lt;Esc&gt;</kbd></td><td>Close picker (single press, no normal mode dance)</td></tr>
     <tr class="divider"><td colspan="2">fzf-lua</td></tr>
     <tr><td><code>:FzfLua</code></td><td>Pick a picker</td></tr>

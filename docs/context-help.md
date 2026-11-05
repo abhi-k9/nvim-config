@@ -10,6 +10,29 @@ References describe the active context: a Diffview merge layout has different
 actions from its file-history panel. Help stays with the plugin rather than a
 second hand-maintained list in the configuration.
 
+## Read a guide or inspect the workspace
+
+`<leader>h` / `:ConfigHelp [topic]` reads the existing Markdown guides in a
+read-only floating window. With no topic, choose from a menu; Tab completion
+also supports direct commands. Topics are `quickstart`, `navigation`, `buffers`,
+`workspace`, `debugging`, `help`, `tools`, `install`, `migration` and `customization`.
+`/` searches the document, `b` returns to topics, and `q` / Esc closes the reader.
+The source document stays untouched. References skip FileType provisioning, so
+reading a guide does not install parsers or start a language server for it.
+
+`<leader>wi` / `:WorkspaceInfo` compares cwd scopes, visible Neo-tree roots,
+Scoper's scope/build state, attached language-server roots and debugger context.
+Its footer offers `r` to refresh the original source window and `h` for the
+directory guide. `q` / Esc closes only that report. Plugins are queried only
+when loaded; missing/unsupported APIs and resolver failures are reported.
+The report does not change roots, start a debug session or load optional plugins.
+
+These commands work in a minimal editor. A failed optional selector falls back
+to the quick-start reader; `:ConfigHelp debugging` bypasses selection entirely.
+If the docs folder is absent, restore it or use `:help`. Debug launch selection
+has a separate guard: a failed selector never chooses a launch automatically and suggests
+`:DapLaunchInfo`, which needs no picker.
+
 ## Pickers, panels and reports
 
 | Feature / entry point | Help / hints | Return to work |
@@ -19,7 +42,10 @@ second hand-maintained list in the configuration.
 | Neo-tree files, buffers and Git-status views | F1, `g?` or `?`; native help reflects the source. `<leader>be` switches buffers/files. | Esc cancels help. Pressing an action key in help runs that tree action. `<leader>e` toggles the tree. |
 | Trouble diagnostics, TODO and quickfix lists | F1, `g?` or `?`. | Native help shows close keys; `q` in the main list closes that list. |
 | Diffview diffs, merge layouts, file/history panels, history options and worktree overview | F1 or `g?` opens native help for that context. Existing help hints remain enabled. | `q` / Esc closes help; `<leader>gD` closes Diffview. |
-| Atone undo tree and diff pane (`<leader>u`) | F1, `g?` or `?` opens the native action reference. | `q` / Ctrl-c closes help; in the tree those keys close Atone panes. Enter in the tree **reverts file contents** to the selected undo node. |
+| Atone undo tree and diff pane (`<leader>u`) | F1, `g?` or `?` opens the native action reference. | `q` / Esc / Ctrl-c closes help only. In the tree, `q` / Ctrl-c closes Atone panes; Esc retains its native action. Enter **reverts file contents** to the selected undo node. |
+| Buffer action menu (`<leader>bm`) | Each action has a name; the footer advertises close keys. | `q` / Esc closes the menu; Enter or a numbered action performs the selected operation. |
+| Debug launch details (`<leader>dI`) | Read program/cwd, adapter command status and provider; `/` searches. | `q` / Esc closes the report; no session starts. |
+| Debug value preview (`<leader>dw`) | Its footer advertises close keys. | `q` / Esc closes only that native value float, preserving code windows. |
 | Mason (`<leader>cm`) | `g?` opens full native help; Normal-mode F1 lists local mappings. | Use the native help/close keys shown there. |
 | Lazy (`:Lazy`) | `?` opens native help; Normal-mode F1 lists local mappings. | Native `?` toggles help; `q` closes Lazy. |
 | grug-far replacement (`<leader>sr`) | Normal-mode `g?` opens native help; F1 lists local mappings. | `q` / Esc closes help. Fields remain editable; replacement is a separate action. |
