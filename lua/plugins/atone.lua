@@ -41,6 +41,7 @@ return {
       keymaps = {
         tree = { help = { "?", "g?", "<F1>" } },
         auto_diff = { help = { "?", "g?", "<F1>" } },
+        help = { quit_help = { "<C-c>", "q", "<Esc>" } },
       },
     },
   },

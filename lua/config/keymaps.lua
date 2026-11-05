@@ -195,20 +195,20 @@ local function smart_bdelete(force)
     -- Unsaved changes with force=false. Say so — a silently-swallowed failure
     -- here once made <leader>bd feel randomly broken on dirty buffers.
     vim.notify(
-      "Buffer not deleted (unsaved changes? <leader>bD force-deletes)",
+      "Buffer kept open: unsaved changes. Save with :write, or <leader>bD to discard changes.",
       vim.log.levels.WARN
     )
   elseif status == "failed" then
-    vim.notify("Buffer not deleted", vim.log.levels.WARN)
+    vim.notify("Buffer could not be closed. Inspect :messages for the error.", vim.log.levels.WARN)
   end
 end
 
 map("n", "<leader>bd", function()
   smart_bdelete(false)
-end, { desc = "Delete buffer (keep window)" })
+end, { desc = "Close buffer (keep window)" })
 map("n", "<leader>bD", function()
   smart_bdelete(true)
-end, { desc = "Force-delete buffer (keep window)" })
+end, { desc = "Close buffer and discard changes" })
 
 -- ---------------------------------------------------------------------------
 -- Windows
@@ -355,7 +355,7 @@ end, { desc = "Save" })
 -- stylua: ignore start
 map("n", "<leader>W", "<cmd>wa<cr>",        { desc = "Save all" })
 map("n", "<leader>q", "<cmd>confirm q<cr>", { desc = "Quit" })
-map("n", "<leader>Q", "<cmd>qa!<cr>",       { desc = "Force quit all" })
+map("n", "<leader>Q", "<cmd>qa!<cr>",       { desc = "Quit all and discard changes" })
 -- stylua: ignore end
 
 -- ---------------------------------------------------------------------------

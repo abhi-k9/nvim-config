@@ -305,6 +305,9 @@ return {
           style      = "minimal",
           title      = " " .. prompt .. " ",
           title_pos  = "center",
+          border     = "rounded",
+          footer     = " q / Esc: close ",
+          footer_pos = "right",
           -- stylua: ignore end
         })
         current_menu_win = win
@@ -332,14 +335,19 @@ return {
         for i = 1, math.min(#actions, 9) do
           vim.keymap.set("n", tostring(i), function()
             pick(i)
-          end, { buffer = buf, nowait = true, silent = true })
+          end, { buffer = buf, nowait = true, silent = true, desc = actions[i][1] })
         end
         vim.keymap.set("n", "<CR>", function()
           pick(vim.api.nvim_win_get_cursor(win)[1])
-        end, { buffer = buf, nowait = true, silent = true })
+        end, {
+          buffer = buf,
+          nowait = true,
+          silent = true,
+          desc = "Run selected buffer action",
+        })
         -- stylua: ignore start
-        vim.keymap.set("n", "q",     close, { buffer = buf, nowait = true, silent = true })
-        vim.keymap.set("n", "<Esc>", close, { buffer = buf, nowait = true, silent = true })
+        vim.keymap.set("n", "q",     close, { buffer = buf, nowait = true, silent = true, desc = "Close buffer menu" })
+        vim.keymap.set("n", "<Esc>", close, { buffer = buf, nowait = true, silent = true, desc = "Close buffer menu" })
         -- stylua: ignore end
 
         -- Also close the menu if the user clicks anywhere outside it.

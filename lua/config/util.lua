@@ -160,7 +160,9 @@ end
 -- so callers can pass every result through unconditionally.
 function M.notify_undeleted(bufnr, status)
   if status == "deleted" then return end
-  local msg = status == "skipped" and "Skipped (unsaved changes): %s" or "Not deleted: %s"
+  local msg = status == "skipped"
+      and "Kept open (unsaved changes): %s. Save the buffer before closing."
+    or "Could not close: %s. Inspect :messages for the error."
   vim.notify(
     msg:format(vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t")),
     vim.log.levels.WARN
@@ -227,7 +229,7 @@ end
 -- the "why didn't everything close?" question answerable without
 -- stacking one popup per buffer.
 function M.notify_bulk_result(res)
-  local parts = { ("Deleted %d buffer(s)"):format(res.deleted) }
+  local parts = { ("Closed %d buffer(s)"):format(res.deleted) }
   local function name_list(t)
     local shown = vim.list_slice(t, 1, 3)
     local suffix = #t > 3 and (" (+%d more)"):format(#t - 3) or ""
@@ -240,6 +242,8 @@ function M.notify_bulk_result(res)
     )
   end
   if #res.failed > 0 then table.insert(parts, ("failed: %s"):format(name_list(res.failed))) end
+  if #res.skipped > 0 then table.insert(parts, "save the remaining buffers before closing") end
+  if #res.failed > 0 then table.insert(parts, "inspect :messages for errors") end
   local level = (#res.skipped + #res.failed) > 0 and vim.log.levels.WARN or vim.log.levels.INFO
   vim.notify(table.concat(parts, "; "), level)
 end

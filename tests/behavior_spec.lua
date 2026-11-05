@@ -141,7 +141,10 @@ describe("picker buffer delete (shared by telescope and fzf-lua)", function()
     vim.cmd("enew")
     util.delete_buffers_from_picker({ b })
     assert.is_true(vim.api.nvim_buf_is_valid(b))
-    assert.are.same({ "Skipped (unsaved changes): d.txt" }, notes)
+    assert.are.same(
+      { "Kept open (unsaved changes): d.txt. Save the buffer before closing." },
+      notes
+    )
   end)
 
   it("several targets: one batched summary, dirty ones kept", function()
@@ -156,7 +159,7 @@ describe("picker buffer delete (shared by telescope and fzf-lua)", function()
     assert.is_false(vim.api.nvim_buf_is_valid(a))
     assert.is_true(vim.api.nvim_buf_is_valid(b))
     assert.are.equal(1, #notes)
-    assert.is_truthy(notes[1]:find("Deleted 1 buffer", 1, true))
+    assert.is_truthy(notes[1]:find("Closed 1 buffer", 1, true))
     assert.is_truthy(notes[1]:find("b.txt", 1, true))
   end)
 end)

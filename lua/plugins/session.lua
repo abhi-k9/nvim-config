@@ -92,7 +92,7 @@ return {
     { "<leader>wf", "<cmd>AutoSession search<cr>",  desc = "Find session" },
     { "<leader>wS", "<cmd>AutoSession save<cr>",    desc = "Save session" },
     { "<leader>wr", "<cmd>AutoSession restore<cr>", desc = "Restore session" },
-    { "<leader>wD", "<cmd>AutoSession delete<cr>",  desc = "Delete session" },
+    { "<leader>wD", "<cmd>AutoSession delete<cr>",  desc = "Delete saved session" },
     -- stylua: ignore end
     -- Neovim's ZR (:restart) saves and restores its own session, written
     -- before pre_save_cmds run (so with neo-tree and DAP windows), and

@@ -66,7 +66,15 @@ describe("native help in additional features", function()
       assert.is_truthy(help:find("<F1>", 1, true), help)
       assert.is_truthy(help:find("Show help page", 1, true), help)
       assert.same(before, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
-      vim.api.nvim_win_close(core._float_win, true)
+      local help_win = core._float_win
+      for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(core._help_buf, "n")) do
+        if mapping.lhs == "<Esc>" then
+          mapping.callback()
+          break
+        end
+      end
+      assert.is_false(vim.api.nvim_win_is_valid(help_win))
+      assert.is_true(vim.api.nvim_win_is_valid(core._tree_win))
     end
     core.close()
     vim.api.nvim_buf_delete(buf, { force = true })

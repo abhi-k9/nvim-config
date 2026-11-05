@@ -148,8 +148,8 @@
     <tr><td><kbd class="sky">&lt;leader&gt;wm</kbd></td><td>Zoom current window (toggle). A second press restores saved sizes if the split layout is unchanged; otherwise it equalizes the new layout. Works with neo-tree and other fixed-width buffers.</td></tr>
     <tr class="divider"><td colspan="2">Buffers (bufferline)</td></tr>
     <tr><td><kbd class="sky">&lt;S-l&gt;</kbd> <kbd class="sky">&lt;S-h&gt;</kbd></td><td>Next / prev buffer <span class="note">bufferline visual order (pins first) — also scrolls hidden tabs into view; the strip has no view-only scroll and its truncation markers are not clickable buttons</span></td></tr>
-    <tr><td><kbd class="sky">&lt;leader&gt;bd</kbd></td><td>Delete buffer <span class="note">keeps the window — switches to next listed buffer first</span></td></tr>
-    <tr><td><kbd class="sky">&lt;leader&gt;bD</kbd></td><td>Force-delete buffer (discard unsaved changes)</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;bd</kbd></td><td>Close buffer <span class="note">keeps the window — switches to next listed buffer first</span></td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;bD</kbd></td><td>Close buffer and discard unsaved changes</td></tr>
     <tr><td><kbd class="sky">&lt;leader&gt;bm</kbd></td><td>Tab context menu <span class="note">keyboard version of right-clicking the tab: pin, copy path, open in split, close, close others. j/k + <kbd>&lt;CR&gt;</kbd>, or 1-8 to pick; q/<kbd>&lt;Esc&gt;</kbd> to dismiss</span></td></tr>
     <tr><td colspan="2" class="note">Plain <code>:bd</code> still works but also closes the buffer's window — use the keymap above when you want to keep your split layout intact.</td></tr>
     <tr><td><kbd class="sky">&lt;leader&gt;bp</kbd></td><td>Pin buffer</td></tr>
@@ -164,7 +164,7 @@
     <tr><td><kbd class="sky">&lt;C-s&gt;</kbd></td><td>Save (works in n/i/v)</td></tr>
     <tr><td><kbd class="sky">&lt;leader&gt;W</kbd></td><td>Save all</td></tr>
     <tr><td><kbd class="sky">&lt;leader&gt;q</kbd></td><td>Quit (confirm)</td></tr>
-    <tr><td><kbd class="sky">&lt;leader&gt;Q</kbd></td><td>Force quit all</td></tr>
+    <tr><td><kbd class="sky">&lt;leader&gt;Q</kbd></td><td>Quit all and discard unsaved changes</td></tr>
     <tr class="divider"><td colspan="2">History</td></tr>
     <tr><td><kbd class="sky">&lt;leader&gt;u</kbd></td><td>Toggle undo tree pane (atone.nvim)</td></tr>
     <tr><td colspan="2" class="note">In the pane: <kbd>j</kbd>/<kbd>k</kbd> navigate · <kbd>&lt;CR&gt;</kbd> revert to node · <kbd>m</kbd>/<kbd>x</kbd> set/clear marks · <kbd>q</kbd> close. See <kbd>?</kbd> in-pane for the full table.</td></tr>
@@ -282,7 +282,7 @@
     <tr><td><kbd class="mauve">&lt;C-s&gt;</kbd> <kbd class="mauve">&lt;C-v&gt;</kbd> <kbd class="mauve">&lt;C-t&gt;</kbd></td><td>Open in a split / vertical split / tab</td></tr>
     <tr><td><kbd class="mauve">&lt;M-q&gt;</kbd></td><td>Send the marked entries (<kbd>&lt;Tab&gt;</kbd>) to the quickfix list <span class="note"><kbd>&lt;M-a&gt;</kbd> marks all</span></td></tr>
     <tr><td><kbd class="mauve">&lt;M-i&gt;</kbd> <kbd class="mauve">&lt;M-h&gt;</kbd></td><td>Files / grep: toggle ignored / hidden files</td></tr>
-    <tr><td><kbd class="mauve">&lt;C-x&gt;</kbd></td><td>Delete buffer(s) (buffers and <code>:FzfLua tabs</code> pickers) <span class="note">same action as telescope's <kbd>&lt;C-d&gt;</kbd>: <kbd>&lt;Tab&gt;</kbd> marks, windows preserved, dirty buffers skipped. Needs fzf ≥ 0.45 for the tabs picker.</span></td></tr>
+    <tr><td><kbd class="mauve">&lt;C-x&gt;</kbd></td><td>Close buffer(s) (buffers and <code>:FzfLua tabs</code> pickers) <span class="note">same action as telescope's <kbd>&lt;C-d&gt;</kbd>: <kbd>&lt;Tab&gt;</kbd> marks, windows preserved, dirty buffers skipped. Needs fzf ≥ 0.45 for the tabs picker.</span></td></tr>
   </table>
 </div>
 

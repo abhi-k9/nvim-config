@@ -182,7 +182,7 @@ describe("asynchronous LSP formatting", function()
     require("config.lsp_format").format(buf)
     assert.are.same({ 1 }, cancelled)
     assert.are.equal(
-      "[LSP] Format request failed, no matching language servers.",
+      "[LSP] No formatting server attached. Use :checkhealth vim.lsp or :ConformInfo.",
       messages[#messages]
     )
     assert.are.equal(

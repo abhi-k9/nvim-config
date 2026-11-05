@@ -11,7 +11,7 @@ function M.format(buf, opts)
   if not vim.api.nvim_buf_is_loaded(buf) then return end
   local clients = vim.lsp.get_clients({ bufnr = buf, method = method })
   if #clients == 0 then
-    vim.notify("[LSP] Format request failed, no matching language servers.")
+    vim.notify("[LSP] No formatting server attached. Use :checkhealth vim.lsp or :ConformInfo.")
     return
   end
 
