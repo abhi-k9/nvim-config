@@ -533,6 +533,15 @@ return {
         highlights = bufferline_highlights(),
       }
     end,
+    config = function(_, opts)
+      local diagnostics = require("config.bufferline_diagnostics")
+      if require("config.settings").get("ui.bufferline_diagnostic_cache", true) then
+        diagnostics.setup()
+      else
+        diagnostics.dispose()
+      end
+      require("bufferline").setup(opts)
+    end,
   },
 
   -- -------------------------------------------------------------------------

@@ -255,6 +255,7 @@ nvim/
 │   │   ├── dap.lua           nvim-dap setup: adapters, fallback configs, signs
 │   │   ├── dap_ui_layout.lua  preserve fixed columns across debugger layout changes
 │   │   ├── diagnostics.lua   :DiagnosticDump (hang triage)
+│   │   ├── bufferline_diagnostics.lua  event-invalidated counts for the pinned Bufferline getter
 │   │   ├── lsp_format.lua    asynchronous LSP formatting with buffer lifecycle guards
 │   │   ├── health.lua        :checkhealth config (external toolchain check)
 │   │   ├── health_reminder.lua  persisted, configurable monthly tooling review prompt
@@ -297,6 +298,7 @@ nvim/
 │   ├── editing_policy_spec.lua  trim/comment/prose/window policies
 │   ├── retention_policy_spec.lua  configured view cleanup and log rotation
 │   ├── ui_policy_spec.lua    stock-theme/no-icons/reduced-motion startup
+│   ├── bufferline_diagnostics_spec.lua  cached counts, live toggles, insert policy and getter ownership
 │   ├── search_policy_spec.lua  literal visibility, selector and session settings
 │   ├── minimal_init.lua
 │   ├── config_spec.lua
