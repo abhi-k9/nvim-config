@@ -6,6 +6,17 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-04 — Record the responsiveness review
+
+### Docs
+
+- Record measured settings, Scoper and fold-restoration improvements, callback
+  checks, upstream sources and platform limits in the
+  [responsiveness review](docs/performance-review-2026-11-04.md).
+- Explain why forcing asynchronous Neo-tree scans was deferred after a stale
+  navigation race, and retain bufferline diagnostic aggregation and restart
+  polling as measured follow-up opportunities.
+
 ## 2026-11-04 — Reject obsolete synchronous filter output
 
 ### Fixed

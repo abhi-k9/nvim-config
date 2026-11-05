@@ -355,6 +355,7 @@ nvim/
 │   ├── customization.md       local override lifecycle, trust and feature guide index
 │   ├── generalization-verification.md  test environment, acceptance cases and platform limits
 │   ├── documentation-audit-2026-10-28.md  documentation/comment coverage, corrections and evidence
+│   ├── performance-review-2026-11-04.md  responsiveness measurements, retained safeguards and deferred options
 │   ├── tooling-configuration.md  selected languages, executable discovery and offline intent
 │   ├── scoper-core-notes.md   scope model, revisions, schema and persistence outcomes
 │   ├── scoper-integration-notes.md  build selection, clangd modes, startup and source refresh
