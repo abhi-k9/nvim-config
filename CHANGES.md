@@ -6,6 +6,20 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-04 — Share Scoper discovery within an operation
+
+### Changed
+
+- Resolve a database once per status read or warm command preparation, passing
+  the selection explicitly instead of keeping mutable selection scratch state.
+  Independent operations still discover external changes and invoke resolvers;
+  cold filtering retains its later resolution and asynchronous obsolete-result
+  checks remain intact.
+- On a Linux fixture with 4,000 immediate entries, status discovery fell from two
+  scans to one (about 4.1–4.8 ms to 1.9 ms); selected command preparation fell from
+  three to one (about 6.2 ms to 2.0 ms). Add regressions for new/removed databases,
+  resolver changes, warm reuse and cold fallback selection changes.
+
 ## 2026-11-04 — Skip source checks when no saved fold view exists
 
 ### Changed

@@ -106,6 +106,12 @@ candidates. An explicit ordered list establishes priority. New explicit modes
 refuse ambiguous default discovery; legacy boolean integration retains its
 previous first-match priority. Set a path to resolve ambiguity.
 
+For a large project directory or slow filesystem, selecting a known database
+also avoids enumerating the root's entries during discovery. Status and command
+preparation share a resolution within each operation; independent operations
+still resolve afresh so changed build selections and resolver results remain
+visible. This does not add a persistent discovery cache.
+
 clangd accepts a directory containing `compile_commands.json`. If a selected
 source has another filename, Scoper publishes a full immutable copy named
 `compile_commands.json` in its cache; its entries stay unchanged. Filtering preserves each kept

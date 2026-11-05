@@ -16,24 +16,27 @@ end
 function M.mode()
   return (config().lsp or {}).mode or "filtered"
 end
-function M.resolve()
+function M.resolve(context)
   local opts = vim.deepcopy(config().compilation_database or {})
   local selected = State.database and State.database()
   if selected then
     opts.path, opts.resolver = selected, nil
   end
-  local context = State.snapshot and State.snapshot()
+  context = context
+    or (State.snapshot and State.snapshot())
     or { root = State.root(), scope = State.active_name() }
   local ok, result =
     pcall(Database.resolve, State.root(), opts, context, (config().lsp or {}).mode == nil)
-  M._selection = ok and result
+  local selection = ok and result
     or { candidates = {}, reason = "database resolution failed: " .. tostring(result) }
-  return vim.deepcopy(M._selection)
+  return vim.deepcopy(selection)
 end
-function M.context_key()
+-- Reuse a resolution only within the same operation. Independent callers still
+-- resolve afresh, including arbitrary resolver callbacks and external changes.
+function M.context_key(selection)
   local snap = State.snapshot and State.snapshot()
     or { root = State.root(), scope = State.active_name(), definition = State.active_scope() }
-  local selection = M.resolve()
+  selection = selection or M.resolve(snap)
   return vim.fn.sha256(vim.json.encode({
     snap.root,
     snap.scope,
@@ -45,7 +48,8 @@ function M.context_key()
     (config().lsp or {}).clangd_args,
     (config().lsp or {}).extra_args,
     (config().lsp or {}).query_drivers,
-  }))
+  })),
+    selection
 end
 -- ---------------------------------------------------------------------------
 -- Compute the cache directory for the filtered output. Per-project (cwd
@@ -116,13 +120,15 @@ local prepare, finish
 -- ---------------------------------------------------------------------------
 function M.write_filtered_compile_commands(opts)
   for _ = 1, 2 do
-    local res, job = prepare(opts)
+    local res, job, selection = prepare(opts)
     res = res or Cdb.run(job)
     if
       not res.stale_source
       and (not job or not res.dir or Cdb.same_stamp(job.meta.source, Cdb.stamp(job.cc)))
     then
-      return finish(res)
+      -- A cold synchronous filter can outlast an external selection change.
+      -- Resolve again after that work; warm preparation never yields.
+      return finish(res, not job and selection or nil)
     end
   end
   return finish({ info = "compile_commands.json kept changing while filtering" })
@@ -142,15 +148,17 @@ function prepare(opts)
   -- immutable copy when the selected source has a different basename.
   local copy = cc and vim.fs.basename(cc) ~= "compile_commands.json" and not scoped
   if mode == "selected" and not copy then
-    return { info = selection.reason, reason = cc and "selected" or "unavailable", source = cc }
+    return { info = selection.reason, reason = cc and "selected" or "unavailable", source = cc },
+      nil,
+      selection
   end
   if not copy and not State.is_enabled() then
-    return { info = "disabled", reason = "scope_disabled" }
+    return { info = "disabled", reason = "scope_disabled" }, nil, selection
   end
   if not copy and (not scope or #scope.include == 0) then
-    return { info = "active scope is empty", reason = "empty_scope" }
+    return { info = "active scope is empty", reason = "empty_scope" }, nil, selection
   end
-  if not cc then return { info = selection.reason, reason = "unavailable" } end
+  if not cc then return { info = selection.reason, reason = "unavailable" }, nil, selection end
   scope = scope or { include = {}, exclude = {} }
 
   -- -------------------------------------------------------------------
@@ -211,11 +219,15 @@ function prepare(opts)
       source = cc,
       kept = meta.kept,
       total = meta.total,
-    }
+    },
+      nil,
+      selection
   end
   if opts and opts.stale_ok then
     if not have_intact_out then
-      return { info = "filter pending", stale = true, reason = "pending", source = cc }
+      return { info = "filter pending", stale = true, reason = "pending", source = cc },
+        nil,
+        selection
     end
     return {
       dir = result_dir,
@@ -226,14 +238,16 @@ function prepare(opts)
       source = cc,
       kept = meta.kept,
       total = meta.total,
-    }
+    },
+      nil,
+      selection
   end
 
   return nil,
     {
       cc = cc,
       kind = copy and "copy" or "filter",
-      context = M.context_key(),
+      context = M.context_key(selection),
       root = State.root(),
       scope = { include = scope.include, exclude = scope.exclude },
       out_dir = out_dir,
@@ -244,18 +258,21 @@ function prepare(opts)
         fingerprint = fingerprint,
       },
       old_digest = have_intact_out and meta.digest or nil,
-    }
+    },
+    selection
 end
 
 -- For :DiagnosticDump-style reports: the last filter result, and how the
 -- last background run ended.
 M._last_result = nil
 
-function finish(res)
+function finish(res, selection)
+  local context
+  context, selection = M.context_key(selection)
   M._last_result = vim.tbl_extend("force", vim.deepcopy(res), {
-    context_key = M.context_key(),
+    context_key = context,
     mode = M.mode(),
-    selection = vim.deepcopy(M._selection),
+    selection = vim.deepcopy(selection),
     reason = res.reason or (res.dir and "filtered" or "unavailable"),
     freshness = res.stale and "pending"
       or ((res.dir or res.reason == "selected") and "ready" or "unfiltered"),
@@ -263,7 +280,7 @@ function finish(res)
   })
   runtime._last_filter = vim.deepcopy(M._last_result)
   if res.warn then vim.notify(res.warn, vim.log.levels.WARN) end
-  return res.dir, res.info, res.changed, res.stale
+  return res.dir, res.info, res.changed, res.stale, selection
 end
 function M.status()
   local mode = M.mode()
@@ -280,8 +297,8 @@ function M.status()
     }
   end
   local last = M._last_result or {}
-  if last.context_key ~= M.context_key() then last = {} end
   local selection = M.resolve()
+  if last.context_key ~= M.context_key(selection) then last = {} end
   return vim.tbl_extend("force", vim.deepcopy(last), {
     mode = mode,
     selection = selection,
@@ -376,20 +393,26 @@ end
 -- above. Calls cb(dir, info, changed, stale) when done, or immediately for a
 -- warm/no-preparation result. Obsolete context results add a fifth true value.
 function M._filter_async(cb, opts)
+  local function deliver(res, selection)
+    -- The fifth asynchronous result is reserved for obsolete contexts.
+    local dir, info, changed, stale = finish(res, selection)
+    return cb(dir, info, changed, stale)
+  end
   local function attempt(retries)
-    local res, job = prepare(opts)
-    if res then return cb(finish(res)) end
+    local res, job, selection = prepare(opts)
+    if res then return deliver(res, selection) end
     run_in_background(job, function(r)
-      if job.context ~= M.context_key() then
+      local current, resolved = M.context_key()
+      if job.context ~= current then
         -- The old operation must neither publish status for the new context
         -- nor hand a stale output to a restart caller.
         return cb(nil, "project, scope or database selection changed", false, true, true)
       end
       if r.stale_source or (r.dir and not Cdb.same_stamp(job.meta.source, Cdb.stamp(job.cc))) then
         if retries > 0 then return attempt(retries - 1) end
-        return cb(finish({ info = "compile_commands.json kept changing while filtering" }))
+        return deliver({ info = "compile_commands.json kept changing while filtering" }, resolved)
       end
-      cb(finish(r))
+      deliver(r, resolved)
     end, opts)
   end
   attempt(1)

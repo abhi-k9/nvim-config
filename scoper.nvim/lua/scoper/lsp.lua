@@ -17,9 +17,6 @@ end
 function M._filter_entries(entries, cwd)
   return Cdb.filter(entries, State.matcher(cwd))
 end
-local function find_compile_commands()
-  return Pipeline.resolve().path
-end
 local function base_clangd_cmd()
   local cfg = require("scoper").config.lsp or {}
   local configured = cfg.cmd or M._base_cmd or { "clangd" }
@@ -40,7 +37,7 @@ local function base_clangd_cmd()
   end
   return cmd
 end
-local function cmd_from(filtered_dir, info, changed, stale)
+local function cmd_from(filtered_dir, info, changed, stale, selection)
   local cmd = base_clangd_cmd()
   local mode = Pipeline.mode()
   if mode == "native" or mode == "disabled" then return cmd, info, false, false end
@@ -68,11 +65,10 @@ local function cmd_from(filtered_dir, info, changed, stale)
   -- Unscoped path: filtering didn't apply (scoper off, empty scope, no
   -- CC.json, or parse error). Still point clangd at the project's
   -- actual compile_commands.json if we can find one — this is the
-  -- "always explicit" rationale above. find_compile_commands() may
-  -- have already been called inside write_filtered_compile_commands;
-  -- calling it again is cheap (a handful of fs_stat() calls,
-  -- debounced 500 ms by attach_auto in practice).
-  local raw = find_compile_commands()
+  -- "always explicit" rationale above. Synchronous preparation returns its
+  -- resolution as well, so database discovery is shared within that operation.
+  -- Asynchronous callers validate their context before building a command.
+  local raw = (selection or Pipeline.resolve()).path
   if raw and vim.fs.basename(raw) ~= "compile_commands.json" then
     return cmd,
       info .. "; selected source has no prepared copy; clangd will use built-in discovery",
