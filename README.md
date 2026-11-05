@@ -299,6 +299,7 @@ nvim/
 │   ├── retention_policy_spec.lua  configured view cleanup and log rotation
 │   ├── ui_policy_spec.lua    stock-theme/no-icons/reduced-motion startup
 │   ├── explorer_toggle_spec.lua  native source toggles, remembered roots and missing-plugin handling
+│   ├── context_help_spec.lua  normal-mode discovery, native precedence and dependency fallback
 │   ├── bufferline_diagnostics_spec.lua  cached counts, live toggles, insert policy and getter ownership
 │   ├── search_policy_spec.lua  literal visibility, selector and session settings
 │   ├── minimal_init.lua

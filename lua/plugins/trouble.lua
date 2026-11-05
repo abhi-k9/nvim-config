@@ -53,5 +53,7 @@ return {
   opts = {
     auto_close = true, -- close the panel when its list becomes empty
     focus = true, -- jump cursor into the panel when it opens
+    -- Keep Trouble's native ? binding; these aliases open the same live help.
+    keys = { ["<F1>"] = "help", ["g?"] = "help" },
   },
 }
