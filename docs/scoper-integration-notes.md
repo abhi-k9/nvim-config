@@ -161,6 +161,11 @@ once; that fallback can pause the UI on a large database. A timed-out worker may
 finish its immutable cache object for a later retry. Native/manual client start
 APIs that bypass `vim.lsp.enable()` are outside this startup gate's contract.
 
+The synchronous compatibility API also checks its captured project, scope and
+database selection after cold filtering. A changed context retries once; repeated
+changes return no filtered directory. Callers can then use the current unfiltered
+selection rather than hand clangd an obsolete filtered build.
+
 `setup()` disposes old automatic listeners/watchers before configuring the new
 integration. The host also reconciles final `lsp.servers.clangd` options before
 activation through `require("scoper.lsp").reconfigure()`, without reloading scope

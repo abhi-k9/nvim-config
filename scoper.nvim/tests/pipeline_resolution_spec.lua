@@ -107,8 +107,10 @@ describe("operation-local compilation database resolution", function()
     end
     vim.fn.mkdir(root .. "/alternate", "p")
     vim.fn.writefile({ "[]" }, root .. "/alternate/compile_commands.json")
+    local attempts = 0
     Cdb.run = function(job)
-      assert.equals(root .. "/compile_commands.json", job.cc)
+      attempts = attempts + 1
+      assert.equals(selected, job.cc)
       selected = root .. "/alternate/compile_commands.json"
       -- A failed cold preparation falls back to the currently selected input.
       return { info = "preparation failed while external build selection changed" }
@@ -116,6 +118,79 @@ describe("operation-local compilation database resolution", function()
     local command = LSP.clangd_cmd()
     assert.is_true(vim.tbl_contains(command, "--compile-commands-dir=" .. root .. "/alternate"))
     assert.equals(selected, Pipeline._last_result.selection.path)
-    assert.equals(2, calls)
+    assert.equals(2, attempts)
+    assert.equals(3, calls)
+  end)
+
+  it("retries successful cold output when an external resolver selects another build", function()
+    Scoper.config.lsp.mode = "filtered"
+    State.state.enabled = true
+    State.state.scopes.default = { include = { "src" }, exclude = {} }
+    local selected = root .. "/compile_commands.json"
+    Scoper.config.compilation_database.resolver = function()
+      return selected
+    end
+    vim.fn.mkdir(root .. "/alternate", "p")
+    vim.fn.writefile({
+      vim.json.encode({
+        { directory = root, file = root .. "/src/b.c", command = "cc -c src/b.c" },
+      }),
+    }, root .. "/alternate/compile_commands.json")
+    local attempts, obsolete_dir = 0
+    Cdb.run = function(job)
+      local result = run(job)
+      attempts = attempts + 1
+      if attempts == 1 then
+        obsolete_dir = result.dir
+        selected = root .. "/alternate/compile_commands.json"
+      end
+      return result
+    end
+    local dir = Pipeline.write_filtered_compile_commands()
+    assert.is_not_nil(dir)
+    assert.is_not_nil(obsolete_dir)
+    assert.is_not.equal(obsolete_dir, dir)
+    local entries =
+      vim.json.decode(table.concat(vim.fn.readfile(dir .. "/compile_commands.json"), "\n"))
+    assert.equals(root .. "/src/b.c", entries[1].file)
+    assert.equals(selected, Pipeline._last_result.selection.path)
+    assert.equals(selected, Pipeline._last_result.source)
+    assert.equals(2, attempts)
+    assert.equals(3, calls)
+  end)
+
+  it("bounds retries and returns no obsolete output when selection keeps changing", function()
+    Scoper.config.lsp.mode = "filtered"
+    State.state.enabled = true
+    State.state.scopes.default = { include = { "src" }, exclude = {} }
+    local selected = root .. "/compile_commands.json"
+    Scoper.config.compilation_database.resolver = function()
+      return selected
+    end
+    for _, name in ipairs({ "second", "third" }) do
+      vim.fn.mkdir(root .. "/" .. name, "p")
+      vim.fn.writefile({
+        vim.json.encode({
+          { directory = root, file = "src/" .. name .. ".c", command = "cc -c x.c" },
+        }),
+      }, root .. "/" .. name .. "/compile_commands.json")
+    end
+    local attempts = 0
+    Cdb.run = function(job)
+      local result = run(job)
+      assert.is_not_nil(result.dir)
+      attempts = attempts + 1
+      selected = root .. (attempts == 1 and "/second" or "/third") .. "/compile_commands.json"
+      return result
+    end
+    local dir, info, _, _, selection = Pipeline.write_filtered_compile_commands()
+    assert.is_nil(dir)
+    assert.matches("selection kept changing", info)
+    assert.is_nil(Pipeline._last_result.dir)
+    assert.equals("unfiltered", Pipeline._last_result.freshness)
+    assert.equals(selected, selection.path)
+    assert.equals(selected, Pipeline._last_result.selection.path)
+    assert.equals(2, attempts)
+    assert.equals(3, calls)
   end)
 end)

@@ -119,28 +119,40 @@ local prepare, finish
 -- Runs the filter in THIS Neovim; reloads use M._filter_async instead.
 -- ---------------------------------------------------------------------------
 function M.write_filtered_compile_commands(opts)
+  local selection, failure
   for _ = 1, 2 do
-    local res, job, selection = prepare(opts)
+    local res, job
+    res, job, selection = prepare(opts, selection)
     res = res or Cdb.run(job)
-    if
+    local same_context = true
+    if job then
+      -- Source stamps alone do not detect a resolver selecting another build.
+      -- Keep this resolution for a retry or finish instead of discovering again.
+      local context
+      context, selection = M.context_key()
+      same_context = job.context == context
+    end
+    if not same_context then
+      failure = "project, scope or database selection kept changing while filtering"
+    elseif
       not res.stale_source
       and (not job or not res.dir or Cdb.same_stamp(job.meta.source, Cdb.stamp(job.cc)))
     then
-      -- A cold synchronous filter can outlast an external selection change.
-      -- Resolve again after that work; warm preparation never yields.
-      return finish(res, not job and selection or nil)
+      return finish(res, selection)
+    else
+      failure = "compile_commands.json kept changing while filtering"
     end
   end
-  return finish({ info = "compile_commands.json kept changing while filtering" })
+  return finish({ info = failure }, selection)
 end
 
 -- The cheap half of the filter: the state checks and the freshness cache.
 -- Returns a finished result ({ dir, info, changed, stale }, as returned
 -- by cdb.run) or nil plus the job for cdb.run.
-function prepare(opts)
+function prepare(opts, selection)
   local mode = M.mode()
   if mode == "disabled" or mode == "native" then return { info = mode, reason = mode } end
-  local selection = M.resolve()
+  selection = selection or M.resolve()
   local cc = selection.path
   local scope = vim.deepcopy(State.active_scope())
   local scoped = mode == "filtered" and State.is_enabled() and scope and #scope.include > 0

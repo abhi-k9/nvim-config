@@ -6,6 +6,18 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-04 — Reject obsolete synchronous filter output
+
+### Fixed
+
+- Compare a cold synchronous filter's captured project/scope/build context with
+  the context after filtering. Retry once when it changed; if it keeps changing,
+  return no obsolete filtered directory. Previously an external resolver change
+  could pair old output with the new selection in status. Reuse the post-work
+  resolution so stable preparation keeps the same discovery count.
+- Verify successful build switches and bounded repeated changes with real
+  filtered output, alongside the existing failed-preparation fallback case.
+
 ## 2026-11-04 — Share Scoper discovery within an operation
 
 ### Changed
