@@ -168,8 +168,11 @@ return {
           entry_prefix    = "  ", -- 2 cells
           multi_icon      = "+", -- 1 cell, replaces the caret's trailing space
           -- stylua: ignore end
-          -- "smart" = shorten paths intelligently (drop common prefixes).
-          path_display = { "smart" },
+          -- "smart" compares each displayed path with a growing history of
+          -- paths, adding redraw latency even with the native sorter. Truncate
+          -- to the available width without scanning other entries; matching
+          -- and opening still use the original complete path.
+          path_display = { "truncate" },
           -- "ascending" puts the prompt at the top and results below it,
           -- which matches fzf-lua's layout. The default "descending" feels
           -- inverted once you're used to terminal fuzzy finders.

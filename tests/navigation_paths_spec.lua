@@ -66,3 +66,36 @@ describe("finder path clipboard action", function()
     assert.equals(selected.filename, registers["+"])
   end)
 end)
+
+describe("finder path rendering", function()
+  it("bounds display width without scanning path history or changing search/open paths", function()
+    require("lazy.core.loader").load("telescope.nvim", { cmd = "spec" })
+    local defaults = require("plugins.finder")[1].opts().defaults
+    local utils = require("telescope.utils")
+    local smart = utils.path_smart
+    utils.path_smart = function()
+      error("Rendering consulted the growing smart-path history")
+    end
+    local ok, err = pcall(function()
+      local entry_for = require("telescope.make_entry").gen_from_file({
+        cwd = vim.fn.getcwd(),
+        path_display = defaults.path_display,
+        disable_devicons = true,
+        -- Supply the width normally provided by the live results window.
+        __length = 48,
+        __prefix = 0,
+      })
+      for i = 1, 200 do
+        local name = ("subsystem/component_%d/deeply/nested/source/file_%d.cpp"):format(i, i)
+        local entry = entry_for(name)
+        local display = entry:display()
+        assert.is_true(vim.fn.strdisplaywidth(display) <= 48)
+        assert.is_truthy(display:find(("file_%d.cpp"):format(i), 1, true))
+        assert.equals(name, entry.ordinal)
+        assert.equals(name, entry.filename)
+      end
+    end)
+    utils.path_smart = smart
+    assert.is_true(ok, err)
+  end)
+end)
