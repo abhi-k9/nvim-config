@@ -6,6 +6,16 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-04 — Skip source checks when no saved fold view exists
+
+### Changed
+
+- Return after a missing saved view instead of also checking the source file on
+  buffer entry and the first idle reassertion. Existing saved views retain their
+  subsecond freshness checks and cursor-preserving restoration.
+- A 100-entry event probe eliminated 200 source-file stat calls while keeping
+  all 200 saved-view checks, avoiding extra I/O on first visits and network paths.
+
 ## 2026-11-04 — Avoid path work for machine-only settings
 
 ### Changed

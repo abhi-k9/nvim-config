@@ -63,8 +63,11 @@ end
 -- the wrong lines.
 local function load_fold_view(buf)
   local saved = vim.uv.fs_stat(view_file(buf))
+  -- First visits have nothing to restore. Avoid probing the source file
+  -- (which may be on a network share) until a saved view actually exists.
+  if not saved then return end
   local source = vim.uv.fs_stat(vim.api.nvim_buf_get_name(buf))
-  if not saved or not source then return end
+  if not source then return end
   -- getftime() loses subsecond precision: a rapid external rewrite in
   -- the same second can otherwise replay fold ranges from old contents.
   if
