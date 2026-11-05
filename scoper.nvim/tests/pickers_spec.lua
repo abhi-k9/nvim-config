@@ -623,14 +623,18 @@ describe("scoper.pickers with telescope", function()
     assert.equals(1, #got.notifications)
   end)
 
-  it("registers the show-path key through map, keeping defaults", function()
+  it("registers path and native help keys through map, keeping defaults", function()
     pickers.find()
     local maps = {}
     local keep = got.find.attach_mappings(0, function(modes, key)
       table.insert(maps, { modes = modes, key = key })
     end)
     assert.is_true(keep)
-    assert.are.same({ { modes = { "i", "n" }, key = "<M-p>" } }, maps)
+    assert.are.same({
+      { modes = { "i", "n" }, key = "<M-p>" },
+      { modes = { "i", "n" }, key = "<F1>" },
+      { modes = "n", key = "g?" },
+    }, maps)
   end)
 
   it("retains the project root and scope after a window-local directory change", function()

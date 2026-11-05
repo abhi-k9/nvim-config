@@ -174,6 +174,18 @@ refresh the effective input. An unchanged output/argv leaves warm clangd clients
 running. Explicit reload requests a restart. Automatic reloads stay quiet when
 this project's clangd is not running.
 
+## Help inside panels and selectors
+
+`:ScoperShow` has a `q` / Esc footer and named close mappings. It needs no
+separate help plugin. When hosted by this config, Normal-mode F1 / `<leader>?`
+also lists those local mappings.
+
+Telescope searches and multi-selection dialogs provide F1 and Normal-mode `g?`
+for the native key reference. Multi-selection shows Tab/Enter hints and names
+the confirm/mark actions. fzf-lua retains its native F1 reference and a named
+confirmation action. The plain selector fallback still uses its `(done)` row;
+it does not require a fuzzy finder or acquire a new help popup.
+
 ## How it decides what's "in scope"
 
 A path is in scope when it lies under an included directory, is an included

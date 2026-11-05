@@ -36,9 +36,12 @@ return {
     ---@module "atone"
     ---@type AtoneConfig
     opts = {
-      -- Empty: atone's defaults are good. Customize here later if you
-      -- want a different node-label format, different in-pane keymaps,
-      -- or different highlight groups (see :h atone.txt after install).
+      -- Use the native help page in both tree and diff panes; keep its
+      -- existing ? / g? bindings. No separate help renderer is needed.
+      keymaps = {
+        tree = { help = { "?", "g?", "<F1>" } },
+        auto_diff = { help = { "?", "g?", "<F1>" } },
+      },
     },
   },
 }

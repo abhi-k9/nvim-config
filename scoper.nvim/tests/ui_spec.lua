@@ -68,3 +68,45 @@ describe("plain Scoper multi-selection", function()
     assert.same({ "other" }, result)
   end)
 end)
+
+describe("Scoper context hints", function()
+  it("shows close hints and named mappings without a help-plugin dependency", function()
+    local current = vim.api.nvim_get_current_win()
+    require("scoper.ui").show_lines({ "Status" }, "Scoper status")
+    local win, buf = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
+    local footer = vim.api.nvim_win_get_config(win).footer
+    assert.is_truthy(vim.inspect(footer):find("q / Esc: close", 1, true))
+    assert.is_false(vim.bo[buf].modifiable)
+    local keys = {}
+    for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(buf, "n")) do
+      keys[mapping.lhs] = mapping
+    end
+    assert.equals("Close Scoper panel", keys.q.desc)
+    keys.q.callback()
+    assert.is_false(vim.api.nvim_win_is_valid(win))
+    assert.equals(current, vim.api.nvim_get_current_win())
+  end)
+
+  it("names the fzf confirmation action and preserves selected values", function()
+    local util = require("scoper.util")
+    local preference, fzf = util.prefer_fzf, package.loaded["fzf-lua"]
+    local options, result
+    util.prefer_fzf = function()
+      return true
+    end
+    package.loaded["fzf-lua"] = {
+      fzf_exec = function(_, opts)
+        options = opts
+      end,
+    }
+    local ok, err = pcall(require("scoper.ui").pick_many, { "alpha" }, {}, function(picked)
+      result = picked
+    end)
+    util.prefer_fzf, package.loaded["fzf-lua"] = preference, fzf
+    assert.is_true(ok, err)
+    assert.equals("Confirm selected items", options.actions.default.desc)
+    assert.equals("toggle-all", options.keymap.fzf["ctrl-a"])
+    options.actions.default.fn({ "alpha" })
+    assert.same({ "alpha" }, result)
+  end)
+end)

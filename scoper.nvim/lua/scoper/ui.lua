@@ -54,6 +54,8 @@ function M.show_lines(lines, title)
     border = "rounded",
     title = " " .. (title or "Scoper") .. " ",
     title_pos = "center",
+    footer = " q / Esc: close ",
+    footer_pos = "right",
   })
 
   -- Close keys.
@@ -61,8 +63,8 @@ function M.show_lines(lines, title)
     pcall(vim.api.nvim_win_close, win, true)
   end
   -- stylua: ignore start
-  vim.keymap.set("n", "q",     close, { buffer = buf, nowait = true, silent = true })
-  vim.keymap.set("n", "<Esc>", close, { buffer = buf, nowait = true, silent = true })
+  vim.keymap.set("n", "q",     close, { buffer = buf, nowait = true, silent = true, desc = "Close Scoper panel" })
+  vim.keymap.set("n", "<Esc>", close, { buffer = buf, nowait = true, silent = true, desc = "Close Scoper panel" })
   -- stylua: ignore end
 end
 
@@ -116,12 +118,16 @@ function M.pick_many(items, opts, cb)
       prompt = prompt .. "> ",
       fzf_opts = {
         ["--multi"] = true,
-        ["--bind"] = "ctrl-a:toggle-all",
       },
+      -- Declarative bindings also appear in fzf-lua's native F1 help.
+      keymap = { fzf = { ["ctrl-a"] = "toggle-all" } },
       actions = {
-        ["default"] = function(selected)
-          cb(selected or {})
-        end,
+        ["default"] = {
+          fn = function(selected)
+            cb(selected or {})
+          end,
+          desc = "Confirm selected items",
+        },
       },
     })
     return
@@ -142,9 +148,10 @@ function M.pick_many(items, opts, cb)
     pickers
       .new({}, {
         prompt_title = prompt,
+        results_title = "F1: keys | Tab: mark | Enter: confirm",
         finder = finders.new_table({ results = items }),
         sorter = conf.generic_sorter({}),
-        attach_mappings = function(prompt_bufnr)
+        attach_mappings = function(prompt_bufnr, map)
           actions.select_default:replace(function()
             local picker = action_state.get_current_picker(prompt_bufnr)
             local multi = picker:get_multi_selection()
@@ -162,6 +169,21 @@ function M.pick_many(items, opts, cb)
             actions.close(prompt_bufnr)
             cb(result)
           end)
+          map({ "i", "n" }, "<F1>", actions.which_key)
+          map("n", "g?", actions.which_key)
+          map({ "i", "n" }, "<CR>", actions.select_default, { desc = "Confirm selected items" })
+          map(
+            { "i", "n" },
+            "<Tab>",
+            actions.toggle_selection + actions.move_selection_worse,
+            { desc = "Mark item and next" }
+          )
+          map(
+            { "i", "n" },
+            "<S-Tab>",
+            actions.toggle_selection + actions.move_selection_better,
+            { desc = "Mark item and previous" }
+          )
           return true
         end,
       })

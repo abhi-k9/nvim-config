@@ -6,6 +6,25 @@
 
 local icons = require("config.icons")
 
+-- Reuse each native context's actual help action, including layout-specific
+-- merge keys. Do not emulate g? (it could be rebound) or copy a manual.
+local function diffview_help_keys()
+  local keys = {}
+  for group, mappings in pairs(require("diffview.config").defaults.keymaps) do
+    if type(mappings) == "table" then
+      for _, mapping in ipairs(mappings) do
+        if mapping[1] == "n" and mapping[2] == "g?" then
+          keys[group] = {
+            { "n", "<F1>", mapping[3], { desc = "Open the help panel" } },
+          }
+          break
+        end
+      end
+    end
+  end
+  return keys
+end
+
 local function current_file_history(pin_local, selection)
   local name = vim.api.nvim_buf_get_name(0)
   if not require("config.util").is_file_buffer(0) or name:match("^%a[%w+.-]+://") then
@@ -140,20 +159,23 @@ return {
       { "<leader>gw", "<cmd>DiffviewWorktreeOverview<cr>",         desc = "Git worktrees overview" },
       -- stylua: ignore end
     },
-    opts = {
-      enhanced_diff_hl = true, -- punchier highlighting for +/- lines
-      view = {
-        -- Three-pane merge view: OURS and THEIRS above the editable result.
-        -- BASE is available to conflict actions without a separate BASE pane.
-        merge_tool = {
-          layout = "diff3_mixed",
-          disable_diagnostics = true, -- LSP errors mid-conflict are noise
+    opts = function()
+      return {
+        keymaps = diffview_help_keys(),
+        enhanced_diff_hl = true, -- punchier highlighting for +/- lines
+        view = {
+          -- Three-pane merge view: OURS and THEIRS above the editable result.
+          -- BASE is available to conflict actions without a separate BASE pane.
+          merge_tool = {
+            layout = "diff3_mixed",
+            disable_diagnostics = true, -- LSP errors mid-conflict are noise
+          },
         },
-      },
-      file_panel = {
-        listing_style = "tree", -- "list" is flatter; tree is easier to scan
-        win_config = { width = 35 },
-      },
-    },
+        file_panel = {
+          listing_style = "tree", -- "list" is flatter; tree is easier to scan
+          win_config = { width = 35 },
+        },
+      }
+    end,
   },
 }

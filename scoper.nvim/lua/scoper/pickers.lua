@@ -206,6 +206,11 @@ local function attach_show_path_mapping(prompt_bufnr, map)
   end
 
   map({ "i", "n" }, "<M-p>", show_path, { desc = "Scoper: show full path" })
+  local function show_help()
+    require("telescope.actions").which_key(prompt_bufnr)
+  end
+  map({ "i", "n" }, "<F1>", show_help, { desc = "Show picker keys" })
+  map("n", "g?", show_help, { desc = "Show picker keys" })
   -- Returning true keeps telescope's own default mappings active.
   return true
 end
