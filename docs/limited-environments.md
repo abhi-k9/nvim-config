@@ -8,6 +8,12 @@ Set `ui.icons=false` in the ignored root `local.lua` for ASCII indicators.
 See [customization](customization.md) and [tool selection](tooling-configuration.md)
 to choose languages, explicit executables or deliberate provisioning opt-outs.
 
+Terminal image previews are also off by default. `:ImageOpen path/to/image.png`
+uses the system viewer unless you opt into rendering; missing renderers or
+ImageMagick use the selected fallback. Set `images.fallback = "notify"` on a
+headless/remote system to avoid opening an application. Details and platform
+requirements are in the [image-preview guide](image-previews.md).
+
 Automatic tool installation remains enabled when prerequisites are available.
 The config checks known prerequisites for the shipped package selections before
 queuing installs or native builds. Custom packages retain their upstream

@@ -145,6 +145,7 @@ alone does not define an LSP configuration, formatter mapping or debug adapter.
 | `luacheck` | Lint Lua files (`make lint`).                           |
 | `stylua`   | Lua formatter; `make format` / `make check` (enforced in CI with the latest release). |
 | `procdump` | Windows-only; dumps a frozen nvim process for triage.   |
+| ImageMagick | Optional terminal image previews; `magick`, or Unix `convert` + `identify`. See [image previews](docs/image-previews.md). |
 
 ### Per-platform install recipes
 
@@ -375,6 +376,7 @@ nvim/
 ├── docs/                     Human-facing docs (read on demand by :ConfigHelp)
 │   ├── quick-start.md         common daily workflows and first-session essentials
 │   ├── context-help.md        in-feature help, native hints, input modes and reference commands
+│   ├── image-previews.md      opt-in image commands, platform support, dependencies and fallback
 │   ├── visual-studio-migration.md  Visual Studio migration, quick start and feature reference
 │   ├── customization.md       local override lifecycle, trust and feature guide index
 │   ├── generalization-verification.md  test environment, acceptance cases and platform limits

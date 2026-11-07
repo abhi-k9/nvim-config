@@ -151,6 +151,15 @@ Scoper-restricted replacement is refused rather than silently replacing outside
 the scope. Ordinary replacement has its own cwd/backend contract; see
 [search boundaries](search-session-configuration.md#roots-and-visibility).
 
+## Preview local images (optional)
+
+Use `:ImageOpen path/to/image.png` (Tab completes the path). With the default
+settings this requests your system viewer. Terminal previews are an
+[optional opt-in](image-previews.md), with ImageMagick and a compatible terminal.
+In a preview, `q` / Esc closes only that float; `e` requests the system viewer.
+`:ImageOpen! [path]` requests the system viewer directly. `:ConfigHelp images`
+opens the setup/platform guide. Automatic inline document images are not enabled.
+
 ## Build, run and test
 
 Use your project's existing build/test commands. `<leader>th` opens a horizontal

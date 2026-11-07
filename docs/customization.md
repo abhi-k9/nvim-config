@@ -116,6 +116,7 @@ feature guides for supported boundaries.
 - [Search, selector, explorer and sessions](search-session-configuration.md)
 - [Debug adapters, launch files and terminals](debug-terminal-configuration.md)
 - [Editing, UI and retention](editing-ui-configuration.md)
+- [Optional local-image previews and system-viewer fallback](image-previews.md)
 - [Verification environment, acceptance cases and limits](generalization-verification.md)
 
 Inspect one effective value with

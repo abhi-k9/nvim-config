@@ -6,6 +6,34 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-06 — Add optional local-image previews
+
+### Changed
+
+- Add `:ImageOpen [path]` with an opt-in, on-demand Snacks image renderer and a
+  system-viewer fallback; `:ImageOpen!` explicitly requests the system viewer.
+  Keep document/file interception, remote downloads, maths/diagrams and the other
+  Snacks UI features disabled. Pin only the new dependency; explicit updates
+  retain the existing Lazy workflow.
+- Preserve source buffers and literal filenames. Decode private temporary
+  snapshots to avoid stale path-based image caches, clean them on close/failure,
+  cancel superseded requests, bound conversion time and discard stale callbacks.
+  Add scoped `q` / Esc / `e` hints and useful missing-tool/API/opener messages.
+- Use native platform openers with literal argv, including shell-free Windows
+  file opening, and distinguish ImageMagick from Windows' disk `convert.exe`.
+  Expose opt-in state and dependencies in `:checkhealth config` without loading
+  the renderer or issuing startup warnings for the default disabled feature.
+- Cover fallback, cancellation, filenames, cache freshness, decoding failure and
+  actual graphics-protocol output with fixtures. Reuse native Windows CI for the
+  plugin-free image command/path check; no extra workflow runs or jobs.
+
+### Docs
+
+- Add [image preview setup and platform limits](docs/image-previews.md), available
+  through `:ConfigHelp images`, and link it from the daily-use/customization/help
+  guides and README. Document dependency installation and remaining physical
+  terminal/file-association verification.
+
 ## 2026-11-05 — Make workspace, guide and debug workflows easier to discover
 
 ### Changed

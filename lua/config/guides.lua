@@ -24,6 +24,7 @@ local topics = {
   { "debugging", "Launch configurations and debugging", "debug-terminal-configuration.md" },
   { "help", "Help inside each feature", "context-help.md" },
   { "tools", "Missing tools and limited systems", "limited-environments.md" },
+  { "images", "Optional local-image previews", "image-previews.md" },
   { "install", "Install, update and roll back", "workflows/install-update-uninstall.md" },
   { "migration", "Visual Studio migration", "visual-studio-migration.md" },
   { "customization", "Local settings and project policy", "customization.md" },

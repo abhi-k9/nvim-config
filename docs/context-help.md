@@ -15,7 +15,7 @@ second hand-maintained list in the configuration.
 `<leader>h` / `:ConfigHelp [topic]` reads the existing Markdown guides in a
 read-only floating window. With no topic, choose from a menu; Tab completion
 also supports direct commands. Topics are `quickstart`, `navigation`, `buffers`,
-`workspace`, `debugging`, `help`, `tools`, `install`, `migration` and `customization`.
+`workspace`, `debugging`, `help`, `tools`, `images`, `install`, `migration` and `customization`.
 `/` searches the document, `b` returns to topics, and `q` / Esc closes the reader.
 The source document stays untouched. References skip FileType provisioning, so
 reading a guide does not install parsers or start a language server for it.
@@ -46,6 +46,7 @@ has a separate guard: a failed selector never chooses a launch automatically and
 | Buffer action menu (`<leader>bm`) | Each action has a name; the footer advertises close keys. | `q` / Esc closes the menu; Enter or a numbered action performs the selected operation. |
 | Debug launch details (`<leader>dI`) | Read program/cwd, adapter command status and provider; `/` searches. | `q` / Esc closes the report; no session starts. |
 | Debug value preview (`<leader>dw`) | Its footer advertises close keys. | `q` / Esc closes only that native value float, preserving code windows. |
+| Optional image preview (`:ImageOpen path`) | Footer shows close/system-viewer actions; `:ConfigHelp images` explains setup and limits. | `q` / Esc closes this preview; `e` closes it and requests the system viewer. `:ImageOpen!` requests the system viewer directly. |
 | Mason (`<leader>cm`) | `g?` opens full native help; Normal-mode F1 lists local mappings. | Use the native help/close keys shown there. |
 | Lazy (`:Lazy`) | `?` opens native help; Normal-mode F1 lists local mappings. | Native `?` toggles help; `q` closes Lazy. |
 | grug-far replacement (`<leader>sr`) | Normal-mode `g?` opens native help; F1 lists local mappings. | `q` / Esc closes help. Fields remain editable; replacement is a separate action. |
