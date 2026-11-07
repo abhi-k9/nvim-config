@@ -327,6 +327,7 @@ nvim/
 │   │   ├── settings_startup.lua  controlled real machine-local startup profile
 │   │   ├── lsp_initialization.lua  real Lazy startup with controlled Mason boundary
 │   │   ├── image_open.lua       plugin-free image commands and native platform/path handling
+│   │   ├── window_context.lua   plugin-free source-window cwd, debug root and cross-tab inspection
 │   │   └── windows_dap_spawn.lua  native Windows adapter process and argv checks
 │   ├── escape_float_lifecycle_spec.lua  popup closure under reentrant window hooks
 │   ├── session_filetype_rescue_spec.lua  session filetype rescue on ordinary files

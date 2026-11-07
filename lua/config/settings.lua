@@ -233,17 +233,20 @@ end
 
 function M.resolve(intent)
   local ctx = context()
-  if intent == nil or intent == "cwd" then return vim.fn.getcwd() end
+  -- An explicit window scope also works inside nvim_win_call, which changes
+  -- the current window without changing the process working directory.
+  local cwd = vim.fn.getcwd(0, 0)
+  if intent == nil or intent == "cwd" then return cwd end
   if intent == "project" then return M.project_root() end
   if intent == "scope" then
     local state = package.loaded["scoper.state"]
     return state and state.root() or M.project_root()
   end
   if intent == "file" then
-    if ctx.filename == "" or ctx.filename:match("^%a[%w+.-]*://") then return vim.fn.getcwd() end
+    if ctx.filename == "" or ctx.filename:match("^%a[%w+.-]*://") then return cwd end
     return vim.fs.dirname(ctx.filename)
   end
-  return evaluate(intent, ctx, vim.fn.getcwd())
+  return evaluate(intent, ctx, cwd)
 end
 
 function M.plugin_specs()

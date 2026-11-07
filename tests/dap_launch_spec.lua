@@ -135,6 +135,32 @@ describe("debug launch discovery", function()
     dap.choose(items[1])
     assert.is_not_nil(chosen)
   end)
+  it(
+    "checks relative adapter commands in the source window when a picker has its own cwd",
+    function()
+      local source = vim.api.nvim_get_current_win()
+      vim.api.nvim_win_call(source, function()
+        vim.cmd.lcd(root)
+      end)
+      dap.adapters.native.command = "./adapter"
+      vim.fn.executable = function()
+        return vim.fs.normalize(vim.fn.getcwd()) == root and 1 or 0
+      end
+      module.choose()
+      local picker = vim.api.nvim_open_win(
+        buf,
+        true,
+        { relative = "editor", row = 0, col = 0, width = 20, height = 2, noautocmd = true }
+      )
+      vim.api.nvim_cmd({ cmd = "lcd", args = { cwd }, mods = { noautocmd = true } }, {})
+      assert.equals(root, vim.fs.normalize(vim.fn.getcwd(source)))
+      assert.equals(buf, vim.api.nvim_win_get_buf(source))
+      assert.equals(cwd, vim.fn.getcwd(-1, -1))
+      dap.choose(items[1])
+      vim.api.nvim_win_close(picker, true)
+      assert.is_not_nil(chosen, table.concat(notes, "\n"))
+    end
+  )
   it("opens a configured launch path with literal filename metacharacters", function()
     local settings = require("config.settings")
     settings.configure({ debug = { root = root, launch_file = "launch % # $literal.json" } })
@@ -276,6 +302,19 @@ describe("debug launch discovery", function()
     module.choose()
     dap.choose(items[1])
     assert.is_truthy(notes[#notes]:find("bad launch schema", 1, true))
+    assert.is_truthy(notes[#notes]:find(":DapShowLog", 1, true))
+  end)
+  it("handles deferred selection failures while returning to the source window", function()
+    module.choose()
+    local enter = vim.api.nvim_set_current_win
+    vim.api.nvim_set_current_win = function()
+      error("source window entry failed")
+    end
+    local ok, err = pcall(dap.choose, items[1])
+    vim.api.nvim_set_current_win = enter
+    assert.is_true(ok, err)
+    assert.is_nil(chosen)
+    assert.is_truthy(notes[#notes]:find("source window entry failed", 1, true))
     assert.is_truthy(notes[#notes]:find(":DapShowLog", 1, true))
   end)
   it("handles incomplete debugger APIs without launching or opening a picker", function()

@@ -96,4 +96,18 @@ describe("in-editor workflow references", function()
     assert.equals(0, result.code, result.stderr)
     assert.is_truthy((result.stdout .. result.stderr):find("bare references passed", 1, true))
   end)
+  it("inspects source-window directories in a bare editor across tabs", function()
+    local result = vim
+      .system({
+        vim.v.progpath,
+        "--headless",
+        "--noplugin",
+        "-u",
+        "NONE",
+        "-l",
+        "tests/fixtures/window_context.lua",
+      }, { text = true })
+      :wait(5000)
+    assert.equals(0, result.code, result.stderr)
+  end)
 end)

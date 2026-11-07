@@ -73,7 +73,10 @@ end
 local function unchanged(context, check_focus)
   return vim.api.nvim_win_is_valid(context.win)
     and vim.api.nvim_win_get_buf(context.win) == context.buf
-    and vim.api.nvim_win_call(context.win, vim.fn.getcwd) == context.cwd
+    and vim.fn.getcwd(
+      context.win,
+      vim.api.nvim_tabpage_get_number(vim.api.nvim_win_get_tabpage(context.win))
+    ) == context.cwd
     and vim.fn.getcwd(-1, -1) == context.global_cwd
     and (not check_focus or vim.api.nvim_get_current_win() == context.win)
 end
@@ -193,20 +196,31 @@ function M.choose()
           )
           return
         end
-        local checked = M.describe(row.config, row.provider, dap)
-        if checked.unavailable then
-          vim.notify(
-            "Cannot launch "
-              .. row.name
-              .. ": "
-              .. checked.adapter
-              .. (checked.command and " (" .. checked.command .. ")" or "")
-              .. ". Use :checkhealth config, :Mason or :DapLoadLaunchJSON. Adapter logs: :DapShowLog.",
-            vim.log.levels.WARN
-          )
-          return
-        end
-        local ran, err = pcall(vim.api.nvim_win_call, context.win, function()
+        local ran, err = pcall(function()
+          -- win_call switches buffer/window context without changing process cwd.
+          -- Accepting a launch returns to its source so relative adapter paths and
+          -- native DAP callbacks run in the same directory as configuration lookup.
+          vim.api.nvim_set_current_win(context.win)
+          if not unchanged(context, true) then
+            vim.notify(
+              "Launch cancelled: entering the source window changed its context. Choose again.",
+              vim.log.levels.INFO
+            )
+            return
+          end
+          local checked = M.describe(row.config, row.provider, dap)
+          if checked.unavailable then
+            vim.notify(
+              "Cannot launch "
+                .. row.name
+                .. ": "
+                .. checked.adapter
+                .. (checked.command and " (" .. checked.command .. ")" or "")
+                .. ". Use :checkhealth config, :Mason or :DapLoadLaunchJSON. Adapter logs: :DapShowLog.",
+              vim.log.levels.WARN
+            )
+            return
+          end
           dap.run(row.config, { filetype = context.filetype })
         end)
         if not ran then
@@ -223,7 +237,7 @@ function M.choose()
       vim.notify(
         "Debug selector unavailable: "
           .. tostring(err)
-          .. ". Inspect :DapLaunchInfo; check :Lazy or :ConfigHelp debugging. No launch was started.",
+          .. ". Inspect :DapLaunchInfo and :DapShowLog; check :Lazy or :ConfigHelp debugging.",
         vim.log.levels.WARN
       )
     end

@@ -122,6 +122,9 @@ Neo-tree source/root, Scoper scope ON/OFF, explicit build selection and resolved
 clangd database/preparation status, attached LSP roots, and debugging context.
 Debug context includes the next launch root/file and the active session's name,
 type, program and cwd; environment/argument tables are not dumped.
+Window cwd and the default debug root are resolved for the original window,
+including when it is inactive or in another tab. The report does not substitute
+the focused report/picker window's directory for that source context.
 
 Press `r` to refresh the original source window, `h` to read this guide, or
 `q` / Esc to close just the report. An unavailable plugin/API is named instead

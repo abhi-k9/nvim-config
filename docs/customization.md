@@ -108,6 +108,12 @@ Commands choose their context at invocation through
 This resolver does not change third-party cwd contracts automatically. See the
 feature guides for supported boundaries.
 
+Inspection can temporarily enter a different window with `nvim_win_call`.
+For window-directory policy in a custom callback, use `vim.fn.getcwd(0, 0)`;
+plain `getcwd()` can still report the process directory in that context.
+The shared resolver handles this explicitly. `ctx.cwd` in root callbacks
+continues to mean the **global** working directory, as described above.
+
 ## Feature guides and inspection
 
 - [Tool selection, executables, LSP and offline completeness](tooling-configuration.md)

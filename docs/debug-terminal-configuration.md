@@ -120,6 +120,10 @@ Even a single configuration is offered for confirmation. `<leader>da` /
 `:DapLaunch` explicitly opens this chooser, including during a live session.
 Canceling it starts nothing. Switching the source buffer/directory while discovery
 or selection is pending cancels that attempt; retry from the intended code window.
+Accepting a choice returns to that source window before checking a relative
+adapter command or invoking native DAP. A picker with its own local cwd therefore
+cannot redirect executable lookup. Entering the source window is checked again
+in case an autocommand changed its context.
 
 `<leader>dI` / `:DapLaunchInfo` opens full details if long picker labels are
 clipped. `/` searches and `q` / Esc closes only the report. Providers are read,
@@ -145,6 +149,8 @@ the original plugin, configuration tables and lockfile remain unchanged.
 `:DapEditLaunch` opens the configured launch file in a split without writing it
 or creating directories. Save deliberately when ready; `debug.launch_file = false`
 is respected. `<leader>dL` / `:DapLoadLaunchJSON` validates/previews that file.
+Configured paths are opened literally, including `%`, `#`, `$` and spaces;
+the edit command does not expand them as Ex filename expressions.
 Use `:DapShowLog` for adapter/runtime errors and `:ConfigHelp debugging` for this
 guide. `<leader>wi` / `:WorkspaceInfo` compares the next launch root/file against
 the active session and the editor's other directory scopes.
