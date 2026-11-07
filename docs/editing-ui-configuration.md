@@ -63,6 +63,12 @@ a mapped punctuation character does not trigger an insert abbreviation for that
 character. Each listed `chars` item must be a single character, not a key notation
 such as `<CR>`.
 
+Saving to a new filesystem path automatically creates its parent directories,
+including when `:write other/path.txt` targets a different name from the current
+buffer. Virtual paths are left to their providers: URI schemes such as `oil://`,
+`git+ssh://` and `provider-name://` do not create local directories. Windows drive
+paths continue to use normal directory creation.
+
 ## Themes, fonts and motion
 
 `ui.colorscheme` defaults to `"catppuccin"`. The Catppuccin variants, such as
@@ -160,8 +166,9 @@ file; Windows may refuse the rename while a writer has it open.
 ## Validation and references
 
 `tests/editing_policy_spec.lua` exercises false/empty/predicate policies,
-background-buffer writes, EditorConfig and safety guards, comment continuation
-and preservation of independent prose mappings. `tests/retention_policy_spec.lua`
+background-buffer writes, EditorConfig and safety guards, comment continuation,
+preservation of independent prose mappings, and filesystem versus virtual write
+destinations. `tests/retention_policy_spec.lua`
 uses disposable files for disabled/custom retention. `tests/ui_policy_spec.lua`
 also starts the full configuration with a real override file, a stock scheme,
 no icons, reduced motion and global buffers, then loads the deferred UI plugins.

@@ -95,3 +95,43 @@ describe("editing policies", function()
     assert.are.equal("custom", vim.fn.maparg(",", "i"))
   end)
 end)
+
+describe("automatic parent-directory creation", function()
+  local mkdir, calls
+  before_each(function()
+    mkdir, calls = vim.fn.mkdir, {}
+    vim.fn.mkdir = function(path, flags)
+      calls[#calls + 1] = { path, flags }
+      return 1
+    end
+  end)
+  after_each(function()
+    vim.fn.mkdir = mkdir
+  end)
+
+  local function prepare_write(path)
+    vim.api.nvim_exec_autocmds("BufWritePre", {
+      group = "user_auto_mkdir",
+      pattern = path,
+      modeline = false,
+    })
+  end
+
+  it("leaves virtual writes to their providers, including punctuation in URI schemes", function()
+    for _, scheme in ipairs({ "oil", "git+ssh", "plugin-test", "plugin.view", "file" }) do
+      prepare_write(scheme .. "://host/nested/file.txt")
+    end
+    assert.same({}, calls)
+  end)
+
+  it("uses the actual write destination, preserving local paths with URI-like text", function()
+    local path = vim.fn.tempname() .. "/dir+name/file.txt"
+    prepare_write(path)
+    assert.same({ { vim.fn.fnamemodify(path, ":p:h"), "p" } }, calls)
+    if vim.fn.has("win32") == 1 then
+      calls = {}
+      prepare_write([[C:\\new-folder\file.txt]])
+      assert.equals(1, #calls)
+    end
+  end)
+end)

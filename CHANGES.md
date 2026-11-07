@@ -6,6 +6,16 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-07 — Leave virtual save paths to their providers
+
+### Fixed
+
+- Skip automatic parent-directory creation for URI schemes containing `+`, `-`
+  or `.`, such as `git+ssh://` and `provider-name://`. Previously those writes
+  attempted to create local directories named after the virtual path.
+- Preserve local write destinations and Windows drive paths. Add regressions
+  and explain filesystem versus virtual writes in the editing guide.
+
 ## 2026-11-07 — Recover safely from non-object Scoper state
 
 ### Fixed
