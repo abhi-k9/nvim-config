@@ -33,7 +33,9 @@ unloaded until a terminal preview is requested. Its other UI features are not
 enabled. Disable/remove the checkout through a normal local Lazy override if
 desired: `{ "folke/snacks.nvim", enabled = false }` under `plugins`. The command
 and fallback still work. `:Lazy update snacks.nvim` explicitly moves the pin;
-`:Lazy restore snacks.nvim` restores the committed version.
+`:Lazy restore snacks.nvim` installs the revision in the **current on-disk**
+lockfile. To undo an update, first recover the desired lockfile from Git or a
+backup, then restore. See the [plugin-update and rollback workflow](workflows/install-update-uninstall.md#update-and-share-plugin-versions-git-checkout).
 
 ## Platforms and dependencies
 

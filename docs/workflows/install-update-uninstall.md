@@ -211,7 +211,10 @@ those checks, record what you verified and create an update branch before
 committing, for example `git switch -c update-plugin-lock`. Follow the review,
 add and commit steps above, then use `git push -u origin HEAD` in place of
 `git push origin main`. Open a pull request and require CI before merging into
-`main`. This is also the route when you lack direct push access. Inspect the
+`main`. For a protected main branch, push an update branch to `origin` if allowed.
+If you have no write access to that repository, push to your fork instead (for
+example, after configuring a `fork` remote, use `git push -u fork HEAD`) and open
+a pull request against the original repository. Inspect the
 GitHub Actions result after pushing; one working local session does not verify
 all plugins/platforms. A rejected push needs integration with upstream and a
 fresh review/test of the resulting pins; do not force-push over it.

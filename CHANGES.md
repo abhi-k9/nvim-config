@@ -6,6 +6,33 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-06 — Harden window context, literal paths and preview preparation
+
+### Fixed
+
+- Open configured launch files without Ex expansion of `%`, `#` or other literal
+  filename characters. Accept valid relative POSIX image names containing a colon,
+  while rejecting ambiguous Windows drive-relative names with a useful message.
+- Resolve source-window cwd explicitly: Neovim's `nvim_win_call` can change window
+  context while plain `getcwd()` still reads the process directory. Correct the
+  shared root resolver, inactive/cross-tab workspace reports and DAP selection
+  guards. Return to the source window before checking relative adapter commands
+  and launching; recheck context after window-entry autocommands.
+- Start the image preparation deadline before terminal detection and snapshot
+  I/O. Handle stalled stages, rejected copy submissions and exceptions in deferred
+  callbacks. Give each request its own job/timer/snapshot lifecycle so cancelled
+  operations clean up without interfering with a newer preview.
+
+### Docs
+
+- Explain the source-window directory contract, literal launch paths and shared
+  image deadline. Correct the image guide's lockfile restore claim: Lazy follows
+  the file on disk rather than recovering Git's version. Clarify fork versus
+  protected-branch publishing and add image commands to the plugin cheatsheet.
+- Add targeted regressions and a plugin-free cross-tab window-context fixture,
+  also exercised by the existing native Windows CI job. Keep physical-terminal
+  image verification limits documented in the image guide.
+
 ## 2026-11-06 — Document publishing deliberate plugin updates
 
 ### Docs

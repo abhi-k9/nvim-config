@@ -95,6 +95,17 @@
 </div>
 
 <div class="card">
+  <div class="card-header"><div class="dot" style="background:var(--lavender)"></div><h2>Optional images <span class="note">Snacks renderer</span></h2></div>
+  <table>
+    <tr><td><code>:ImageOpen [path]</code></td><td>Preview a local raster image or use the selected fallback. Omit the path for the current file.</td></tr>
+    <tr><td><code>:ImageOpen! [path]</code></td><td>Request the system viewer directly.</td></tr>
+    <tr><td><kbd>q</kbd> / <kbd>Esc</kbd> / <kbd>e</kbd></td><td>In the preview: close / close / close and request the system viewer.</td></tr>
+    <tr><td><code>:ConfigHelp images</code></td><td>Setup, platform limits and troubleshooting. See the <a href="../image-previews.md">image guide</a>.</td></tr>
+    <tr><td colspan="2" class="note">Terminal rendering is off by default; opt in with <code>images.enabled = true</code> in local.lua. Needs ImageMagick and Kitty graphics support. Missing capabilities use the system viewer or notification-only fallback. Automatic inline document images stay disabled.</td></tr>
+  </table>
+</div>
+
+<div class="card">
   <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>mason.nvim <span class="note">LSP / DAP / formatter installer</span></h2></div>
   <table>
     <tr><td><code>:Mason</code></td><td>Open package manager UI</td></tr>
