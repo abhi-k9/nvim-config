@@ -87,10 +87,19 @@ function M.format(buf, opts)
       next_client(index + 1)
     end, buf)
     -- In-process servers can respond before request() returns; do not
-    -- overwrite the next server's pending request in that case.
-    if not responded and pending[buf] == state then
-      if not ok then return finish(client.name .. ": format request failed") end
-      state.request_id = id
+    -- overwrite the next server's pending request in that case. Native
+    -- LspRequest hooks can also invalidate/supersede this operation before
+    -- its ID is returned. Cancel that ID once it becomes available.
+    if not responded then
+      if pending[buf] ~= state then
+        if ok and id then pcall(client.cancel_request, client, id) end
+      else
+        if not ok then return finish(client.name .. ": format request failed") end
+        state.request_id = id
+        -- A non-nested hook may suppress BufFilePost/BufUnload, so check
+        -- the buffer itself as well as the cancellation state.
+        if not unchanged() then finish("Formatting discarded: buffer changed") end
+      end
     end
   end
   next_client(1)

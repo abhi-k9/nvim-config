@@ -200,6 +200,67 @@ describe("asynchronous LSP formatting", function()
     assert.are.same({}, vim.api.nvim_get_autocmds({ event = "BufFilePost", buffer = buf }))
   end)
 
+  local function native_request_client()
+    local Client = require("vim.lsp.client")
+    client.flags, client.requests, client._log_prefix = {}, {}, "format-spec"
+    client.request, client._process_request = Client.request, Client._process_request
+    client.rpc = {
+      request = function(_, _, callback)
+        request_count = request_count + 1
+        response = callback
+        return true, request_count
+      end,
+    }
+  end
+
+  for _, nested in ipairs({ false, true }) do
+    it(
+      "cancels a request after an LspRequest rename (nested hooks: " .. tostring(nested) .. ")",
+      function()
+        native_request_client()
+        local before = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+        vim.api.nvim_create_autocmd("LspRequest", {
+          buffer = buf,
+          once = true,
+          nested = nested,
+          callback = function()
+            vim.api.nvim_buf_set_name(buf, vim.fn.tempname() .. ".lua")
+          end,
+        })
+        require("config.lsp_format").format(buf)
+        assert.are.same({ 1, 2 }, cancelled)
+        assert.are.same({}, vim.api.nvim_get_autocmds({ event = "BufFilePost", buffer = buf }))
+        response(nil, {
+          {
+            range = { start = { line = 0, character = 0 }, ["end"] = { line = 0, character = 1 } },
+            newText = "stale",
+          },
+        })
+        assert.are.same(before, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
+      end
+    )
+  end
+
+  it(
+    "cancels only the superseded request when a native LspRequest hook starts a new format",
+    function()
+      native_request_client()
+      vim.api.nvim_create_autocmd("LspRequest", {
+        buffer = buf,
+        once = true,
+        callback = function()
+          require("config.lsp_format").format(buf)
+        end,
+      })
+      require("config.lsp_format").format(buf)
+      assert.are.same({ 1, 2 }, cancelled)
+      assert.equals(3, request_count)
+      require("config.lsp_format").format(buf)
+      assert.are.same({ 1, 2, 3 }, cancelled)
+      response(nil, {})
+    end
+  )
+
   it("keeps later servers on the original buffer after focus changes", function()
     local reply
     local second = vim.tbl_extend("force", client, {

@@ -6,6 +6,17 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-07 — Cancel formatter requests invalidated during dispatch
+
+### Fixed
+
+- Cancel a request whose ID arrives after a synchronous `LspRequest` hook has
+  renamed the buffer or started a replacement format. Previously its reply was
+  discarded, but the server missed the cancellation and could waste work.
+- Preserve the replacement request and existing synchronous-response handling.
+  Reproduce both cases through Neovim's native client request method and
+  document the LSP-only formatter's cancellation and stale-edit behavior.
+
 ## 2026-11-07 — Keep diagnostic snapshots usable around optional-plugin failures
 
 ### Fixed

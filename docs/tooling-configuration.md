@@ -128,6 +128,23 @@ The callback makes both toggle commands effective. It retains the shipped
 formatter selection and LSP fallback. Core trailing-whitespace cleanup is a
 separate save policy; see [editing customization](editing-ui-configuration.md).
 
+## Asynchronous LSP formatting
+
+`<leader>lf` requests whole-buffer formatting from attached LSP servers. It
+does not invoke a separate CLI formatter; use `<leader>cf` for Conform's
+configured formatter selection and LSP fallback.
+
+The LSP-only action discards a response if you edit the buffer while waiting.
+Renaming, unloading or deleting the buffer, detaching its formatting server,
+starting another format, or reaching the five-second timeout cancels the
+outstanding request. Replies to cancelled requests cannot alter the buffer.
+Cancellation is advisory: the server may still finish its work.
+
+Neovim can run an `LspRequest` autocommand before returning the new request ID.
+The wrapper also cancels that ID if the hook already invalidated or superseded
+the operation, preserving any newer request. The behavior is checked against
+[Neovim's client request implementation](https://github.com/neovim/neovim/blob/v0.12.6/runtime/lua/vim/lsp/client.lua#L726).
+
 ## Compiler and runtime discovery
 
 ```lua
