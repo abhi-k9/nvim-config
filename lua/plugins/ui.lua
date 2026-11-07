@@ -49,8 +49,9 @@ return {
   -- lazy = false so its tab autocmds exist before auto-session restores on
   -- startup. Session persistence needs three things, all wired up:
   --   1. sessionoptions += "globals"          (lua/config/options.lua)
-  --   2. :ScopeSaveState in pre_save_cmds      (lua/plugins/session.lua)
-  --   3. :ScopeLoadState in post_restore_cmds  (lua/plugins/session.lua)
+  --   2. config.session saves names in visual tab order, without unlisting
+  --   3. config.session restores validated names through literal buffer APIs
+  --      (both are wired to auto-session's hooks in plugins/session.lua)
   -- Buffers in OTHER tabs are hidden from <leader>fb (now "this tab"); reach
   -- them with <leader>fB (all tabs), or move one with :ScopeMoveBuf <tab_nr>.
   -- -------------------------------------------------------------------------

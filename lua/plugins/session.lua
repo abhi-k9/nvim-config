@@ -75,6 +75,7 @@ end
 
 -- Only layouts that a mid-session save actually closed are reopened.
 local reopen_dapui_after_save
+local scope_restore_failed = false
 
 -- Filetypes the post-restore rescue pass never re-lists (see post_restore).
 local RESCUE_SKIP_FT = { gitcommit = true, gitrebase = true, gittag = true }
@@ -131,13 +132,15 @@ return {
         "sessions.min_files must be a positive number or false"
       )
       if min_tabs ~= false and #vim.api.nvim_list_tabpages() >= min_tabs then return true end
+      if min_files == false then return false end
       local files = 0
       for _, b in ipairs(vim.api.nvim_list_bufs()) do
         if vim.bo[b].buflisted and require("config.util").is_file_buffer(b) then
           files = files + 1
+          if files >= min_files then return true end
         end
       end
-      return min_files ~= false and files >= min_files
+      return false
     end,
     -- Don't auto-restore in the home directory or a temp dir; restoring a
     -- random session because you ran `nvim` with no args is annoying. The
@@ -245,20 +248,7 @@ return {
       -- after the dap-buffer wipe above, so the saved map can't reference
       -- buffers we're about to delete.
       function()
-        if global_buffers() then
-          vim.g.ScopeState = nil
-          return
-        end
-        vim.cmd("ScopeSaveState")
-        -- scope.nvim serializes its handle-keyed cache with pairs(), whose
-        -- order need not match the tab order recorded by :mksession (for
-        -- example after :tabmove). Restore expects a dense tab-order list.
-        local core, utils = require("scope.core"), require("scope.utils")
-        local cache = {}
-        for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
-          cache[#cache + 1] = utils.get_buffer_names(core.cache[tab] or {})
-        end
-        vim.g.ScopeState = vim.json.encode({ cache = cache, last_tab = core.last_tab })
+        require("config.session").save_scopes()
       end,
     },
 
@@ -312,33 +302,12 @@ return {
     },
     post_restore_cmds = {
       function()
-        if global_buffers() then return end
-        if vim.g.ScopeState == nil then return end
-        vim.cmd("ScopeLoadState")
-        -- ScopeLoadState rebuilds the cache as a list in saved-tab order,
-        -- but scope looks entries up by tabpage handle, and handles equal
-        -- positions only in a fresh Neovim (not after switching sessions).
-        -- Re-key by the restored tabs, then redo scope's own unlist +
-        -- tab-enter with the corrected map.
-        local ok, core = pcall(require, "scope.core")
-        if not ok or type(core.cache) ~= "table" then return end
-        local tabs = vim.api.nvim_list_tabpages()
-        local by_handle, shifted = {}, false
-        for i, tab in ipairs(tabs) do
-          by_handle[tab] = core.cache[i]
-          shifted = shifted or tab ~= i
-        end
-        if not shifted then return end
-        core.cache = by_handle
-        for _, b in ipairs(vim.api.nvim_list_bufs()) do
-          if vim.bo[b].buflisted then vim.bo[b].buflisted = false end
-        end
-        core.on_tab_enter()
+        scope_restore_failed = require("config.session").restore_scopes() == false
       end,
       function()
-        if global_buffers() then return end
-        local ok, core = pcall(require, "scope.core")
-        if not ok then return end
+        if scope_restore_failed or global_buffers() then return end
+        local core = package.loaded["scope.core"]
+        if type(core) ~= "table" then return end
         -- NOTE: core.cache is scope.nvim INTERNAL state (tabpage →
         -- list-of-bufnrs today). It has no stability guarantee, so
         -- every access below is type-guarded: if an upstream update

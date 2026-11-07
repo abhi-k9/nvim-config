@@ -250,7 +250,7 @@ nvim/
 │   │   ├── readonly.lua      scoped read-only reference windows with close hints
 │   │   ├── workspace.lua     inspect existing roots, scopes, clients and debug state
 │   │   ├── search.lua        literal visibility policies and backend root resolution
-│   │   ├── session.lua       automatic-save veto before layout/scope cleanup
+│   │   ├── session.lua       automatic-save veto and literal tab-buffer persistence
 │   │   ├── tool_intent.lua   selected package identities, pins and intentional opt-outs
 │   │   ├── options.lua       vim.opt settings
 │   │   ├── keymaps.lua       Global keymaps
@@ -328,6 +328,7 @@ nvim/
 │   │   ├── lsp_initialization.lua  real Lazy startup with controlled Mason boundary
 │   │   ├── image_open.lua       plugin-free image commands and native platform/path handling
 │   │   ├── window_context.lua   plugin-free source-window cwd, debug root and cross-tab inspection
+│   │   ├── session_scope.lua    plugin-free literal session filenames and tab visibility
 │   │   └── windows_dap_spawn.lua  native Windows adapter process and argv checks
 │   ├── escape_float_lifecycle_spec.lua  popup closure under reentrant window hooks
 │   ├── session_filetype_rescue_spec.lua  session filetype rescue on ordinary files

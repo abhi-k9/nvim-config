@@ -299,6 +299,26 @@ tab-scoped session metadata is ignored rather than applied as a global buffer
 map. Change this setting before startup and restart Neovim. The DAP panel/layout
 save protections and dirty-buffer protections remain in effect in either mode.
 
+The local session bridge saves per-tab buffer names in visual tab order and
+restores hidden buffers through Neovim's literal `bufadd()` API. Spaces, `%`,
+`#`, `$` and Ex separators in filenames remain literal where the OS permits
+those characters. It keeps
+the existing `ScopeState` JSON shape; no session migration is required.
+This adapter is local to the configuration; it does not patch scope.nvim or
+change that plugin's own manually invoked commands.
+
+The bridge validates all saved groups before changing buffer visibility. Invalid
+metadata produces a warning and preserves current visibility; a tab/session
+change during buffer creation cancels application of the old groups. Inspect
+the restored layout, then use `:AutoSession save` to replace invalid metadata.
+When scope.nvim is unavailable, ordinary sessions still work and the next save
+clears old scope metadata. Global-buffer mode keeps its existing opt-out behavior.
+
+Saving captures listed buffers without temporarily unlisting/relisting them.
+Restore indexes existing buffer names once and reuses that lookup across groups,
+coalescing repeated names within a tab. The file-argument autosave check also
+stops as soon as its configured file-count threshold is met.
+
 ## Verification
 
 `tests/search_policy_spec.lua` checks literal exclusion boundaries with real
@@ -307,6 +327,13 @@ sessions, thresholds and global-buffer guards. `tests/scoper_telescope_spec.lua`
 uses real Telescope jobs for file/glob includes. Scoper's
 `tests/picker_query_spec.lua` verifies native results and captured fzf predicates;
 the existing picker suite covers cwd confinement, quoting and replacement refusal.
+
+`tests/session_scope_spec.lua` covers literal names, invalid metadata, moved tabs,
+reentrant tab changes and missing scope.nvim. Its plugin-free native fixture also
+runs in the existing Windows CI job. The serialized shape and unsafe upstream
+filename path were checked against the pinned
+[scope.nvim implementation](https://github.com/tiagovla/scope.nvim/blob/01cc3d5bb794e6d7afbb1b02a7e941ddf736d9ea/lua/scope/utils.lua#L36-L76)
+and Neovim's [`bufadd()` contract](https://neovim.io/doc/user/vimfn.html#bufadd()).
 
 Backend contracts were checked against the installed locked sources:
 [Telescope](https://github.com/nvim-telescope/telescope.nvim),

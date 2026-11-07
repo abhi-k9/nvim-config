@@ -229,7 +229,7 @@ jobs:
           py=$(command -v python3 || command -v python)
           "$py" ../scripts/ci-run.py nvim --headless --noplugin -u NONE -l tests/run.lua
 
-      - name: Native Windows DAP, image and window-context fixtures
+      - name: Native Windows DAP, image, window-context and session fixtures
         if: runner.os == 'Windows'
         timeout-minutes: 2
         shell: bash
@@ -238,6 +238,7 @@ jobs:
           "$py" scripts/ci-run.py nvim --headless --noplugin -u NONE -l tests/fixtures/windows_dap_spawn.lua
           "$py" scripts/ci-run.py nvim --headless --noplugin -u NONE -l tests/fixtures/image_open.lua
           "$py" scripts/ci-run.py nvim --headless --noplugin -u NONE -l tests/fixtures/window_context.lua
+          "$py" scripts/ci-run.py nvim --headless --noplugin -u NONE -l tests/fixtures/session_scope.lua
 
   test-seed:
     name: offline-seed tests (${{ matrix.os }})

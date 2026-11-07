@@ -6,6 +6,31 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-07 — Restore tab buffer groups through a local literal-path bridge
+
+### Fixed
+
+- Replace the config's calls to scope.nvim's filename-concatenating session
+  loader with a local bridge using `bufadd()`. Restore hidden names literally,
+  validate the entire saved group structure before changing visibility and
+  reject results if buffer-creation hooks change the session or tabs.
+- Retain the existing JSON shape, restore groups by visual tab order, coalesce
+  duplicate names and reset process-local tab handles. Missing scope.nvim skips
+  group restoration and clears stale group metadata on the next save.
+
+### Changed
+
+- Capture current listed buffers without unlist/relist events; index existing
+  names once during restore. Stop the autosave eligibility scan at the required
+  file count and skip it when that criterion is disabled.
+
+### Docs
+
+- Document compatibility, recovery and the local ownership boundary, with pinned
+  upstream and Neovim API references. Add literal filename, invalid metadata,
+  nested-tab and missing-plugin regressions plus a plugin-free fixture reused by
+  the existing native Windows CI job. No dependency or plugin-source changes.
+
 ## 2026-11-07 — Keep debugger session cleanup safe under nested close hooks
 
 ### Fixed
