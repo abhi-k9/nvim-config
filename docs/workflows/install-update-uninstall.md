@@ -167,6 +167,100 @@ config folder's name by itself. To make it permanent, set `NVIM_APPNAME` in
 your shell profile (`set -gx NVIM_APPNAME nvim-new` in fish's
 `config.fish`), or rename the folders to `nvim`.
 
+## Update and share plugin versions (Git checkout)
+
+The committed `lazy-lock.json` is the shared plugin-version baseline. Commit an
+intentional, reviewed update when you want everyone to use those revisions.
+An incidental lockfile rewrite during installation does not establish that the
+new versions have been tested. These commands apply to Linux, macOS and Windows
+with Git available; run them from the config repository, on `main`, with push
+access to `origin`.
+
+Before starting a new plugin update, save/commit existing work and use
+`git pull --ff-only` to start from the current configuration. If you already
+updated plugins locally, review/preserve that lockfile before pulling; see the
+conflict cases below.
+
+In Neovim, run `:Lazy update`, or target one plugin, for example
+`:Lazy update snacks.nvim`. Wait for the update to finish. Run
+`:checkhealth config` and relevant plugin health checks, then exercise your
+usual editing, search, LSP and debugging workflows. Quit all Neovim instances
+before reviewing/committing so another instance cannot rewrite the lockfile.
+
+Review, validate, and publish the deliberately updated versions:
+
+```sh
+git status
+git diff HEAD -- lazy-lock.json
+make ci
+git add -- lazy-lock.json
+git diff --cached -- lazy-lock.json
+git commit --only -m "Update tested Neovim plugin versions" -- lazy-lock.json
+git push origin main
+```
+
+Run the commit/push commands after reviewing the diff and passing validation.
+`--only` keeps unrelated staged files out of this commit. If the lockfile has
+no changes, no new commit is needed. A `:Lazy restore` before committing would
+reinstall the versions in the current on-disk lockfile; it does not recover the
+previous Git version.
+
+`make ci` needs the development/test tools described in the
+[testing instructions](../../README.md#testing). If your machine cannot run
+those checks, record what you verified and create an update branch before
+committing, for example `git switch -c update-plugin-lock`. Follow the review,
+add and commit steps above, then use `git push -u origin HEAD` in place of
+`git push origin main`. Open a pull request and require CI before merging into
+`main`. This is also the route when you lack direct push access. Inspect the
+GitHub Actions result after pushing; one working local session does not verify
+all plugins/platforms. A rejected push needs integration with upstream and a
+fresh review/test of the resulting pins; do not force-push over it.
+
+### Pull blocked by local lockfile changes
+
+First run `git status` and close Neovim. If there is **no merge/rebase in
+progress** and you want to discard your local plugin-version choices, restore
+only this file and pull:
+
+```sh
+git restore --source=HEAD --staged --worktree -- lazy-lock.json
+git pull --ff-only
+```
+
+This discards both staged and unstaged lockfile edits. Save a copy first if
+those plugin choices matter; other files remain untouched. Then reopen Neovim
+and run `:Lazy restore` to install the pulled revisions.
+
+### Resolve an existing lockfile merge conflict
+
+If `git status` shows an **in-progress merge or rebase**, the usual choice is
+the repository's tested pins. The following assumes the pull fetched
+`origin/main`; it replaces local choices in this file with that version:
+
+```sh
+git restore --source=origin/main --staged --worktree -- lazy-lock.json
+```
+
+Resolve any other conflicted files, then run **one** continuation command for
+the operation reported by `git status`:
+
+```sh
+git merge --continue
+```
+
+Or, for a rebase:
+
+```sh
+git rebase --continue
+```
+
+Reopen Neovim and run `:Lazy restore`. If you wanted to retain local updates,
+save a copy before resolving and reapply those updates deliberately afterward,
+then review/test/commit the resulting lockfile using the recipe above. Using an
+explicit `origin/main` source avoids the differing meaning of “ours/theirs”
+during a rebase. This lockfile records plugins; Mason tools, parsers and pinned
+GitHub Actions have their own update mechanisms.
+
 ## Update to a new zip
 
 Your data folder is kept: sessions, undo history, ShaDa, breakpoints and

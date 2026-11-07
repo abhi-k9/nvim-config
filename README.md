@@ -619,6 +619,8 @@ features you need. A missing language tool is not a reason to abandon setup.
   older lockfile from Git. To undo an update, restore your desired lockfile from
   Git or a backup first, then run `:Lazy restore`. See the
   [rollback steps](docs/workflows/install-update-uninstall.md#roll-back).
+  To share deliberate updates, use the
+  [review/test/commit/push recipe and lockfile conflict recovery](docs/workflows/install-update-uninstall.md#update-and-share-plugin-versions-git-checkout).
   CI's plugin cache is keyed on the lockfile.
 - **Tooling health reminder**: an informational prompt appears on first
   interactive use, then every 30 days when you start or refocus Neovim.

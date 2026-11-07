@@ -6,6 +6,15 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-06 — Document publishing deliberate plugin updates
+
+### Docs
+
+- Add commands to review, test and commit only `lazy-lock.json`, then publish
+  the new shared pins. Include the branch/CI route for limited machines and
+  separate recovery recipes for local edits blocking a pull and an existing
+  merge/rebase conflict. Link the workflow from the README's version policy.
+
 ## 2026-11-06 — Add optional local-image previews
 
 ### Changed
