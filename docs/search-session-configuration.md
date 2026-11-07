@@ -244,6 +244,10 @@ This decision is made before installing the lazy selection hook; a later manual
 Telescope load does not install its selection extension for another provider.
 
 `explorer.auto_open=false` disables the config-owned startup directory hook.
+For a directory launch, the deferred open keeps the requested directory even
+if cwd changes, but is discarded if you change tabs, replace the directory
+buffer, move/close its window or disable automatic opening before it runs.
+An unavailable explorer reports a warning. Use `<leader>e` to open it explicitly.
 Explorer toggle/reveal mappings remain available. `ui.icons=false` uses ASCII
 explorer markers and disables file-icon decoration in the owned Telescope/fzf
 pickers. Third-party layouts can still be customized with normal plugin options.

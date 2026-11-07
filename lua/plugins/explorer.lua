@@ -137,13 +137,34 @@ return {
         if f ~= "" and vim.fn.isdirectory(f) == 1 then
           -- Buffer names are absolute. Capture this directory before
           -- deferring: cwd may change while the scheduled open is pending.
+          local win, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
           vim.schedule(function() -- ← defer until the event loop is idle
-            require("neo-tree.command").execute({
-              action = "show",
-              source = "filesystem",
-              position = "left",
-              dir = f,
-            })
+            -- A startup command or another callback may already have opened
+            -- a file, closed this window or moved to a different tab.
+            if
+              not vim.api.nvim_win_is_valid(win)
+              or vim.api.nvim_win_get_tabpage(win) ~= tab
+              or vim.api.nvim_win_get_buf(win) ~= ev.buf
+              or vim.api.nvim_buf_get_name(ev.buf) ~= f
+              or vim.api.nvim_get_current_tabpage() ~= tab
+              or not require("config.settings").get("explorer.auto_open", true)
+            then
+              return
+            end
+            local ok, err = pcall(function()
+              require("neo-tree.command").execute({
+                action = "show",
+                source = "filesystem",
+                position = "left",
+                dir = f,
+              })
+            end)
+            if not ok then
+              vim.notify(
+                "Explorer could not open this directory: " .. tostring(err),
+                vim.log.levels.WARN
+              )
+            end
           end)
         end
       end,

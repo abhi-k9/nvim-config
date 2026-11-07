@@ -6,6 +6,16 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-07 — Discard obsolete explorer startup callbacks
+
+### Fixed
+
+- Bind a deferred directory open to its source buffer, window and tab. Preserve
+  the captured directory across cwd changes, but cancel after a tab switch,
+  replaced/renamed buffer, moved/closed window or disabled automatic opening.
+- Report optional explorer failures without an uncaught scheduled callback.
+  Add tab-switch and buffer-replacement regressions and document explicit reopening.
+
 ## 2026-11-07 — Restore tab buffer groups through a local literal-path bridge
 
 ### Fixed
