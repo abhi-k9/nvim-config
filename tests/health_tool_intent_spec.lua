@@ -1,8 +1,10 @@
 describe("health reports effective tool intent", function()
   local saved, handlers, messages, probed, tooling, install_supported, skipped
+  local has, executable, exepath, system
 
   before_each(function()
     require("config.settings").reset()
+    has, executable, exepath, system = vim.fn.has, vim.fn.executable, vim.fn.exepath, vim.system
     saved, handlers, messages, probed = {}, {}, {}, {}
     for _, name in ipairs({
       "lazy.core.config",
@@ -46,6 +48,7 @@ describe("health reports effective tool intent", function()
   end)
 
   after_each(function()
+    vim.fn.has, vim.fn.executable, vim.fn.exepath, vim.system = has, executable, exepath, system
     require("config.settings").reset()
     for name, value in pairs(saved) do
       package.loaded[name] = value
@@ -117,5 +120,64 @@ describe("health reports effective tool intent", function()
     require("config.health").check()
     assert.same({ ["dockerfile-language-server"] = true }, probed)
     assert.is_nil(package.loaded["mason-lspconfig"])
+  end)
+
+  it("bounds Python alias probes and continues from a shortcut to a working interpreter", function()
+    package.loaded["lazy.core.config"].plugins["mason-tool-installer.nvim"].opts.ensure_installed =
+      { "debugpy" }
+    vim.fn.has = function(feature)
+      return feature == "win32" and 1 or has(feature)
+    end
+    vim.fn.executable = function(bin)
+      return (bin == "python" or bin == "python3") and 1 or 0
+    end
+    vim.fn.exepath = function(bin)
+      return "C:\\Users\\user\\AppData\\Local\\Microsoft\\wInDoWsApPs\\" .. bin .. ".exe"
+    end
+    local calls, working = {}, false
+    vim.system = function(argv)
+      calls[#calls + 1] = argv[1]
+      return {
+        wait = function(_, timeout)
+          assert.equals(1500, timeout)
+          if working and argv[1] == "python" then return { code = 0, stderr = "Python 3.12.0" } end
+          return { code = 9009 }
+        end,
+      }
+    end
+    require("config.health").check()
+    assert.same({ "python3", "python" }, calls)
+    assert.is_truthy(
+      table.concat(messages, "\n"):find("execution alias is not a working interpreter", 1, true)
+    )
+
+    -- A Store-installed interpreter can use the same alias directory.
+    working = true
+    require("config.health").check()
+    assert.same({ "python3", "python", "python3", "python" }, calls)
+    assert.is_truthy(table.concat(messages, "\n"):find("Python 3 — Python 3.12.0", 1, true))
+  end)
+
+  it("keeps reporting when a tool version probe times out or cannot spawn", function()
+    vim.fn.executable = function(bin)
+      return bin == "git" and 1 or 0
+    end
+    local waited
+    vim.system = function(argv)
+      assert.same({ "git", "--version" }, argv)
+      return {
+        wait = function(_, timeout)
+          waited = timeout
+          return { code = 124, stdout = "partial output" }
+        end,
+      }
+    end
+    require("config.health").check()
+    assert.equals(1500, waited)
+    assert.is_truthy(table.concat(messages, "\n"):find("found (version unknown)", 1, true))
+    vim.system = function()
+      error("process creation failed")
+    end
+    require("config.health").check()
   end)
 end)

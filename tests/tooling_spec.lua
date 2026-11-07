@@ -97,9 +97,24 @@ describe("optional tool prerequisites", function()
   end)
 
   it("rejects Windows Store Python aliases for PyPI tools", function()
+    vim.fn.has = function(feature)
+      return feature == "win32" and 1 or has(feature)
+    end
     available = { curl = true, python3 = true }
     vim.fn.exepath = function()
       return [[C:\Users\user\AppData\Local\Microsoft\WindowsApps\python3.exe]]
+    end
+    local probe = vim.system
+    vim.system = function(args, opts)
+      if args[1] == "python3" then
+        return {
+          wait = function(_, timeout)
+            assert.equals(1500, timeout)
+            return { code = 9009 }
+          end,
+        }
+      end
+      return probe(args, opts)
     end
     assert.is_false(tools.install_supported("debugpy"))
     available.python = true
@@ -107,6 +122,77 @@ describe("optional tool prerequisites", function()
       return bin == "python" and "C:/Python/python.exe" or exepath(bin)
     end
     assert.is_true(tools.install_supported("debugpy"))
+  end)
+  it(
+    "bounds and caches Python prerequisite probes without excluding working Store installs",
+    function()
+      vim.fn.has = function(feature)
+        return feature == "win32" and 1 or has(feature)
+      end
+      available = { curl = true, python = true, python3 = true }
+      vim.fn.exepath = function(bin)
+        return "C:/Users/user/AppData/Local/Microsoft/wInDoWsApPs/" .. bin .. ".exe"
+      end
+      local calls, working = 0, false
+      vim.system = function()
+        calls = calls + 1
+        return {
+          wait = function(_, timeout)
+            assert.equals(1500, timeout)
+            return { code = working and 0 or 9009 }
+          end,
+        }
+      end
+      assert.is_false(tools.install_supported("debugpy"))
+      assert.equals(2, calls)
+      assert.is_false(tools.install_supported("debugpy"))
+      assert.equals(2, calls)
+      working = true
+      vim.fn.exepath = function(bin)
+        return "C:/Users/working/AppData/Local/Microsoft/WindowsApps/" .. bin .. ".exe"
+      end
+      assert.is_true(tools.install_supported("debugpy"))
+      assert.equals(3, calls)
+    end
+  )
+
+  it("distinguishes Python shortcuts from working aliases and literal runtime paths", function()
+    vim.fn.has = function(feature)
+      return feature == "win32" and 1 or has(feature)
+    end
+    available.python = true
+    local path = "C:/Users/working/AppData/Local/Microsoft/wInDoWsApPs/python.exe"
+    vim.fn.exepath = function()
+      return path
+    end
+    local calls, working = 0, true
+    vim.system = function(argv)
+      calls = calls + 1
+      assert.same({ path, "--version" }, argv)
+      return {
+        wait = function(_, timeout)
+          assert.equals(1500, timeout)
+          return { code = working and 0 or 9009, stderr = working and "Python 3.12.0\r\n" or "" }
+        end,
+      }
+    end
+    assert.equals(path, tools.python_path("python"))
+    assert.equals(path, tools.python_path("python"))
+    assert.equals(1, calls)
+    working = false
+    path = "C:\\Users\\missing\\AppData\\Local\\Microsoft\\WINDOWSAPPS\\python.exe"
+    assert.is_nil(tools.python_path("python"))
+    assert.is_nil(tools.python_path("python"))
+    assert.equals(2, calls)
+    path = "C:/Program Files/WindowsApps/Python312/python.exe"
+    assert.equals(path, tools.python_path("python"))
+    assert.equals(2, calls)
+    vim.fn.has = function(feature)
+      return feature == "win32" and 0 or has(feature)
+    end
+    path = "/opt/Microsoft/WindowsApps/python"
+    assert.equals(path, tools.python_path("python"))
+    assert.equals(2, calls)
   end)
 
   it("checks native archive tools and the Node runtime of the GitHub Bash adapter", function()

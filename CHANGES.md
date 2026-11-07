@@ -6,6 +6,26 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-07 — Validate Python aliases and bound health version probes
+
+### Fixed
+
+- Accept working Store-installed Python for Mason instead of rejecting every
+  interpreter in the Windows alias directory. Keep bounded venv/ensurepip probes
+  and cached results; uninstalled shortcuts fail without opening the Store.
+- Resolve debugger PATH interpreters, skip unusable Windows aliases with a
+  cached bounded version probe, and try the other canonical name. Preserve
+  explicit/activated/project interpreters and explain how to fix a missing one.
+- Bound each health version command to 1.5 seconds, accept stderr version output,
+  and continue reporting after timeouts or spawn failures. Follow Windows case
+  rules when explaining an unusable Store alias.
+
+### Docs
+
+- Document interpreter precedence, probe bounds/cache behavior and the
+  distinction between working aliases and uninstalled shortcuts. Corroborate
+  that behavior with Microsoft's Python FAQ and add targeted regressions.
+
 ## 2026-11-06 — Harden window context, literal paths and preview preparation
 
 ### Fixed

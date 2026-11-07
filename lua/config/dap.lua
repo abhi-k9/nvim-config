@@ -501,11 +501,17 @@ function M.setup()
       -- then an un-activated project env in the cwd (.venv / venv — the
       -- uv / poetry / python -m venv convention), then PATH.
       local cwd = M.root()
-      return env_python(os.getenv("VIRTUAL_ENV"))
+      local interpreter = env_python(os.getenv("VIRTUAL_ENV"))
         or env_python(os.getenv("CONDA_PREFIX"))
         or env_python(vim.fs.joinpath(cwd, ".venv"))
         or env_python(vim.fs.joinpath(cwd, "venv"))
-        or (is_windows and "python" or "python3")
+      if interpreter then return interpreter end
+      local candidates = is_windows and { "python", "python3" } or { "python3", "python" }
+      for _, bin in ipairs(candidates) do
+        local path = require("config.tooling").python_path(bin)
+        if path then return path end
+      end
+      error("No Python interpreter found; install Python or set debug.python")
     end,
   })
 

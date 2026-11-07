@@ -89,6 +89,13 @@ return {
 
 Changing `debug.python` changes the program's interpreter, not debugpy's adapter
 runtime. Override `debug.adapters.python` to select a different adapter runtime.
+Without that override, the debuggee interpreter is chosen from the activated
+environment, project `.venv`/`venv`, then PATH (`python`, `python3` on Windows;
+`python3`, `python` elsewhere). PATH selection returns a resolved executable path.
+Windows Store aliases get a cached, 1.5-second `--version` probe so working
+Store installations are accepted and uninstalled shortcuts are skipped. If no
+usable candidate remains, the launch asks you to install Python or set
+`debug.python`. Explicit paths/resolvers are honored without probing them.
 The shipped adapter keeps Python socket attach separate from launch, PID attach
 and reverse-listen transports. Windows defaults still spawn native adapter images
 and argv directly rather than passing Mason's `.cmd` shims to libuv.

@@ -2,9 +2,11 @@ describe("debugger customization lifecycle", function()
   local Settings = require("config.settings")
   local module = require("config.dap")
   local old_dap, old_utils, old_pause, dap, base, previous
+  local has, executable, exepath, system
 
   before_each(function()
     Settings.reset()
+    has, executable, exepath, system = vim.fn.has, vim.fn.executable, vim.fn.exepath, vim.system
     old_dap, old_utils = package.loaded.dap, package.loaded["dap.utils"]
     old_pause = vim.g.dap_pause_pick_thread
     vim.g.dap_pause_pick_thread = nil
@@ -28,6 +30,7 @@ describe("debugger customization lifecycle", function()
   end)
 
   after_each(function()
+    vim.fn.has, vim.fn.executable, vim.fn.exepath, vim.system = has, executable, exepath, system
     package.loaded.dap, package.loaded["dap.utils"] = old_dap, old_utils
     vim.g.dap_pause_pick_thread = old_pause
     Settings.reset()
@@ -269,5 +272,36 @@ describe("debugger customization lifecycle", function()
     assert.equals("integrated", dap.configurations.cpp[3].terminal)
     assert.same({}, dap.configurations.cpp[3].initCommands)
     assert.equals(base .. "/custom/python", dap.configurations.python[1].pythonPath())
+  end)
+
+  it("skips Windows Store aliases when choosing the debuggee interpreter", function()
+    vim.fn.has = function(feature)
+      return feature == "win32" and 1 or has(feature)
+    end
+    local paths = {
+      python = "C:/Users/user/AppData/Local/Microsoft/wInDoWsApPs/python.exe",
+      python3 = "C:/Python312/python3.exe",
+    }
+    vim.fn.executable = function(bin)
+      return paths[bin] and 1 or 0
+    end
+    vim.fn.exepath = function(bin)
+      return paths[bin] or ""
+    end
+    vim.system = function()
+      return {
+        wait = function(_, timeout)
+          assert.equals(1500, timeout)
+          return { code = 9009 }
+        end,
+      }
+    end
+    module.setup()
+    local python = dap.configurations.python[1].pythonPath
+    assert.equals(paths.python3, python())
+    paths.python3 = "C:\\Users\\user\\AppData\\Local\\Microsoft\\WindowsApps\\python3.exe"
+    assert.has_error(python, "No Python interpreter found; install Python or set debug.python")
+    Settings.configure({ debug = { python = paths.python } })
+    assert.equals(paths.python, python())
   end)
 end)

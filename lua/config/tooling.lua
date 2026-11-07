@@ -1,7 +1,7 @@
 -- Optional tooling policy. Missing prerequisites skip automatic work quietly;
 -- health checks retain the reasons. Explicit installer commands still work.
 local M = {}
-local skipped, msvc, python_cache = {}, nil, {}
+local skipped, msvc, python_cache, python_alias_cache = {}, nil, {}, {}
 local assigned_cc, previous_cc
 local msvc_key
 
@@ -183,14 +183,40 @@ function M.uses_node(package)
   return npm[package] == true or package == "bash-debug-adapter"
 end
 
+-- This directory may contain either App Installer shortcuts or working Python
+-- aliases. Its location alone does not establish that an interpreter is usable.
+function M.is_windows_store_alias(path)
+  return vim.fn.has("win32") == 1
+    and path:gsub("\\", "/"):lower():find("/microsoft/windowsapps/", 1, true) ~= nil
+end
+
+function M.python_path(bin)
+  if not have(bin) then return nil end
+  local path = vim.fn.exepath(bin)
+  if path == "" then return nil end
+  if not M.is_windows_store_alias(path) then return path end
+  local key = path .. "\n" .. (vim.env.PATH or "")
+  if python_alias_cache[key] == nil then
+    -- Arguments make the uninstalled Store shortcut return an error instead of
+    -- opening the Store. Bound the probe and retain working Store installations.
+    local ok, result = pcall(function()
+      return vim.system({ path, "--version" }, { text = true }):wait(1500)
+    end)
+    local output = ok and ((result.stdout or "") .. (result.stderr or "")) or ""
+    python_alias_cache[key] = ok and result.code == 0 and output:match("^Python 3%.") ~= nil
+  end
+  return python_alias_cache[key] and path or nil
+end
+
 local function python()
   -- Mason's PyPI installer resolves these names itself. A custom runtime
   -- probe cannot substitute for an installer interpreter available on PATH.
   local candidates = vim.fn.has("win32") == 1 and { "python", "python3" } or { "python3", "python" }
   for _, bin in ipairs(candidates) do
-    -- Windows Store execution aliases look executable but are not Python.
+    -- Probe with arguments: Store shortcuts fail without opening the Store,
+    -- while a working Store-installed Python must still supply venv/ensurepip.
     local path = vim.fn.exepath(bin)
-    if have(bin) and not path:find("[/\\]WindowsApps[/\\]") then
+    if have(bin) then
       local key = path .. "\n" .. (vim.env.PATH or "")
       if python_cache[key] == nil then
         local ok, result = pcall(function()

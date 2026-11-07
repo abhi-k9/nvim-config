@@ -174,8 +174,10 @@ required. No third-party discovery implementation is patched.
 `tools.executables.python` chooses an additional runtime health probe. Mason's
 PyPI installer independently resolves canonical `python`/`python3` names on PATH;
 an arbitrary custom interpreter path does not override that interface. The
-installer readiness gate checks the same PATH candidates and venv/ensurepip,
-rejecting Windows Store aliases. Add the intended Python installation to PATH
+installer readiness gate checks the same PATH candidates and venv/ensurepip
+with a bounded subprocess. A working Store-installed Python is accepted; the
+uninstalled App Installer shortcut fails the probe without opening the Store.
+Add the intended Python installation to PATH
 for Mason; use `debug.python` for the debugger's literal custom interpreter.
 The health report explains this boundary instead of claiming the installer will
 use the probe path.

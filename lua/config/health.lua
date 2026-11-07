@@ -36,10 +36,13 @@ end
 -- so callers that parse it must treat nil as "can't tell", not as a failure.
 local function version(bin, arg)
   if not have(bin) then return nil end
-  local ok, out = pcall(vim.fn.systemlist, { bin, arg or "--version" })
-  if not ok or vim.v.shell_error ~= 0 or type(out) ~= "table" then return nil end
-  for _, line in ipairs(out) do
-    if type(line) == "string" and line:match("%S") then return (line:gsub("%s+$", "")) end
+  local ok, result = pcall(function()
+    return vim.system({ bin, arg or "--version" }, { text = true }):wait(1500)
+  end)
+  if not ok or result.code ~= 0 then return nil end
+  -- A few runtimes (including older Python builds) print versions to stderr.
+  for line in ((result.stdout or "") .. "\n" .. (result.stderr or "")):gmatch("[^\r\n]+") do
+    if line:match("%S") then return (line:gsub("%s+$", "")) end
   end
   return nil
 end
@@ -85,21 +88,24 @@ local function msvc_install_path()
 end
 
 -- Python 3 for Mason's PyPI packages. On Windows, python3/python under
--- ...\WindowsApps\ may be the Microsoft Store alias stub: on PATH, but every
--- call fails, so a PATH test alone passes falsely.
+-- ...\Microsoft\WindowsApps\ may be a Store shortcut rather than Python.
+-- A bounded probe with arguments distinguishes them without opening the Store.
 local function check_python(why, explicit)
   local stub
   for _, b in ipairs(explicit and { explicit } or { "python3", "python" }) do
     local v = version(b)
-    if v and v:match("Python 3") then
+    if v and v:match("^Python 3%.") then
       h.ok(("Python 3 — %s (%s)"):format(v, b))
       return
     end
     local path = vim.fn.exepath(b)
-    if path:find("[/\\]WindowsApps[/\\]") then stub = path end
+    if require("config.tooling").is_windows_store_alias(path) then stub = path end
   end
   if stub then
-    h.warn("Python 3: only the Microsoft Store stub was found (" .. stub .. ")", why)
+    h.warn(
+      "Python 3: Microsoft Store execution alias is not a working interpreter (" .. stub .. ")",
+      why
+    )
   else
     h.warn("Python 3 not found (looked for: python3, python)", why)
   end

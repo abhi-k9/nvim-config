@@ -25,7 +25,7 @@ instead of generating a popup for every failed attempt.
 | Node | Skip npm-based servers/formatters and the Bash debug adapter. Installed Node-based language servers are also excluded from automatic activation. |
 | npm | Skip npm-based installation; an already-installed server can still run with Node. |
 | Cargo or rustc | Skip rust-analyzer installation and automatic activation. Lua completion does not require Rust. |
-| Python 3 with `venv` and `ensurepip` | Skip automatic installation of clang-format and debugpy. Windows Store aliases and partial Python installs are rejected. Debian/Ubuntu may need `python3-venv`. |
+| Python 3 with `venv` and `ensurepip` | Skip automatic installation of clang-format and debugpy. Uninstalled Windows Store shortcuts and partial Python installs fail the probe; working Store installations remain supported. Debian/Ubuntu may need `python3-venv`. |
 | curl/wget, or Windows PowerShell | Skip Mason installs that cannot download packages. |
 | unzip, tar, or gzip | Skip the configured Mason packages that need that archive format. Windows ZIP extraction uses PowerShell. |
 | Treesitter CLI, C compiler, curl, or tar | Skip automatic parser installation/update. Existing parsers still work; other filetypes retain Vim's basic syntax highlighting. |
@@ -35,7 +35,16 @@ instead of generating a popup for every failed attempt.
 On Windows, parser compilation recognizes MSVC Build Tools through `vswhere`,
 even when `cl.exe` is absent from PATH. Telescope's Windows Makefile specifically
 needs GCC; CMake can use MSVC. The MSVC and Python probes have 1.5-second bounds
-and cache their results within the editor process.
+and cache their results within the editor process. Health-check version commands
+also have a 1.5-second bound per command; a timeout or spawn failure keeps the
+report running and shows an unknown version or unavailable runtime.
+
+Windows app execution aliases can refer to working Python installations as well
+as uninstalled Store shortcuts. Checks pass arguments to Python, which makes
+the shortcut fail without opening the Store. Alias paths follow Windows' case
+rules. Python debugging tries another PATH candidate when an alias is unusable;
+an explicit `debug.python` still takes precedence. See the
+[debugger guide](debug-terminal-configuration.md) for interpreter selection.
 
 ## Reporting and recovery
 
@@ -125,6 +134,7 @@ checks as unversioned entries.
 
 - [Mason package metadata and installer prerequisites](https://github.com/mason-org/mason-registry/tree/main/packages).
 - [Mason Python virtual-environment creation](https://github.com/mason-org/mason.nvim/blob/2a6940af80375532e5e9e7c1f2fc6319a1b7a69d/lua/mason-core/installer/managers/pypi.lua).
+- [Microsoft's Python installation and Store-shortcut FAQ](https://github.com/MicrosoftDocs/windows-dev-docs/blob/docs/hub/dev-environment/python.md#why-does-running-pythonexe-open-the-microsoft-store).
 - [Mason LSP version parsing](https://github.com/mason-org/mason-lspconfig.nvim/blob/e17625cdc8c2650787467398e02c5d63a2cde966/lua/mason-lspconfig/features/ensure_installed.lua).
 - [Mason tool installer per-package conditions](https://github.com/WhoIsSethDaniel/mason-tool-installer.nvim/blob/443f1ef8b5e6bf47045cb2217b6f748a223cf7dc/lua/mason-tool-installer/init.lua).
 - [Treesitter source download and compilation](https://github.com/nvim-treesitter/nvim-treesitter/blob/1a4f47b03dfe92d28de7d5654c67327ef008c9e6/lua/nvim-treesitter/install.lua).
