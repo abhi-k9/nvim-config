@@ -305,6 +305,7 @@ nvim/
 │   ├── settings_startup_spec.lua  real local-file startup and plugin overrides
 │   ├── debug_policy_spec.lua  idempotent adapters and custom launch providers
 │   ├── debug_activation_spec.lua  overrides before first debugger activation
+│   ├── dap_breakpoint_list_spec.lua  breakpoint list with optional Trouble fallback
 │   ├── terminal_policy_spec.lua  inherited shells and per-project lazygit
 │   ├── tool_intent_spec.lua  disabled/pinned tools and strict offline requirements
 │   ├── health_tool_intent_spec.lua  selected versus intentionally disabled tools

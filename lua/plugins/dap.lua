@@ -96,12 +96,21 @@ return {
       {
         "<leader>dx",
         function()
-          -- List all breakpoints. dap.list_breakpoints() populates the
-          -- quickfix list; Trouble (already configured) renders it nicely.
+          -- Populate once so the native fallback uses the same list even
+          -- when optional Trouble activation fails.
           require("dap").list_breakpoints()
-          vim.cmd("Trouble qflist open")
+          if vim.fn.getqflist({ size = 0 }).size == 0 then
+            vim.notify("No breakpoints set", vim.log.levels.INFO)
+            return
+          end
+          if vim.fn.exists(":Trouble") == 2 then
+            local ok, err = pcall(vim.cmd, "Trouble qflist open")
+            if ok then return end
+            vim.notify("Trouble failed; using quickfix: " .. tostring(err), vim.log.levels.WARN)
+          end
+          vim.cmd("copen")
         end,
-        desc = "List breakpoints (Trouble)",
+        desc = "List breakpoints",
       },
       {
         "<leader>dX",

@@ -35,6 +35,14 @@ element's local mappings; Space-d discovers the global debugger commands.
 DAP UI has no native help-page action, and its available actions vary by element.
 The REPL has a separate native command list: type `.help` at its prompt.
 
+`<leader>dx` lists breakpoints in Trouble when its command is available. If
+Trouble is disabled or the command fails, it opens Neovim's native quickfix
+list instead; a failed command also reports its error. Enter jumps to a listed
+breakpoint. Close Trouble with `q`, or native quickfix with `:cclose`. An empty
+breakpoint list gives an informational message without opening another pane.
+This uses [nvim-dap's existing quickfix export](https://github.com/mfussenegger/nvim-dap/blob/cfa2d58f4537aca6ca83e2de1a0d9f1491121264/lua/dap.lua#L987);
+it does not change breakpoint persistence or require a debug session.
+
 Inside a terminal, use the running program's help. Esc-Esc enters terminal
 Normal mode, where F1 lists local mappings; lazygit has its own `?` keybinding
 menu. No global terminal-input help binding intercepts program input. See the
