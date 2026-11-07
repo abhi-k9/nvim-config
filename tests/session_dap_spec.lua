@@ -47,4 +47,31 @@ describe("session debugger cleanup", function()
 
     assert.is_false(vim.api.nvim_win_is_valid(win))
   end)
+
+  it("tolerates a close hook removing another debugger window during save", function()
+    local wins = {}
+    for i = 1, 2 do
+      vim.cmd("split")
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_name(buf, "[dap-terminal] cascading close " .. i)
+      vim.api.nvim_win_set_buf(0, buf)
+      wins[#wins + 1] = vim.api.nvim_get_current_win()
+    end
+    local id = vim.api.nvim_create_autocmd("WinClosed", {
+      once = true,
+      callback = function(ev)
+        for _, win in ipairs(wins) do
+          if win ~= tonumber(ev.match) and vim.api.nvim_win_is_valid(win) then
+            vim.api.nvim_win_close(win, true)
+          end
+        end
+      end,
+    })
+    local ok, err = pcall(spec.opts.pre_save_cmds[2])
+    pcall(vim.api.nvim_del_autocmd, id)
+    assert.is_true(ok, tostring(err))
+    for _, win in ipairs(wins) do
+      assert.is_false(vim.api.nvim_win_is_valid(win))
+    end
+  end)
 end)

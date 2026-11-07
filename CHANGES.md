@@ -6,6 +6,15 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-07 — Keep debugger session cleanup safe under nested close hooks
+
+### Fixed
+
+- Recheck window and buffer validity while removing transient debugger panels
+  from a saved layout. A `WinClosed` hook can synchronously close a later panel
+  in the snapshot; cleanup now continues instead of raising an invalid-window
+  error. Reproduce that sequence with real windows and document the behavior.
+
 ## 2026-11-07 — Leave virtual save paths to their providers
 
 ### Fixed

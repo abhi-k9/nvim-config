@@ -271,6 +271,11 @@ sizes and reset behavior. Floating/external windows, closed/replaced windows and
 ordinary flexible editing splits are not width targets. The same protection
 applies when session saving temporarily closes the debugger panels.
 
+Saving a session while debugging keeps the program running and restores the
+panels that were open. Cleanup tolerates plugins closing additional windows
+from their close hooks, so a vanished panel does not interrupt the rest of the
+session cleanup.
+
 After updating and restarting, undo any width growth already accumulated by
 focusing Neo-tree and running `:vertical resize 32` once (or your preferred
 width). Subsequent debugger cycles retain that choice when space permits.

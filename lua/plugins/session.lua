@@ -211,7 +211,7 @@ return {
         local function is_dap_buf(buf)
           -- A regular file can legitimately contain "[dap-" in its path.
           -- Only runtime buffers may be closed/wiped as debugger state.
-          if vim.bo[buf].buftype == "" then return false end
+          if not vim.api.nvim_buf_is_valid(buf) or vim.bo[buf].buftype == "" then return false end
           local name = vim.api.nvim_buf_get_name(buf)
           return name:match("%[dap%-") or name:match("%[dap_")
         end
@@ -233,7 +233,8 @@ return {
           -- it doesn't recreate otherwise — and reopen the UI afterwards
           -- (post_save_cmds).
           for _, win in ipairs(vim.api.nvim_list_wins()) do
-            if is_dap_buf(vim.api.nvim_win_get_buf(win)) then
+            -- Closing one panel can synchronously close another via WinClosed.
+            if vim.api.nvim_win_is_valid(win) and is_dap_buf(vim.api.nvim_win_get_buf(win)) then
               pcall(vim.api.nvim_win_close, win, true)
             end
           end
