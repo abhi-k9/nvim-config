@@ -74,6 +74,46 @@ describe("diagnostic dump log I/O", function()
     assert.is_truthy(messages[#messages][1]:find("FAILED", 1, true))
   end)
 
+  it("does not activate the debugger merely to report that it is unused", function()
+    local loaded, preload = package.loaded.dap, package.preload.dap
+    local attempts = 0
+    package.loaded.dap = nil
+    package.preload.dap = function()
+      attempts = attempts + 1
+      return {
+        session = function()
+          return nil
+        end,
+      }
+    end
+    local ok, dump = pcall(diagnostics.dump)
+    package.loaded.dap, package.preload.dap = loaded, preload
+    assert.is_true(ok, tostring(dump))
+    assert.equals(0, attempts)
+    assert.is_truthy(table.concat(vim.fn.readfile(dump), "\n"):find("no active session", 1, true))
+  end)
+
+  it("records debugger inspection failures while retaining the rest of the report", function()
+    local loaded, lazy = package.loaded.dap, package.loaded.lazy
+    package.loaded.dap = {
+      session = function()
+        error("adapter session unavailable")
+      end,
+    }
+    package.loaded.lazy = {
+      plugins = function()
+        error("plugin inventory unavailable")
+      end,
+    }
+    local ok, dump = pcall(diagnostics.dump)
+    package.loaded.dap, package.loaded.lazy = loaded, lazy
+    assert.is_true(ok, tostring(dump))
+    local text = table.concat(vim.fn.readfile(dump), "\n")
+    assert.is_truthy(text:find("adapter session unavailable", 1, true))
+    assert.is_truthy(text:find("plugin inventory unavailable", 1, true))
+    assert.is_truthy(text:find("===== LSP log tail", 1, true))
+  end)
+
   it("uses copied public Scoper status without reading private integration fields", function()
     local scoper, integration = package.loaded.scoper, package.loaded["scoper.lsp"]
     package.loaded.scoper = {

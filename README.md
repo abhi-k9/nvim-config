@@ -1090,6 +1090,10 @@ Writes a timestamped report to `stdpath('log')` containing:
 - plugin list from lazy.nvim
 - last 64 KiB of the LSP log
 
+The dump inspects already loaded debugger/plugin-manager state. It does not
+activate an unused debugger to collect its section. If either inspection fails,
+the report records that failure and continues to the log sections.
+
 Run `:DiagnosticDump`, inspect the file, and share only the parts needed for the
 issue. Redaction is limited: filenames, messages, source fragments and LSP logs
 can contain private information even without `!`. A dump is a snapshot, not a

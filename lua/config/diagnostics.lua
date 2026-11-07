@@ -259,9 +259,14 @@ function M.dump(opts)
   end
 
   section("DAP session")
-  local ok_dap, dap = pcall(require, "dap")
-  if ok_dap and dap.session() then
-    local s = dap.session()
+  local ok_dap, dap_error = pcall(function()
+    -- Inspection must not activate a previously unused debugger or its UI.
+    local dap = package.loaded.dap
+    local s = type(dap) == "table" and type(dap.session) == "function" and dap.session() or nil
+    if not s then
+      table.insert(out, "(no active session)")
+      return
+    end
     -- Heads-up first: adapter definitions and launch configs commonly
     -- embed environment blocks, tokens, or credential-bearing command
     -- lines, and this file's whole purpose is to be handed to someone.
@@ -282,18 +287,24 @@ function M.dump(opts)
         show(s.config)
       )
     )
-  else
-    table.insert(out, "(no active session)")
+  end)
+  if not ok_dap then
+    table.insert(out, "(debugger inspection failed: " .. tostring(dap_error) .. ")")
   end
 
   section("Plugins (lazy.nvim)")
-  local ok_lazy, lazy = pcall(require, "lazy")
-  if ok_lazy then
-    for _, p in ipairs(lazy.plugins()) do
-      table.insert(out, ("- %s%s"):format(p.name, p._.loaded and " [loaded]" or ""))
+  local ok_lazy, lazy_error = pcall(function()
+    local lazy = package.loaded.lazy
+    if type(lazy) ~= "table" or type(lazy.plugins) ~= "function" then
+      table.insert(out, "(lazy not loaded)")
+      return
     end
-  else
-    table.insert(out, "(lazy not loaded)")
+    for _, p in ipairs(lazy.plugins()) do
+      table.insert(out, ("- %s%s"):format(p.name, p._ and p._.loaded and " [loaded]" or ""))
+    end
+  end)
+  if not ok_lazy then
+    table.insert(out, "(plugin inspection failed: " .. tostring(lazy_error) .. ")")
   end
 
   section("LSP log tail (last 64 KiB)")

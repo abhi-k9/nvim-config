@@ -161,6 +161,11 @@ A separate debugger root or `launch.json` path does not relocate this storage.
   can include project data. `:DiagnosticDump!` additionally includes unredacted
   DAP configuration.
 
+Dumping state does not load an unused debugger. Debugger or plugin-inventory
+inspection failures are included in the snapshot, while the other sections
+continue. This keeps `:DiagnosticDump` useful when an optional plugin is broken
+or absent.
+
 The startup log threshold is configurable through `retention.log_max_bytes` in
 the ignored root `local.lua`; `false` disables rotation. The view janitor's
 default 90-day cutoff is separately configurable through `retention.views_days`.

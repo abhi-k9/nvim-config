@@ -6,6 +6,16 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-07 — Keep diagnostic snapshots usable around optional-plugin failures
+
+### Fixed
+
+- Inspect only loaded DAP and Lazy modules. A diagnostic dump no longer
+  activates an unused debugger while reporting that it has no active session.
+- Capture debugger/plugin-inventory inspection failures within their sections
+  and continue writing the rest of the report, including the bounded log tails.
+  Add activation/failure regressions and document this inspection behavior.
+
 ## 2026-11-07 — Keep queued buffer-menu actions in their original context
 
 ### Fixed
