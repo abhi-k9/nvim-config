@@ -6,6 +6,16 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-07 — Recover safely from non-object Scoper state
+
+### Fixed
+
+- Treat JSON arrays as corrupt state roots instead of mixing numeric keys into
+  the project object and failing later saves. Reuse the existing backup and
+  save-blocking recovery path. Empty objects remain valid and receive defaults.
+- Verify empty/nonempty array backups, subsequent mutation/save/reload and empty
+  object handling. Document the object-root contract and failed-backup behavior.
+
 ## 2026-11-07 — Report Scoper automatic database-discovery overflow
 
 ### Fixed

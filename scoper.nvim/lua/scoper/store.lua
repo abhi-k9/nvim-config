@@ -182,7 +182,7 @@ function M.new(root, fresh_state)
     if not lines or #lines == 0 then return fresh_state() end
 
     local ok, parsed = pcall(vim.json.decode, table.concat(lines, "\n"))
-    if not ok or type(parsed) ~= "table" then
+    if not ok or type(parsed) ~= "table" or vim.islist(parsed) then
       -- EXCL: never overwrite an earlier backup from the same second.
       local stamp, backup, copied = os.date("%Y%m%d-%H%M%S"), nil, nil
       for n = 0, 99 do

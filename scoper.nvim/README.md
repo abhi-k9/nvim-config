@@ -485,8 +485,10 @@ responsibility.
 | Filtered compile_commands | `stdpath("cache")/scoper/<hash>/<scope>/<scope-hash>/objects/<digest>/` |
 
 `<hash>` is the first 16 hex digits of the sha256 of the project path
-(lower-cased on Windows). A state file that can't be parsed is kept
+(lower-cased on Windows). State must be a JSON object; arrays and other root
+types are invalid even if their JSON syntax is valid. A corrupt state file is kept
 next to it as `<hash>.json.corrupt-<time>` before Scoper starts over.
+If the backup fails, saves remain blocked so the original data is preserved.
 `<scope-hash>` is a 32-hex prefix of a fingerprint including layout version,
 project identity, selected source, mode and include/exclude lists. Old objects
 are retained while another editor may still read them; remove old cache layouts

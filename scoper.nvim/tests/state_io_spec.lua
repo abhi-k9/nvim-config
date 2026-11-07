@@ -122,6 +122,27 @@ describe("Scoper state I/O recovery", function()
     assert.equals(1, #vim.fn.glob(path .. ".corrupt-*", false, true))
     assert.is_true(State.save())
   end)
+  it("backs up JSON arrays instead of treating them as project state", function()
+    State.save()
+    for index, json in ipairs({ "[]", '["unexpected", "array"]' }) do
+      vim.fn.writefile({ json }, path)
+      State.load({ quiet = true })
+      local backups, preserved = vim.fn.glob(path .. ".corrupt-*", false, true), {}
+      assert.equals(index, #backups)
+      for _, backup in ipairs(backups) do
+        preserved[table.concat(vim.fn.readfile(backup), "\n")] = true
+      end
+      assert.is_true(preserved[json])
+    end
+    -- An empty object is valid and must not be confused with an empty array.
+    vim.fn.writefile({ "{}" }, path)
+    State.load({ quiet = true })
+    assert.equals(2, #vim.fn.glob(path .. ".corrupt-*", false, true))
+    State.add_paths("recovered")
+    assert.is_true(State.save())
+    State.load({ quiet = true })
+    assert.same({ "recovered" }, State.active_scope().include)
+  end)
 
   it("does not treat an inaccessible state path as an absent file", function()
     State.add_paths("precious")

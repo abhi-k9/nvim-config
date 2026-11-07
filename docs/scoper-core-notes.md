@@ -153,6 +153,12 @@ and reports `unsupported_schema` until an explicit reload can read supported
 data. Keep the original file or upgrade Scoper instead of deleting unfamiliar
 fields to force a save.
 
+The state root must be a JSON object. Arrays (including `[]`), scalars and
+malformed JSON follow the corruption-recovery path: preserve a uniquely named
+`.corrupt-*` backup before using defaults. If that backup cannot be created,
+saves stay blocked until a successful explicit reload. An empty object `{}` is
+valid and receives the normal defaults; unknown object fields remain intact.
+
 Mutators preserve their legacy count/boolean returns and add a result at the
 end. For example, `State.add_paths()` returns `count, missing, result`,
 `remove_paths()` returns `count, result`, and `new_scope()` returns
