@@ -195,6 +195,21 @@ describe("optional tool prerequisites", function()
     assert.equals(2, calls)
   end)
 
+  it("uses ZIP prerequisites for Ruff on Windows and tar on Unix", function()
+    vim.fn.has = function(feature)
+      return feature == "win32" and 1 or has(feature)
+    end
+    available = { curl = true, powershell = true }
+    assert.is_true(tools.install_supported("ruff"))
+    assert.is_false(tools.install_supported("shellcheck"))
+    vim.fn.has = function(feature)
+      return feature == "win32" and 0 or has(feature)
+    end
+    assert.is_false(tools.install_supported("ruff"))
+    available.tar = true
+    assert.is_true(tools.install_supported("ruff"))
+  end)
+
   it("checks native archive tools and the Node runtime of the GitHub Bash adapter", function()
     available.curl = true
     assert.is_false(tools.install_supported("stylua"))

@@ -6,6 +6,14 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-07 — Check Ruff's platform-specific extraction prerequisites
+
+### Fixed
+
+- Require ZIP extraction through PowerShell for Ruff on Windows instead of tar;
+  retain tar for Linux/macOS and ShellCheck's different Windows asset. Verify
+  both platform branches and document the Mason registry source contracts.
+
 ## 2026-11-07 — Validate Python aliases and bound health version probes
 
 ### Fixed

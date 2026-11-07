@@ -32,6 +32,10 @@ instead of generating a popup for every failed attempt.
 | Native Telescope build chain | Skip the native sorter build. Telescope's Lua sorter remains available; an existing native artifact can still load. |
 | Blink download/checksum utility | Use the Lua fuzzy matcher quietly. With those utilities available, keep the normal prebuilt Rust matcher and its failure reporting. |
 
+Ruff uses ZIP assets on Windows and tar archives on Linux/macOS. Its Windows
+installation needs PowerShell for extraction, not tar. ShellCheck's current
+Windows asset is still a tar archive, so that prerequisite remains distinct.
+
 On Windows, parser compilation recognizes MSVC Build Tools through `vswhere`,
 even when `cl.exe` is absent from PATH. Telescope's Windows Makefile specifically
 needs GCC; CMake can use MSVC. The MSVC and Python probes have 1.5-second bounds
@@ -133,6 +137,7 @@ checks as unversioned entries.
 ## Upstream implementation references
 
 - [Mason package metadata and installer prerequisites](https://github.com/mason-org/mason-registry/tree/main/packages).
+- [Ruff archive formats](https://github.com/mason-org/mason-registry/blob/main/packages/ruff/package.yaml) and [ShellCheck archive formats](https://github.com/mason-org/mason-registry/blob/main/packages/shellcheck/package.yaml).
 - [Mason Python virtual-environment creation](https://github.com/mason-org/mason.nvim/blob/2a6940af80375532e5e9e7c1f2fc6319a1b7a69d/lua/mason-core/installer/managers/pypi.lua).
 - [Microsoft's Python installation and Store-shortcut FAQ](https://github.com/MicrosoftDocs/windows-dev-docs/blob/docs/hub/dev-environment/python.md#why-does-running-pythonexe-open-the-microsoft-store).
 - [Mason LSP version parsing](https://github.com/mason-org/mason-lspconfig.nvim/blob/e17625cdc8c2650787467398e02c5d63a2cde966/lua/mason-lspconfig/features/ensure_installed.lua).

@@ -272,7 +272,7 @@ function M.install_supported(package)
     codelldb = "zip",
     cpptools = "zip",
     ["bash-debug-adapter"] = "zip",
-    ruff = "tar",
+    ruff = windows and "zip" or "tar",
     shellcheck = "tar",
     ["rust-analyzer"] = windows and "zip" or "gzip",
     taplo = windows and "zip" or "gzip",
