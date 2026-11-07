@@ -101,8 +101,12 @@ missing explicit file is reported without silently falling back to another
 configuration. There is no automatic recursive scan. Built-in candidates are
 `compile_commands.json`, `build/compile_commands.json`,
 `out/compile_commands.json`, and sorted immediate `cmake-build-*` directories.
-Discovery checks at most 4,096 immediate entries and accepts at most 256 explicit
-candidates. An explicit ordered list establishes priority. New explicit modes
+Discovery checks at most 4,096 immediate entries and 256 candidates, including
+the three fixed locations. Exceeding either automatic limit returns no selection
+and a reason asking for an explicit path; it does not truncate the list and
+silently choose a build. An explicit path bypasses scanning. A configured list
+also has a 256-entry maximum and is validated as configuration. An explicit
+ordered list establishes priority. New explicit modes
 refuse ambiguous default discovery; legacy boolean integration retains its
 previous first-match priority. Set a path to resolve ambiguity.
 

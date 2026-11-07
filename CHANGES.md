@@ -6,6 +6,16 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-07 — Report Scoper automatic database-discovery overflow
+
+### Fixed
+
+- Return an explicit-path recommendation when automatic discovery exceeds its
+  256-candidate budget, matching the existing 4,096-entry scan limit instead of
+  throwing a configuration assertion. Keep explicit candidate-list validation.
+- Verify the exact 256-candidate boundary and explicit-path selection in a
+  workspace with excess build directories. Document both limits and the bypass.
+
 ## 2026-11-07 — Check Ruff's platform-specific extraction prerequisites
 
 ### Fixed

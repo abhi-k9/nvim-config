@@ -68,4 +68,21 @@ describe("compilation database selection", function()
       Database.resolve(root, { candidates = candidates }, {})
     end)
   end)
+  it(
+    "reports automatic candidate overflow without throwing and accepts an explicit selection",
+    function()
+      local selected = put(root .. "/compile_commands.json")
+      for index = 1, 254 do
+        vim.fn.mkdir(root .. "/cmake-build-" .. index, "p")
+      end
+      local result = Database.resolve(root, {}, {})
+      assert.is_nil(result.path)
+      assert.is_truthy(result.reason:find("limit", 1, true))
+      assert.equals(selected, Database.resolve(root, { path = selected }, {}).path)
+      vim.fn.delete(root .. "/cmake-build-254", "d")
+      result = Database.resolve(root, {}, {})
+      assert.equals(256, #result.candidates)
+      assert.equals(selected, result.path)
+    end
+  )
 end)

@@ -360,6 +360,10 @@ a main-editor resolver or ordered candidates, or persist a selection with
 `:ScoperDatabase`. No build generator is run and Debug/Release databases are never
 merged automatically. Explicit modes refuse ambiguous default discovery; choose
 a path or an ordered candidate list to express priority.
+Automatic discovery stops after 4,096 root entries or 256 candidates (including
+the three fixed locations), returning a limit reason instead of selecting from
+an incomplete list. Set an explicit path to bypass the scan. Configured candidate
+lists also have a maximum of 256 entries.
 
 Managed modes preserve inherited or explicit clangd argv and server environment.
 Scoper only replaces the compilation-directory flag when selecting an input.

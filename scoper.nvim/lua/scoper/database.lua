@@ -40,14 +40,14 @@ function M.resolve(root, opts, context, legacy)
         local name, kind = vim.uv.fs_scandir_next(scan)
         if not name then break end
         scanned = scanned + 1
-        if scanned > 4096 then
+        if kind == "directory" and name:match("^cmake%-build%-") then
+          extra[#extra + 1] = name .. "/compile_commands.json"
+        end
+        if scanned > 4096 or #candidates + #extra > 256 then
           return {
             candidates = {},
             reason = "database discovery limit reached; select an explicit path",
           }
-        end
-        if kind == "directory" and name:match("^cmake%-build%-") then
-          extra[#extra + 1] = name .. "/compile_commands.json"
         end
       end
     end
