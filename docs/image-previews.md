@@ -17,7 +17,7 @@ return {
   images = {
     enabled = true,
     fallback = "external", -- or "notify": report a missing capability without opening an app
-    timeout_ms = 15000,     -- positive integer, up to 3600000; conversion time limit
+    timeout_ms = 15000,     -- positive integer, up to 3600000; async preparation deadline
   },
 }
 ```
@@ -94,7 +94,10 @@ when you want to reclaim space.
 
 Detection and conversion run asynchronously. A new request cancels the previous
 conversion. Source-window/buffer/cwd/mode changes discard a late result without
-opening an app or stealing focus. Conversion is bounded by `timeout_ms`.
+opening an app or stealing focus. The asynchronous preparation stages—terminal
+detection, snapshot copying and conversion—share the `timeout_ms` deadline.
+A copy already running in the OS may finish after cancellation; its completion
+only removes that request's snapshot.
 Unavailable plugins/APIs, missing tools, unsupported terminals and decoding
 failures use the selected fallback. System-open failures give a useful message;
 a successful opener process does not prove an associated GUI displayed the image.
@@ -109,7 +112,8 @@ without a compatible terminal use the selected fallback.
 
 Tests cover the default unloaded state, absent prerequisites, malformed APIs,
 headless commands, Windows/macOS/Unix opener argv, special filenames, snapshot
-cleanup, cache freshness, cancellation, timeouts, corrupt images and scoped
+cleanup, cache freshness, cancellation, stalled detection/copy/conversion,
+immediate I/O submission failures, corrupt images and scoped
 closing. An ImageMagick + pinned Snacks fixture decodes images and captures
 emitted graphics protocol with terminal detection simulated. Native Windows CI
 also runs the standalone command/path fixture. These are not physical-terminal

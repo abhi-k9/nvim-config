@@ -11,6 +11,7 @@ describe("optional local-image previews", function()
       has = vim.fn.has,
       uis = vim.api.nvim_list_uis,
       image = package.loaded["snacks.image"],
+      copyfile = vim.uv.fs_copyfile,
     }
     win = vim.api.nvim_get_current_win()
     source = vim.api.nvim_create_buf(true, false)
@@ -73,9 +74,12 @@ describe("optional local-image previews", function()
   end)
   after_each(function()
     settings.reset()
+    -- Cancel any deliberately stalled request before restoring its dependencies.
+    module.open(root .. "/missing.png")
     vim.notify, vim.system, vim.fn.executable = saved.notify, saved.system, saved.executable
     vim.fn.has, vim.api.nvim_list_uis = saved.has, saved.uis
     package.loaded["snacks.image"] = saved.image
+    vim.uv.fs_copyfile = saved.copyfile
     for _, other in ipairs(vim.api.nvim_list_wins()) do
       if vim.api.nvim_win_get_config(other).relative ~= "" then
         vim.api.nvim_win_close(other, true)
@@ -279,6 +283,84 @@ describe("optional local-image previews", function()
     assert.equals(1, #notes)
     assert.is_nil(api.placed)
     assert.equals(0, #launches)
+  end)
+  it("bounds a detector which never calls back", function()
+    settings.configure({ images = { enabled = true, timeout_ms = 10, fallback = "notify" } })
+    api.terminal.detect = function() end
+    module.open(file)
+    assert.is_true(vim.wait(200, function()
+      return #notes > 0
+    end, 1))
+    assert.is_truthy(notes[1]:find("timed out", 1, true))
+  end)
+  it("bounds a stalled copy and cleans its snapshot when the late copy completes", function()
+    settings.configure({ images = { enabled = true, timeout_ms = 10, fallback = "notify" } })
+    local callback, snapshot
+    vim.uv.fs_copyfile = function(_, destination, cb)
+      snapshot, callback = destination, cb
+      return {}
+    end
+    module.open(file)
+    assert.is_true(vim.wait(200, function()
+      return #notes > 0
+    end, 1))
+    assert.is_truthy(notes[1]:find("timed out", 1, true))
+    vim.fn.writefile({ "late copy" }, snapshot)
+    callback(nil, true)
+    assert.is_true(vim.wait(200, function()
+      return vim.fn.filereadable(snapshot) == 0
+    end, 1))
+    assert.equals(0, #jobs)
+    assert.equals(1, #notes)
+  end)
+  it("reports immediate copy submission failures without waiting for a callback", function()
+    settings.configure({ images = { enabled = true, fallback = "notify" } })
+    vim.uv.fs_copyfile = function()
+      return nil, "copy queue unavailable"
+    end
+    module.open(file)
+    assert.is_true(vim.wait(200, function()
+      return #notes > 0
+    end, 1))
+    assert.is_truthy(notes[1]:find("copy queue unavailable", 1, true))
+  end)
+  it("cleans a cancelled copy without disturbing a newer request", function()
+    settings.configure({ images = { enabled = true, fallback = "notify" } })
+    local copies = {}
+    vim.uv.fs_copyfile = function(_, destination, callback)
+      copies[#copies + 1] = { destination = destination, callback = callback }
+      return {}
+    end
+    module.open(file)
+    module.open(file)
+    for _, copy in ipairs(copies) do
+      vim.fn.writefile({ "copied" }, copy.destination)
+      copy.callback(nil, true)
+    end
+    assert.is_true(vim.wait(200, function()
+      return #jobs == 1
+    end, 1))
+    assert.equals(0, vim.fn.filereadable(copies[1].destination))
+    finish(jobs[1])
+    assert.equals(copies[2].destination, api.placed.path)
+    assert.equals(0, #notes)
+  end)
+  it("catches errors in asynchronously delivered detection callbacks", function()
+    settings.configure({ images = { enabled = true, fallback = "notify" } })
+    local callback
+    api.terminal.detect = function(cb)
+      callback = cb
+    end
+    module.open(file)
+    vim.uv.fs_copyfile = function()
+      error("copy submission failed")
+    end
+    local ok, err = pcall(callback)
+    assert.is_true(ok, err)
+    assert.is_true(vim.wait(200, function()
+      return #notes > 0
+    end, 1))
+    assert.is_truthy(notes[1]:find("copy submission failed", 1, true))
   end)
   it("ignores a late detection callback after the detector raises an error", function()
     settings.configure({ images = { enabled = true, fallback = "notify" } })

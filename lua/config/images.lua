@@ -2,9 +2,7 @@
 -- document events, cwd, or the source buffer; OS viewers receive literal argv.
 local M = {}
 local Settings = require("config.settings")
-local request = 0
-local pending
-local pending_timer
+local active
 local formats = { "png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "avif", "heic", "ico" }
 
 local function notify(message)
@@ -12,16 +10,7 @@ local function notify(message)
 end
 
 local function cancel_pending()
-  if pending_timer and not pending_timer:is_closing() then
-    pending_timer:stop()
-    pending_timer:close()
-  end
-  pending_timer = nil
-  local job = pending
-  pending = nil
-  if job then pcall(function()
-    job:abort()
-  end) end
+  if active then active.cancel() end
 end
 
 local function opener()
@@ -171,8 +160,6 @@ local function show(api, path, snapshot)
 end
 
 function M.open(path, force_external)
-  request = request + 1
-  local id = request
   cancel_pending()
   local file, err = path_for(path)
   if not file then
@@ -189,6 +176,9 @@ function M.open(path, force_external)
     notify("images.timeout_ms must be an integer between 1 and 3600000.")
     return
   end
+  local win, buf, cwd =
+    vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf(), vim.fn.getcwd(0, 0)
+  local mode = vim.api.nvim_get_mode().mode
   local ok, api = pcall(require, "snacks.image")
   if not ok or type(api) ~= "table" then
     return fallback(file, "snacks.nvim is unavailable; inspect :Lazy")
@@ -196,105 +186,137 @@ function M.open(path, force_external)
   if type(api.config) == "table" and api.config.enabled == false then
     return fallback(file, "renderer is disabled by plugin options")
   end
-  local win, buf, cwd =
-    vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf(), vim.fn.getcwd()
-  local mode = vim.api.nvim_get_mode().mode
-  local finished = false
+  -- Each operation owns its job, deadline and snapshot. Old callbacks can
+  -- clean up their own files without cancelling a newer preview.
+  local state = {}
+  local done, copying, keep_snapshot = false, false, false
+  local timer, job, snapshot
+  local function cleanup()
+    -- A queued copy may create the file after cancellation (notably Windows).
+    -- Its completion callback retries cleanup after the I/O has finished.
+    if snapshot and not copying and not keep_snapshot then vim.uv.fs_unlink(snapshot) end
+  end
   local function current()
-    return not finished
-      and id == request
+    return not done
+      and active == state
       and vim.api.nvim_win_is_valid(win)
       and vim.api.nvim_get_current_win() == win
       and vim.api.nvim_win_get_buf(win) == buf
-      and vim.fn.getcwd() == cwd
+      and vim.fn.getcwd(0, 0) == cwd
       and vim.api.nvim_get_mode().mode == mode
   end
-  local function fail(reason)
-    if not current() then return end
-    finished = true
-    cancel_pending()
-    fallback(file, reason)
+  local function finish()
+    done = true
+    if timer and not timer:is_closing() then
+      timer:stop()
+      timer:close()
+    end
+    timer = nil
+    if active == state then active = nil end
   end
-  -- Detection and conversion are asynchronous. A stale callback must not
-  -- steal focus or launch an external application in a new editing context.
-  local detected, detection_error = pcall(function()
-    api.terminal.detect(function()
-      if not current() then return end
-      local supported, support_error = pcall(api.supports_terminal)
-      if not supported then
-        return fail("terminal detection failed: " .. tostring(support_error))
-      end
-      if not support_error then return fail("terminal does not support Kitty graphics") end
-      -- A fresh, private snapshot preserves literal names (#page=, $NAME) and
-      -- avoids the renderer reusing stale path-based caches after a file edit.
-      local snapshot = vim.fn.tempname() .. "." .. vim.fn.fnamemodify(file, ":e"):lower()
-      local function cleanup()
-        vim.uv.fs_unlink(snapshot)
-      end
-      if vim.fs.normalize(snapshot) ~= snapshot then
-        return fail("the renderer cannot preserve this temporary directory name")
-      end
-      vim.uv.fs_copyfile(file, snapshot, function(copy_error)
-        vim.schedule(function()
+  function state.cancel()
+    if not done then
+      finish()
+      local child = job
+      job = nil
+      if child then pcall(function()
+        child:abort()
+      end) end
+    end
+    cleanup()
+  end
+  local function fail(reason)
+    if done then
+      cleanup()
+      return
+    end
+    local visible = current()
+    state.cancel()
+    if visible then fallback(file, reason) end
+  end
+  local function guarded(label, callback)
+    return function(...)
+      local args, count = { ... }, select("#", ...)
+      local function invoke()
+        if done then
+          cleanup()
+          return
+        end
+        local good, failure = pcall(function()
           if not current() then
-            cleanup()
+            state.cancel()
             return
           end
-          if copy_error then
-            cleanup()
-            return fail("image snapshot failed: " .. tostring(copy_error))
-          end
-          local prepared, preparation_error = pcall(function()
-            pending = api.convert.convert({
-              src = snapshot,
-              on_done = function(result)
-                vim.schedule(function()
-                  if finished then return end
-                  if id ~= request then
-                    cleanup()
-                    return
-                  end
-                  pending = nil
-                  cancel_pending()
-                  if not current() then
-                    cleanup()
-                    return
-                  end
-                  local shown, show_error = pcall(function()
-                    if result:error() then
-                      cleanup()
-                      return fail("image decoding failed: " .. tostring(result:error()))
-                    end
-                    show(api, file, snapshot)
-                    finished = true
-                  end)
-                  if not shown then
-                    cleanup()
-                    fail("renderer failed: " .. tostring(show_error))
-                  end
-                end)
-              end,
-            })
-            pending_timer = vim.defer_fn(function()
-              if id ~= request then return end
-              local visible = current()
-              request = request + 1
-              cancel_pending()
-              cleanup()
-              if visible then fallback(file, "image conversion timed out") end
-            end, timeout)
-            pending:run()
-          end)
-          if not prepared then
-            cancel_pending()
-            cleanup()
-            fail("image preparation failed: " .. tostring(preparation_error))
-          end
+          callback(unpack(args, 1, count))
         end)
-      end)
-    end)
+        if not good then fail(label .. ": " .. tostring(failure)) end
+      end
+      if vim.in_fast_event() then
+        vim.schedule(invoke)
+      else
+        invoke()
+      end
+    end
+  end
+  active = state
+  -- Bound all asynchronous preparation, including detection and snapshot I/O.
+  timer = vim.defer_fn(function()
+    fail("image preparation timed out")
+  end, timeout)
+  local converted = guarded("image preparation failed", function(result)
+    job = nil -- completion must not abort an already completed converter
+    local conversion_error = result:error()
+    if conversion_error then
+      return fail("image decoding failed: " .. tostring(conversion_error))
+    end
+    show(api, file, snapshot)
+    keep_snapshot = true -- the preview's BufWipeout handler now owns cleanup
+    finish()
   end)
-  if not detected then fail("terminal detection failed: " .. tostring(detection_error)) end
+  local copied = guarded("image preparation failed", function(copy_error)
+    if copy_error then return fail("image snapshot failed: " .. tostring(copy_error)) end
+    job = api.convert.convert({
+      src = snapshot,
+      on_done = function(result)
+        vim.schedule(function()
+          converted(result)
+        end)
+      end,
+    })
+    job:run()
+  end)
+  local detected = guarded("terminal detection failed", function()
+    if not api.supports_terminal() then return fail("terminal does not support Kitty graphics") end
+    -- Private, fresh names preserve literal paths and invalidate renderer caches.
+    snapshot = vim.fn.tempname() .. "." .. vim.fn.fnamemodify(file, ":e"):lower()
+    if vim.fs.normalize(snapshot) ~= snapshot then
+      return fail("the renderer cannot preserve this temporary directory name")
+    end
+    copying = true
+    local submitted, queued, copy_error = pcall(
+      vim.uv.fs_copyfile,
+      file,
+      snapshot,
+      function(io_error)
+        vim.schedule(function()
+          copying = false
+          copied(io_error)
+        end)
+      end
+    )
+    if not submitted then
+      copying = false
+      return fail("image snapshot failed: " .. tostring(queued))
+    end
+    if not queued then
+      copying = false
+      fail("image snapshot failed: " .. tostring(copy_error))
+    end
+  end)
+  local started, detection_error = pcall(function()
+    api.terminal.detect(detected)
+  end)
+  if not started then fail("terminal detection failed: " .. tostring(detection_error)) end
 end
 
 function M.health()
