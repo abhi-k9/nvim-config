@@ -98,8 +98,11 @@ end
 local function path_for(path)
   path = path and path ~= "" and path or vim.api.nvim_buf_get_name(0)
   if path == "" then return nil, "Choose a local image: :ImageOpen path/to/image.png." end
-  if path:find("%c") or path:match("^[%a][%w+.-]*:") and not path:match("^%a:[/\\]") then
+  if path:find("%c") or path:match("^[%a][%w+.-]*://") then
     return nil, "ImageOpen accepts local file paths, without control characters or URI schemes."
+  end
+  if vim.fn.has("win32") == 1 and path:match("^%a:") and not path:match("^%a:[/\\]") then
+    return nil, "Use a fully qualified Windows image path; drive-relative paths are ambiguous."
   end
   if path:match("^~[/\\]") then path = (vim.uv.os_homedir() or "~") .. path:sub(2) end
   path = vim.fs.normalize(vim.fs.abspath(path), { expand_env = false })

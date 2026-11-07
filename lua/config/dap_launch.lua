@@ -303,7 +303,7 @@ function M.edit()
     return
   end
   -- Opening a new split preserves unsaved code. No directory/file is written.
-  vim.cmd.split({ args = { path } })
+  vim.api.nvim_cmd({ cmd = "split", args = { path }, magic = { file = false, bar = false } }, {})
 end
 
 return M

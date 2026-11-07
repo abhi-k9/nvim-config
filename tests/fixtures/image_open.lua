@@ -32,10 +32,19 @@ assert(argv[#argv] == file, vim.inspect(argv))
 if vim.fn.has("win32") == 1 then
   assert(argv[1] == "rundll32.exe" and argv[2] == "url.dll,FileProtocolHandler")
   assert(not images.status().converter, "Windows convert.exe is not ImageMagick")
+  images.open("C:relative.png", true)
+  assert(notes[#notes]:find("drive-relative", 1, true))
 elseif vim.fn.has("mac") == 1 then
   assert(argv[1] == "open")
 else
   assert(argv[1] == "xdg-open")
+end
+if vim.fn.has("win32") == 0 then
+  local name = "diagram:local.png"
+  vim.fn.writefile({ "fixture" }, root .. "/" .. name)
+  vim.cmd.lcd(root)
+  vim.cmd("ImageOpen! " .. vim.fn.fnameescape(name))
+  assert(argv[#argv] == root .. "/" .. name, vim.inspect(argv))
 end
 vim.fn.delete(root, "rf")
 print("Portable image command fixture passed")
