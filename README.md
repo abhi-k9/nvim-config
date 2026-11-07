@@ -272,6 +272,7 @@ nvim/
 │   │   ├── tooling.lua       optional tool prerequisites and quiet fallbacks
 │   │   ├── util.lua          Shared helpers (buffer delete, file-buffer test, augroup)
 │   │   ├── icons.lua         Shared diagnostic glyphs
+│   │   ├── images.lua        opt-in local-image previews, safe system openers and cancellation
 │   │   └── lazy.lua          Bootstrap lazy.nvim
 │   └── plugins/              One file per "category" of plugins
 │       ├── colorscheme.lua   catppuccin
@@ -289,6 +290,7 @@ nvim/
 │       ├── git.lua           gitsigns, diffview+
 │       ├── explorer.lua      neo-tree file explorer (<leader>e)
 │       ├── finder.lua        telescope + fzf-lua
+│       ├── images.lua        on-demand Snacks image renderer; automatic image/document hooks off
 │       ├── terminal.lua      toggleterm
 │       ├── dap.lua           nvim-dap + dap-ui + virtual-text + persistent-breakpoints
 │       ├── trouble.lua       trouble.nvim
@@ -323,6 +325,7 @@ nvim/
 │   ├── fixtures/
 │   │   ├── settings_startup.lua  controlled real machine-local startup profile
 │   │   ├── lsp_initialization.lua  real Lazy startup with controlled Mason boundary
+│   │   ├── image_open.lua       plugin-free image commands and native platform/path handling
 │   │   └── windows_dap_spawn.lua  native Windows adapter process and argv checks
 │   ├── escape_float_lifecycle_spec.lua  popup closure under reentrant window hooks
 │   ├── session_filetype_rescue_spec.lua  session filetype rescue on ordinary files
@@ -354,6 +357,7 @@ nvim/
 │   ├── dap_sidebar_width_spec.lua  generic fixed columns, real debugger layouts and Neo-tree
 │   ├── dap_launch_spec.lua    launch selection, dynamic fields, missing APIs and preview closing
 │   ├── workflow_guides_spec.lua  real guide contents and plugin-free reference commands
+│   ├── images_spec.lua        optional previews, decoder, literal paths, cancellation and fallback
 │   ├── workspace_info_spec.lua  directory scopes, optional status APIs and source-window refresh
 │   ├── search_literal_paths_spec.lua  literal environment-like file names
 │   ├── navigation_paths_spec.lua  Telescope picker-relative clipboard paths
@@ -456,6 +460,7 @@ Each is documented in its file and easy to remove if you don't want it.
 | `XXiaoA/atone.nvim`               | `<leader>u` opens a visual undo-tree pane with TreeSitter-highlighted diff preview and persistent node marks. | `atone.lua`       |
 | `folke/lazydev.nvim`              | Real completion + hover for the whole `vim.*` API and `require`d plugin modules while editing this config; feeds lua_ls on demand. | `lazydev.lua`     |
 | `MeanderingProgrammer/render-markdown.nvim` | In-buffer rendering of Markdown (headings, bullets, code blocks, tables). `:RenderMarkdown toggle`. | `editor.lua`      |
+| `folke/snacks.nvim` | Optional local-image renderer. `:ImageOpen [path]` previews when opted in and supported; `:ImageOpen!` uses the system viewer. | `images.lua` |
 
 To disable one locally, add `{ "owner/repository", enabled = false }` under
 `plugins` in `local.lua`. `:Lazy clean` can remove disabled plugin checkouts.
@@ -651,7 +656,8 @@ Run `:checkhealth` for a top-down view. Start with this config's own check:
   parser-build requirements: compiler, tree-sitter CLI 0.26.1+, download/extraction
   tools), **Runtime state
   directories** (swap, and undo when `undofile` is on, must be writable),
-  **Search & pickers** (`rg`, `fzf`, `fd`), the **C/C++ toolchain**
+  **Search & pickers** (`rg`, `fzf`, `fd`), **Optional image previews**
+  (opt-in state, ImageMagick and available system opener), the **C/C++ toolchain**
   (`clangd`, `clang-format`, `clang-tidy`), **Language runtimes** (`node`,
   Python 3 as `python3` or `python`, Rust tools where selected; fzf older than 0.45 is flagged because some fzf-lua
   pickers need newer), **Dev & test tooling**, and **Mason-managed servers /

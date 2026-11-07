@@ -326,6 +326,10 @@ function M.check()
     "Both pickers work without it (they fall back to rg / built-ins).",
   })
 
+  -- ── Optional image previews ───────────────────────────────────────────────
+  h.start("Optional image previews")
+  require("config.images").health()
+
   -- ── C/C++ toolchain (this config's primary focus) ─────────────────────────
   h.start("C/C++ toolchain")
   if

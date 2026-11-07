@@ -20,3 +20,11 @@ end, { desc = "Inspect launch settings without starting a session" })
 vim.api.nvim_create_user_command("DapEditLaunch", function()
   require("config.dap_launch").edit()
 end, { desc = "Open the configured launch file in a split" })
+vim.api.nvim_create_user_command("ImageOpen", function(opts)
+  require("config.images").open(opts.fargs[1], opts.bang)
+end, {
+  nargs = "?",
+  complete = "file",
+  bang = true,
+  desc = "Open local image; ! requests the system viewer",
+})
