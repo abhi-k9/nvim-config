@@ -6,6 +6,17 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-07 — Keep queued buffer-menu actions in their original context
+
+### Fixed
+
+- Capture the source window/tab after closing an earlier menu. Revalidate the
+  target buffer and source before deferred actions and after window-entry hooks.
+  Stale selections now report cancellation instead of raising E86 or opening a
+  split in another tab; action failures retain an actionable warning.
+- Preserve the existing file-pane selection for sidebar invocations. Cover
+  deleted targets and tab switches, and explain how to retry from the intended tab.
+
 ## 2026-11-07 — Discard obsolete explorer startup callbacks
 
 ### Fixed

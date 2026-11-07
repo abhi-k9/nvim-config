@@ -243,12 +243,14 @@ return {
       -- "cursor" (for the <leader>bm keyboard entry point). getmousepos()
       -- is useless from the keyboard: it returns wherever the pointer
       -- last was — (0,0) if it never moved.
-      local function show_menu(actions, prompt, anchor)
+      local function show_menu(actions, prompt, anchor, target)
         -- Tear down any stale menu before opening a new one.
         if current_menu_win and vim.api.nvim_win_is_valid(current_menu_win) then
           pcall(vim.api.nvim_win_close, current_menu_win, true)
         end
         current_menu_win = nil
+        local source_win = vim.api.nvim_get_current_win()
+        local source_tab = vim.api.nvim_get_current_tabpage()
 
         -- Width must fit BOTH the title and the longest action label.
         -- Reserve 6 columns for the numbered prefix and padding, and 4
@@ -328,7 +330,29 @@ return {
           if actions[idx] and actions[idx][2] then
             -- Schedule so the window is fully torn down before the
             -- action runs (some actions open new windows / pickers).
-            vim.schedule(actions[idx][2])
+            vim.schedule(function()
+              local function valid()
+                return vim.api.nvim_buf_is_valid(target)
+                  and vim.api.nvim_win_is_valid(source_win)
+                  and vim.api.nvim_win_get_tabpage(source_win) == source_tab
+                  and vim.api.nvim_get_current_tabpage() == source_tab
+              end
+              local ok, err = pcall(function()
+                if valid() then vim.api.nvim_set_current_win(source_win) end
+                -- Window-entry hooks can remove the target or change tabs too.
+                if not valid() or vim.api.nvim_get_current_win() ~= source_win then
+                  vim.notify(
+                    "Buffer action cancelled: its buffer, window or tab changed",
+                    vim.log.levels.INFO
+                  )
+                  return
+                end
+                actions[idx][2]()
+              end)
+              if not ok then
+                vim.notify("Buffer action failed: " .. tostring(err), vim.log.levels.WARN)
+              end
+            end)
           end
         end
 
@@ -373,6 +397,10 @@ return {
       end
 
       local function buffer_context_menu(bufnum, anchor)
+        if not vim.api.nvim_buf_is_valid(bufnum) then
+          vim.notify("This buffer is no longer available", vim.log.levels.INFO)
+          return
+        end
         local name = vim.api.nvim_buf_get_name(bufnum)
         local short = name ~= "" and vim.fn.fnamemodify(name, ":t") or "[No Name]"
 
@@ -458,7 +486,7 @@ return {
           },
         }
 
-        show_menu(actions, "Buffer: " .. short, anchor)
+        show_menu(actions, "Buffer: " .. short, anchor, bufnum)
       end
 
       -- Expose the menu to the keyboard (<leader>bm above) for the

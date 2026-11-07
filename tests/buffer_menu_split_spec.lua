@@ -56,4 +56,39 @@ describe("buffer menu split placement", function()
     )
     assert.equals(height, vim.api.nvim_win_get_height(panel))
   end)
+
+  local function queued_action()
+    options.right_mouse_command(file, "cursor")
+    local action = vim.fn.maparg("1", "n", false, true).callback
+    local schedule, pending = vim.schedule
+    vim.schedule = function(callback)
+      pending = callback
+    end
+    local ok, err = pcall(action)
+    vim.schedule = schedule
+    assert.is_true(ok, tostring(err))
+    assert.is_function(pending)
+    return pending
+  end
+
+  it("handles a buffer disappearing before a selected action runs", function()
+    local pending = queued_action()
+    vim.api.nvim_buf_delete(file, { force = true })
+    local count = #vim.api.nvim_tabpage_list_wins(0)
+    local ok, err = pcall(pending)
+    assert.is_true(ok, tostring(err))
+    assert.equals(count, #vim.api.nvim_tabpage_list_wins(0))
+  end)
+
+  it("does not execute a queued split in a different tab", function()
+    local pending = queued_action()
+    vim.cmd("tabnew")
+    local original_buf = vim.api.nvim_get_current_buf()
+    local ok, err = pcall(pending)
+    local count, target = #vim.api.nvim_tabpage_list_wins(0), vim.api.nvim_get_current_buf()
+    vim.cmd("tabclose!")
+    assert.is_true(ok, tostring(err))
+    assert.equals(1, count)
+    assert.equals(original_buf, target)
+  end)
 end)

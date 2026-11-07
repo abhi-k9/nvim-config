@@ -35,6 +35,12 @@ has a separate guard: a failed selector never chooses a launch automatically and
 
 ## Pickers, panels and reports
 
+Buffer-menu actions return to their source window before choosing a suitable
+file pane. If the buffer disappears, its window closes/moves, or you switch tabs
+before the queued action runs, the action is cancelled with a short message.
+Open the menu again from the intended tab; an old selection cannot split a new
+tab or attempt to open a deleted buffer.
+
 | Feature / entry point | Help / hints | Return to work |
 | --- | --- | --- |
 | Files, buffers, grep, symbols, diagnostics and sessions (Telescope) | F1 in either picker mode; `g?` / `?` in Normal mode; Ctrl-/ or Ctrl-_ while typing. Buffer pickers advertise mark/close keys. | F1 again or another action dismisses the overlay. Esc closes the picker. Query/selection stay intact. |
