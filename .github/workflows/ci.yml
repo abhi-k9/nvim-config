@@ -229,13 +229,14 @@ jobs:
           py=$(command -v python3 || command -v python)
           "$py" ../scripts/ci-run.py nvim --headless --noplugin -u NONE -l tests/run.lua
 
-      - name: Native Windows DAP adapter spawning
+      - name: Native Windows DAP spawning and image commands
         if: runner.os == 'Windows'
         timeout-minutes: 2
         shell: bash
         run: |
           py=$(command -v python3 || command -v python)
           "$py" scripts/ci-run.py nvim --headless --noplugin -u NONE -l tests/fixtures/windows_dap_spawn.lua
+          "$py" scripts/ci-run.py nvim --headless --noplugin -u NONE -l tests/fixtures/image_open.lua
 
   test-seed:
     name: offline-seed tests (${{ matrix.os }})
