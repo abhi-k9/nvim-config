@@ -6,6 +6,18 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-07 — Add opt-in native smoke and short lifecycle checks
+
+### Changed
+
+- Add a disposable-config runner with a real embedded UI, locked plugin
+  preparation, optional 25-cycle stress checks and external process deadlines.
+  Exercise picker/explorer workflows, scope session restoration, Bufferline
+  diagnostic counts and debugger sidebar widths without installing language tools.
+- Check window/buffer and config-owned callback stability; report total callback
+  and heap deltas separately. Record observed upstream DAP control callback growth
+  as follow-up evidence rather than claiming an absence of dependency leaks.
+
 ## 2026-11-07 — Keep breakpoint lists usable without Trouble
 
 ### Fixed

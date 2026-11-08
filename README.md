@@ -305,6 +305,8 @@ nvim/
 │   ├── settings_startup_spec.lua  real local-file startup and plugin overrides
 │   ├── debug_policy_spec.lua  idempotent adapters and custom launch providers
 │   ├── debug_activation_spec.lua  overrides before first debugger activation
+│   ├── manual/
+│   │   └── portable_smoke.lua  opt-in real plugin workflows and bounded lifecycle cycles
 │   ├── dap_breakpoint_list_spec.lua  breakpoint list with optional Trouble fallback
 │   ├── terminal_policy_spec.lua  inherited shells and per-project lazygit
 │   ├── tool_intent_spec.lua  disabled/pinned tools and strict offline requirements
@@ -433,6 +435,7 @@ nvim/
 ├── scripts/
 │   ├── check-docs.sh             doc-sync guards: tree, keymaps, commands, plugins, version floor, templates, health
 │   ├── ci-run.py                 stream CI output and annotate bounded failure details
+│   ├── portable-smoke.py         isolated native smoke/stress runner with process deadlines
 │   ├── update-ci-actions.py       explicitly refresh immutable action pins
 │   ├── offline-seed.py           pack / install plugins + Mason tools + parsers for an offline machine
 │   └── offline-seed-check.lua    what this install would still download (used by offline-seed.py)
