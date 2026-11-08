@@ -17,6 +17,10 @@ that a later change undid is marked *(Reverted in …)* where it appears.
 - Check window/buffer and config-owned callback stability; report total callback
   and heap deltas separately. Record observed upstream DAP control callback growth
   as follow-up evidence rather than claiming an absence of dependency leaks.
+- Add manual Windows/macOS jobs with separate concurrency, dedicated plugin caches,
+  a 45-second check limit and a six-minute job limit. Manual dispatch skips the
+  ordinary regression suites; push/PR runs skip these new jobs. Document local
+  execution and the test-only MessagePack transport.
 
 ## 2026-11-07 — Keep breakpoint lists usable without Trouble
 

@@ -736,6 +736,13 @@ make ci           # check + check-docs + check-actions + test + test-scoper + te
 make hooks        # enable the tracked pre-commit hook (one-time per clone)
 ```
 
+For a short native Windows/macOS check, manually dispatch **CI → Run workflow**.
+The optional stress checkbox adds 25 lifecycle cycles. This runs only the two
+native smoke jobs, with a 45-second check deadline and separate bounded plugin
+preparation. It is excluded from push/PR runs and `make ci`. See
+[manual native checks](docs/ci-troubleshooting.md#manual-native-smoke-and-stress-checks)
+for scope, limits and a local command.
+
 ### Enforcement: CI + pre-commit hook
 
 These checks are now *enforced*, not just available:

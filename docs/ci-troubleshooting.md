@@ -96,7 +96,71 @@ Concurrency cancels a superseded run on the same ref. It does not combine
 separate pushes into a single event, and a cancellation can itself be reported.
 Batching related commits into one push therefore reduces redundant runs.
 
-## Execution bounds and failure visibility
+## Manual native smoke and stress checks
+
+Use **Actions → CI → Run workflow** when changing startup, UI integration or
+plugin pins. This dispatch runs only the Windows and macOS smoke jobs; the
+ordinary regression jobs are skipped. There is no schedule and these jobs do
+not run on pushes or pull requests. Manual and automatic runs have separate
+concurrency groups. Leave **stress** enabled for 25 short lifecycle cycles, or
+disable it for the basic smoke check. With GitHub CLI:
+
+```sh
+gh workflow run ci.yml --ref main -f stress=true
+```
+
+The runner copies shipped config files into a disposable directory, ignores
+private `local.lua`, isolates config/state/cache and reads the copied lockfile.
+CI reuses a dedicated plugin data cache. Language servers, Mason package/parser
+installation and native-sorter builds are disabled for this check. Optional
+tool installation has separate existing regression coverage.
+Reduced motion avoids counting transient cursor-animation windows as lifecycle
+leaks; this check does not measure animation quality.
+
+A small MessagePack client [attaches a Neovim UI over RPC](https://github.com/neovim/neovim/blob/v0.12.6/runtime/doc/api.txt#L3692), consuming redraw
+events without a physical terminal. Checks exercise startup, a literal filename,
+Telescope buffer search, Neo-tree source switching, the real scope.nvim session
+bridge, Bufferline diagnostic counts, and DAP panel open/close with sidebar width
+preservation. The stress phase repeats buffer/diagnostic/session/DAP lifecycles
+and checks for accumulating buffers, windows or config-owned `user_*`
+autocommands after warmup. Total callback growth, Lua heap size and elapsed time
+are reported, without fragile machine-speed or heap
+threshold assertions. This short check does not establish absence of long-term
+leaks, physical terminal rendering, debugger adapter correctness or network-share
+behavior.
+
+Bounds: **180 seconds** for cold plugin preparation, **45 seconds** for the UI
+check, a **15-second** cycle-loop budget, **4 minutes** for the Actions check step
+and **6 minutes** for each complete job. The jobs run in parallel. Timeouts fail
+and terminate the owned Neovim process tree; there is no automatic retry.
+Warm caches already at the lockfile revisions skip `Lazy restore` and its fetches.
+
+Locally, use Python 3, Git and a supported Neovim. The extra Python dependency is
+test-only and is never needed by the editor:
+
+```sh
+python -m pip install msgpack==1.2.1
+python scripts/portable-smoke.py --stress
+```
+
+Use `python3` where that is the Python executable. Add `--data-home PATH` to reuse
+a **dedicated test** data directory; never point it at your ordinary Neovim data,
+because preparation can restore plugin checkouts to the repository's pins. Omit
+`--stress` for one measured cycle, or pass `--nvim PATH` for another editor build.
+Fresh runs without a data cache download plugins again. The default test suite
+does not discover this manual fixture as a spec.
+
+The first short run exposed repeated `BufWinLeave`/`WinClosed` registration in
+the pinned DAP UI control panel (`DAPUIControls`). This is an upstream callback
+accumulation finding, retained in the reported group deltas. The
+[registration site](https://github.com/rcarriga/nvim-dap-ui/blob/cc9dd33aade7f20bae414d0cba163bc60d4d4b43/lua/dapui/controls.lua#L46)
+creates new handlers when the panel re-enters its buffer. Other reported deltas
+include Neovim's diagnostic hooks and ungrouped callbacks, whose growth alone
+does not establish an ongoing leak. No plugin source is patched by this runner.
+Resolving upstream callback ownership is separate follow-up work; the bounded
+smoke check reports it rather than claiming that all callback counts stay flat.
+
+## Automatic checks: execution bounds and failure visibility
 
 The workflow now sets explicit limits:
 

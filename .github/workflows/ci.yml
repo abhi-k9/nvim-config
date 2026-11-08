@@ -25,7 +25,7 @@
 #             only: the full plugin startup is too slow and flaky to
 #             gate on across OSes.
 #
-#   Both Neovim-running jobs run on `stable`. The declared floor is 0.12.0
+#   Neovim jobs run on `stable`. The declared floor is 0.12.0
 #   (MIN_NVIM in init.lua); nvim-treesitter's `main` branch needs 0.12 and
 #   supports only the latest stable, so a pinned older job would test a
 #   combination upstream doesn't. To exercise a specific release, add it
@@ -45,6 +45,10 @@
 #             completeness check. The harness uses the standard library; the
 #             native Windows launcher test also reads pip's bundled distlib.
 #
+#   * portable-smoke — manual dispatch only, Windows/macOS: real config/UI
+#             startup and optional 25-cycle lifecycle checks, with no language
+#             tool provisioning. A dispatch skips the ordinary jobs below.
+#
 # Runs the targets in `make ci` (check, check-docs, check-actions, test, test-scoper,
 # test-seed), but not in the same environment: CI is Linux (plus the Windows
 # and macOS jobs),
@@ -62,11 +66,17 @@ on:
   push:
     branches: [main, master]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      stress:
+        description: Include 25 short lifecycle cycles
+        type: boolean
+        default: true
 
 # Cancel superseded runs on the same ref so a rapid push sequence doesn't
-# pile up.
+# pile up. Manual native checks have their own group and do not cancel normal CI.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && 'manual' || 'automatic' }}
   cancel-in-progress: true
 
 # Actions use immutable commit pins. Comments record the explicit update track.
@@ -75,6 +85,7 @@ concurrency:
 
 jobs:
   lint:
+    if: github.event_name != 'workflow_dispatch'
     name: luacheck + stylua + doc-sync
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -125,6 +136,7 @@ jobs:
         run: python3 scripts/ci-run.py make check-actions
 
   test:
+    if: github.event_name != 'workflow_dispatch'
     name: plenary specs (full config, nvim ${{ matrix.nvim }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -187,6 +199,7 @@ jobs:
         run: python3 scripts/ci-run.py make test
 
   test-scoper:
+    if: github.event_name != 'workflow_dispatch'
     name: scoper specs (${{ matrix.os }}, nvim ${{ matrix.nvim }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
@@ -241,6 +254,7 @@ jobs:
           "$py" scripts/ci-run.py nvim --headless --noplugin -u NONE -l tests/fixtures/session_scope.lua
 
   test-seed:
+    if: github.event_name != 'workflow_dispatch'
     name: offline-seed tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
@@ -264,3 +278,64 @@ jobs:
           py=$(command -v python3 || command -v python)
           "$py" --version
           "$py" scripts/ci-run.py "$py" -m unittest discover -s tests -p "offline_seed_test.py" -v
+
+  portable-smoke:
+    # Deliberately opt-in: no schedule, push or PR execution. A dispatch runs
+    # only these two jobs, not another copy of the ordinary regression suites.
+    if: github.event_name == 'workflow_dispatch'
+    name: manual native smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 6
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # The installer renames into the home directory. Keep its extraction
+      # on that filesystem on macOS too; Windows uses its native TEMP/TMP.
+      - name: Locate Neovim staging filesystem
+        if: runner.os == 'macOS'
+        id: nvim-temp
+        shell: bash
+        run: printf 'directory=%s\n' "$HOME" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Neovim
+        uses: rhysd/action-setup-vim@febef33995d6649302e9d88dda81e071b68f16a7 # v1
+        env:
+          TMPDIR: ${{ steps.nvim-temp.outputs.directory }}
+        with:
+          neovim: true
+          version: stable
+
+      - name: Cache dedicated smoke-test plugins
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ runner.temp }}/portable-nvim-data
+          key: portable-nvim-v1-${{ runner.os }}-${{ hashFiles('lazy-lock.json', 'lua/plugins/**/*.lua', 'scripts/portable-smoke.py') }}
+
+      - name: Install test-only UI transport
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          py=$(command -v python3 || command -v python)
+          "$py" -m venv "$RUNNER_TEMP/portable-python"
+          if [ -f "$RUNNER_TEMP/portable-python/Scripts/python.exe" ]; then
+            py="$RUNNER_TEMP/portable-python/Scripts/python.exe"
+          else
+            py="$RUNNER_TEMP/portable-python/bin/python"
+          fi
+          "$py" -m pip install --disable-pip-version-check msgpack==1.2.1
+          printf 'PORTABLE_PYTHON=%s\n' "$py" >> "$GITHUB_ENV"
+
+      - name: Native startup and bounded lifecycle checks
+        timeout-minutes: 4
+        shell: bash
+        env:
+          PORTABLE_DATA_HOME: ${{ runner.temp }}/portable-nvim-data
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          "$PORTABLE_PYTHON" scripts/ci-run.py "$PORTABLE_PYTHON" scripts/portable-smoke.py --data-home "$PORTABLE_DATA_HOME" ${{ inputs.stress && '--stress' || '' }}
