@@ -151,14 +151,18 @@ Fresh runs without a data cache download plugins again. The default test suite
 does not discover this manual fixture as a spec.
 
 The first short run exposed repeated `BufWinLeave`/`WinClosed` registration in
-the pinned DAP UI control panel (`DAPUIControls`). This is an upstream callback
-accumulation finding, retained in the reported group deltas. The
+the pinned DAP UI control panel (`DAPUIControls`, 4 to 30 entries over 25 cycles). The
 [registration site](https://github.com/rcarriga/nvim-dap-ui/blob/cc9dd33aade7f20bae414d0cba163bc60d4d4b43/lua/dapui/controls.lua#L46)
-creates new handlers when the panel re-enters its buffer. Other reported deltas
-include Neovim's diagnostic hooks and ungrouped callbacks, whose growth alone
-does not establish an ongoing leak. No plugin source is patched by this runner.
-Resolving upstream callback ownership is separate follow-up work; the bounded
-smoke check reports it rather than claiming that all callback counts stay flat.
+creates new handlers when the panel re-enters its buffer. The config now supplies
+an isolated, removable [toolbar lifecycle adapter](debug-terminal-configuration.md#dap-toolbar-lifecycle-workaround).
+The check requires stable combined native/local control-handler counts and
+exercises toolbar presence after a control buffer is wiped and recreated. It
+also supports validating an upstream fix with the adapter removed.
+
+Other reported deltas include Neovim's diagnostic hooks and ungrouped callbacks,
+whose growth alone does not establish an ongoing leak. No plugin source is
+patched by this runner. A passing check establishes the specific assertions
+above, rather than claiming that all callback counts stay flat.
 
 ## Automatic checks: execution bounds and failure visibility
 

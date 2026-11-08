@@ -70,6 +70,24 @@ describe("DAP UI session ownership", function()
     assert.is_true(vim.g.dap_autoclose_ui)
   end)
 
+  it("allows opting out of the isolated controls workaround", function()
+    local fix = require("config.dap_ui_controls")
+    local original, calls = fix.attach, 0
+    fix.attach = function()
+      calls = calls + 1
+    end
+    Settings.configure({ debug = { controls_lifecycle_fix = false } })
+    local ok, err = pcall(spec[3].config, nil, {})
+    local disabled_calls = calls
+    Settings.configure({ debug = { controls_lifecycle_fix = true } })
+    local enabled_ok, enabled_err = pcall(spec[3].config, nil, {})
+    fix.attach = original
+    assert.is_true(ok, err)
+    assert.is_true(enabled_ok, enabled_err)
+    assert.equals(0, disabled_calls)
+    assert.equals(1, calls)
+  end)
+
   it("preserves another root session's UI on exit and termination", function()
     local a, b = {}, {}
     roots = { a, b }

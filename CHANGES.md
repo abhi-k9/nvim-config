@@ -6,6 +6,21 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-07 — Bound DAP toolbar callbacks with a removable local adapter
+
+### Fixed
+
+- Replace only the DAP UI control lifecycle in memory, preserving upstream
+  button rendering/actions and the independent fixed-column layout guard.
+  Keep one handler set across reopens and rebind after buffer replacement;
+  discard deferred work after teardown and preserve later user overrides.
+- Skip missing/incompatible plugin APIs or already active native controls.
+  Add `debug.controls_lifecycle_fix = false` as a startup opt-out, document
+  the upstream defect and removal procedure, and leave plugin sources untouched.
+- Cover lifecycle ownership and opt-out with focused regressions. Strengthen
+  the existing manual native check to require stable control-handler counts,
+  visible buttons and successful buffer recreation, without expanding push CI.
+
 ## 2026-11-07 — Add opt-in native smoke and short lifecycle checks
 
 ### Changed

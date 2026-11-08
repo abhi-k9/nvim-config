@@ -106,6 +106,17 @@ local function drain()
     "event queue did not drain"
   )
 end
+local function control_buffer()
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    local buf = vim.api.nvim_win_get_buf(win)
+    -- The disposable config uses DAP UI's default controls.element = "repl".
+    if vim.bo[buf].filetype == "dap-repl" then
+      assert(vim.wo[win].winbar:find("v:lua._dapui.play", 1, true), "DAP toolbar disappeared")
+      return buf
+    end
+  end
+  error("DAP control window missing")
+end
 local function cycle()
   local buffer = vim.api.nvim_create_buf(true, false)
   vim.api.nvim_buf_set_name(buffer, vim.fn.getcwd() .. "/cycle.txt")
@@ -121,6 +132,7 @@ local function cycle()
   end
   ui.open()
   drain()
+  control_buffer()
   ui.close()
   drain()
   assert(vim.api.nvim_win_get_width(side) == width, "sidebar width drift")
@@ -133,6 +145,18 @@ end
 cycle()
 drain()
 cycle()
+drain()
+-- A wiped control buffer is rebound on the next open, without resurrecting the
+-- old element through a queued callback. Exercise real upstream buffer factories.
+ui.open()
+drain()
+local old_control = control_buffer()
+ui.close()
+vim.api.nvim_buf_delete(old_control, { force = true })
+ui.open()
+drain()
+assert(control_buffer() ~= old_control, "DAP control buffer was not recreated")
+ui.close()
 drain()
 local function resources()
   collectgarbage("collect")
@@ -149,7 +173,11 @@ local function resources()
     groups = groups,
   }
 end
+local function control_handlers(snapshot)
+  return (snapshot.groups.user_dapui_controls or 0) + (snapshot.groups.DAPUIControls or 0)
+end
 local before = resources()
+assert(control_handlers(before) > 0, "DAP control lifecycle was not exercised")
 local cycles, started = phase == "stress" and 25 or 1, vim.uv.hrtime()
 for _ = 1, cycles do
   assert((vim.uv.hrtime() - started) / 1e9 < 15, "lifecycle cycle budget exceeded")
@@ -157,6 +185,7 @@ for _ = 1, cycles do
 end
 drain()
 local after = resources()
+assert(control_handlers(after) == control_handlers(before), "DAP control handlers accumulated")
 assert(after.buffers <= before.buffers, "buffers accumulated: " .. vim.inspect({ before, after }))
 assert(after.windows == before.windows, "windows accumulated")
 local growth = {}
@@ -170,6 +199,7 @@ end
 -- separately from config-owned groups. Known upstream growth is documented;
 -- a passing smoke check must not be read as an absence-of-leaks claim.
 table.sort(growth)
+before.control_handlers, after.control_handlers = control_handlers(before), control_handlers(after)
 before.groups, after.groups = nil, nil
 assert(#errors == 0, table.concat(errors, "\n"))
 assert(#vim.lsp.get_clients() == 0, "smoke unexpectedly started a language server")
