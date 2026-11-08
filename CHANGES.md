@@ -6,7 +6,23 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-08 — Use the DAP UI fork and retire the local controls adapter
+
+### Changed
+
+- Source DAP UI from `abhi-k9/nvim-dap-ui` on `master`, locking the reviewed
+  revision `a53a500ed3bb0c7974966c6478edb1a82af0fb19`. It fixes control-handler
+  accumulation, repeated-setup listener ownership and floating-window callbacks.
+- Remove the temporary controls module, its setup hook, opt-out setting and
+  adapter-specific tests. Keep the independent layout-width guard and the manual
+  native lifecycle regression, now checking the plugin's own control group.
+- Document migration with `:Lazy restore nvim-dap-ui`, explicit fork updates and
+  eventual return to upstream. No fork source changes are included in this repo.
+
 ## 2026-11-07 — Bound DAP toolbar callbacks with a removable local adapter
+
+*(Reverted in 2026-11-08: superseded by the DAP UI fork's native lifecycle fix;
+the native regression check is retained.)*
 
 ### Fixed
 

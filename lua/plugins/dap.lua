@@ -290,7 +290,9 @@ return {
   -- windows on its own; <leader>du/<leader>de remain available for manual use.
   -- -------------------------------------------------------------------------
   {
-    "rcarriga/nvim-dap-ui",
+    -- Fork includes the control lifecycle fix; revision lives in lazy-lock.json.
+    "abhi-k9/nvim-dap-ui",
+    branch = "master",
     event = "VeryLazy",
     dependencies = {
       "mfussenegger/nvim-dap",
@@ -328,9 +330,6 @@ return {
       local dap, dapui = require("dap"), require("dapui")
       dapui.setup(opts)
       require("config.dap_ui_layout").attach(dapui)
-      if Settings.get("debug.controls_lifecycle_fix", true) ~= false then
-        require("config.dap_ui_controls").attach()
-      end
 
       -- Auto-close the UI when the debuggee exits?
       --   true  (default) — close on terminate/exit for a clean session end.

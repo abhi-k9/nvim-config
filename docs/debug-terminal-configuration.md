@@ -66,7 +66,6 @@ menu. No global terminal-input help binding intercepts program input. See the
 | `debug.configure` | Optional final callback `(dap)` after adapters and configurations have been applied, before a debug command starts. |
 | `debug.auto_open_ui` | `true`. Setting it to `false` suppresses automatic opening; manual UI commands still work. |
 | `debug.auto_close_ui` | `true`, unless `vim.g.dap_autoclose_ui` was already set. Closing still respects other live debug sessions. |
-| `debug.controls_lifecycle_fix` | `true`. Local workaround for DAP UI toolbar callback accumulation; set to `false` before plugin setup and restart to use upstream behavior. See [toolbar lifecycle](#dap-toolbar-lifecycle-workaround). |
 
 Pre-set pause/auto-close globals win so existing configuration keeps working.
 Set the corresponding settings before DAP loads. Changing the global later also
@@ -248,52 +247,48 @@ benefit from on-demand loading.
 References: [CodeLLDB launch sequence](https://github.com/vadimcn/codelldb/blob/v1.12.3/MANUAL.md#launch-sequence),
 [LLDB on-demand symbols and tradeoffs](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.8/lldb/docs/use/ondemand.rst).
 
-## DAP toolbar lifecycle workaround
+## DAP UI fork and toolbar lifecycle
 
-The pinned nvim-dap-ui control panel registers more `WinClosed`/`BufWinLeave`
-handlers on repeated opens. A short probe observed its `DAPUIControls` group grow
-from 4 to 30 entries over 25 cycles. This is a small memory/redundant-callback
-cost during a long editor session; it does not execute debugger commands twice.
-The upstream [registration site](https://github.com/rcarriga/nvim-dap-ui/blob/cc9dd33aade7f20bae414d0cba163bc60d4d4b43/lua/dapui/controls.lua#L46)
-shows the nested handler creation.
+The config uses [abhi-k9/nvim-dap-ui](https://github.com/abhi-k9/nvim-dap-ui),
+tracking its `master` branch with the tested revision recorded in `lazy-lock.json`.
+The pinned fork fixes control-panel callback accumulation directly in the plugin.
+It also retires old client listeners during repeated setup and gives floating
+windows their own close callbacks.
 
-`lua/config/dap_ui_controls.lua` replaces only the control lifecycle entrypoints
-in memory, after DAP UI setup and before its first open. Upstream still renders
-the buttons and handles their clicks. The adapter keeps six autocommand entries
-for the current control buffer, refreshes on DAP/focus events, and clears the old
-handlers when that buffer is wiped or replaced. A new control buffer binds on
-the next UI open/toggle; cleanup never eagerly recreates a deleted element.
-It checks window/buffer identity before writing a toolbar and restores owned
-bars when leaving a buffer or detaching. No installed plugin files, lockfile
-pins, external programs or OS-specific commands are involved.
+The earlier upstream revision registered more `WinClosed`/`BufWinLeave` handlers
+on repeated opens: the `DAPUIControls` group grew from 4 to 30 entries over 25
+cycles. The fork's [control lifecycle fix](https://github.com/abhi-k9/nvim-dap-ui/commit/a1bbef8)
+refreshes the current buffer window without registering handlers on re-entry.
+The plugin now owns the lifecycle; the temporary local adapter has been removed.
+The separate fixed-width guard below remains in place.
 
-This is separate from the width guard below. It skips missing/incompatible
-module APIs or an already active native control lifecycle, leaving upstream in
-charge. It depends on DAP UI's internal `enable_controls`, `refresh_control_panel`
-and `controls` functions, so keep the lifecycle check when updating that plugin.
-To disable it, merge this into your existing `local.lua` and restart Neovim:
+Control-buffer wipeout rebinding is deferred by the plugin. Scripts that delete
+the control buffer and immediately reopen the UI should schedule the reopen
+with `vim.schedule(function() require("dapui").open() end)` after deletion.
+Reopening synchronously in that same callback can leave the toolbar blank until
+the next focus/debug event. The native smoke check waits for rebinding explicitly.
 
-```lua
-return {
-  debug = { controls_lifecycle_fix = false },
-}
+After pulling this config, start Neovim and run:
+
+```vim
+:Lazy restore nvim-dap-ui
 ```
 
-For maintainers, removal after an upstream fix is deliberately small:
+Then restart Neovim to load the new plugin code. This targeted restore switches
+an existing checkout from the old origin to the fork and checks out the lockfile
+revision. The same command resolves Lazy's "Origin has changed" message after
+this source change. Fresh installations use the fork automatically.
 
-1. Update the plugin pin and temporarily remove the `controls_lifecycle_fix`
-   attach block from `lua/plugins/dap.lua`.
-2. Run the [short lifecycle check](ci-troubleshooting.md#manual-native-smoke-and-stress-checks).
-   It checks both native and local control groups, so callback growth must stay
-   flat with the workaround removed; buttons and buffer recreation must work.
-3. Remove `lua/config/dap_ui_controls.lua`, its dedicated spec, the setting's
-   integration test and these setting/removal notes; update the README inventory.
-   Retain the native lifecycle regression and the separate layout-width guard.
+Remove `debug.controls_lifecycle_fix` from an existing `local.lua` if you added
+it; the setting is retired and has no effect. For deliberate future updates,
+use `:Lazy update nvim-dap-ui`; it follows the fork's `master` branch and updates
+the lockfile. See the [review and rollback workflow](workflows/install-update-uninstall.md#update-and-share-plugin-versions-git-checkout).
 
-`require("config.dap_ui_controls").detach()` also releases the adapter's owned
-hooks and restores its original functions without replacing later user overrides.
-The next UI open can initialize upstream controls. Prefer restarting when changing
-the setting or plugin version, since existing native handlers are not migrated.
+Once upstream includes the fixes, change the repository in `lua/plugins/dap.lua`
+back to `rcarriga/nvim-dap-ui`, update the lockfile to a fixed upstream revision,
+and run the [short native lifecycle check](ci-troubleshooting.md#manual-native-smoke-and-stress-checks).
+Keep that regression: it checks toolbar presence, buffer recreation and stable
+`DAPUIControls` handler counts without a local controls wrapper.
 
 ## Fixed window widths during debugging
 
@@ -369,10 +364,9 @@ checks overrides before the real Lazy/DAP activation. Existing Python transport
 and Windows adapter tests remain in place. `tests/terminal_policy_spec.lua`
 covers inherited/resolved shells and session/project lazygit handles; real-shell
 literal-cwd regressions remain in `tests/terminal_literal_cwd_spec.lua`.
-`tests/dap_ui_controls_spec.lua` covers toolbar ownership, focus/adapter refresh,
-reopens, replaced buffers, missing APIs and teardown. The opt-in native smoke
-runner checks real DAP UI toolbar presence, buffer recreation and stable control
-handler counts; it does not require launching a debuggee.
+The opt-in native smoke runner checks real DAP UI toolbar presence, buffer
+recreation and stable control-handler counts; it does not require launching a
+debuggee. The fork carries its own focused control-lifecycle regression tests.
 
 References: [nvim-dap configurations and providers](https://github.com/mfussenegger/nvim-dap/blob/master/doc/dap.txt),
 [nvim-dap VS Code launch support](https://github.com/mfussenegger/nvim-dap/blob/master/lua/dap/ext/vscode.lua),

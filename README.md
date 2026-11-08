@@ -265,7 +265,6 @@ nvim/
 │   │   ├── dap.lua           nvim-dap setup: adapters, fallback configs, signs
 │   │   ├── dap_launch.lua    detailed launch selection, inspection and guarded recovery
 │   │   ├── dap_ui_layout.lua  preserve fixed columns across debugger layout changes
-│   │   ├── dap_ui_controls.lua  removable DAP toolbar lifecycle compatibility adapter
 │   │   ├── diagnostics.lua   :DiagnosticDump (hang triage)
 │   │   ├── bufferline_diagnostics.lua  event-invalidated counts for the pinned Bufferline getter
 │   │   ├── lsp_format.lua    asynchronous LSP formatting with buffer lifecycle guards
@@ -361,7 +360,6 @@ nvim/
 │   ├── buffer_menu_split_spec.lua  buffer menu splits from file windows
 │   ├── session_ui_visibility_spec.lua  preserve visible debugger layouts on save
 │   ├── dap_ui_lifecycle_spec.lua  shared debugger UI across sessions
-│   ├── dap_ui_controls_spec.lua  bounded toolbar handlers, buffer recreation and removal
 │   ├── dap_sidebar_width_spec.lua  generic fixed columns, real debugger layouts and Neo-tree
 │   ├── dap_launch_spec.lua    launch selection, dynamic fields, missing APIs and preview closing
 │   ├── workflow_guides_spec.lua  real guide contents and plugin-free reference commands
@@ -630,6 +628,8 @@ features you need. A missing language tool is not a reason to abandon setup.
   To share deliberate updates, use the
   [review/test/commit/push recipe and lockfile conflict recovery](docs/workflows/install-update-uninstall.md#update-and-share-plugin-versions-git-checkout).
   CI's plugin cache is keyed on the lockfile.
+- **DAP UI source**: uses [`abhi-k9/nvim-dap-ui`](https://github.com/abhi-k9/nvim-dap-ui)
+  with its native lifecycle fixes. See the [fork migration and update instructions](docs/debug-terminal-configuration.md#dap-ui-fork-and-toolbar-lifecycle).
 - **Tooling health reminder**: an informational prompt appears on first
   interactive use, then every 30 days when you start or refocus Neovim.
   Set `globals.tooling_reminder_days = 7` in `local.lua` for weekly
