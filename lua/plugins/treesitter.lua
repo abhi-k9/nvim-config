@@ -156,6 +156,8 @@ return {
       local state = {} -- lang -> { status = "pending" | "failed" | "unavailable", at = os.time() }
       local RETRY_AFTER = 300
       local function maybe_install(buf)
+        -- Huge buffers opt out of parsing and parser provisioning alike.
+        if vim.b[buf].big_file then return end
         local ft = vim.bo[buf].filetype
         local lang = vim.treesitter.language.get_lang(ft)
         if
@@ -173,10 +175,15 @@ return {
           state[lang] = { status = "unavailable", at = os.time() }
           return
         end
-        state[lang] = { status = "pending", at = os.time() }
+        local pending = { status = "pending", at = os.time() }
+        state[lang] = pending
         vim.notify(("Treesitter: installing the %s parser…"):format(lang))
-        ts.install({ lang }):await(function(err, success)
+        local completed = false
+        local function finish(err, success)
+          if completed then return end
+          completed = true
           vim.schedule(function()
+            if state[lang] ~= pending then return end
             -- Failed downloads/builds return false without throwing, so
             -- the task's error argument alone does not establish success.
             if err or not success then
@@ -203,7 +210,13 @@ return {
               end
             end
           end)
+        end
+        -- A synchronous exception in install() or await() must not leave
+        -- this language permanently stuck in the "pending" state.
+        local ok, err = pcall(function()
+          ts.install({ lang }):await(finish)
         end)
+        if not ok then finish(err, false) end
       end
 
       vim.api.nvim_create_autocmd("FileType", {
@@ -223,7 +236,12 @@ return {
         callback = function()
           vim.schedule(function()
             for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-              if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].filetype ~= "" then attach(buf) end
+              if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].filetype ~= "" then
+                attach(buf)
+                -- Session localoptions can restore filetypes without FileType.
+                -- Request any missing parser once, as on an ordinary open.
+                maybe_install(buf)
+              end
             end
           end)
         end,

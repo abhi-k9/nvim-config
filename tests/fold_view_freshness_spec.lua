@@ -40,6 +40,21 @@ describe("fold view freshness", function()
     assert.are.equal(-1, vim.fn.foldclosed(2))
   end)
 
+  it("does not read or save fold views for a buffer excluded by big-file mode", function()
+    vim.b[buf].big_file = true
+    local stats = 0
+    vim.uv.fs_stat = function(path, ...)
+      if path == view or path == source then stats = stats + 1 end
+      return original_stat(path, ...)
+    end
+    vim.api.nvim_exec_autocmds("BufWinEnter", { buffer = buf, group = "user_fold_persistence" })
+    vim.api.nvim_exec_autocmds("CursorHold", { buffer = buf, group = "user_fold_persistence" })
+    vim.api.nvim_exec_autocmds("BufWritePost", { buffer = buf, group = "user_fold_persistence" })
+    assert.equals(0, stats)
+    assert.is_true(original_stat(view) ~= nil)
+    vim.b[buf].big_file = nil
+  end)
+
   it("ignores a view when the file changed later in the same second", function()
     assert(vim.uv.fs_utime(view, 1000.1, 1000.1))
     assert(vim.uv.fs_utime(source, 1000.9, 1000.9))

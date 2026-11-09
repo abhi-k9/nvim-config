@@ -40,7 +40,9 @@ local FOLD_VIEW_SKIP_FT = { gitcommit = true, gitrebase = true, hgcommit = true,
 -- some have buftype "": their names aren't files, and loadview on one
 -- failed with "E484: Can't open file …/view//diffview:=+…".
 local function fold_view_eligible(buf)
-  return require("config.util").is_file_buffer(buf) and not FOLD_VIEW_SKIP_FT[vim.bo[buf].filetype]
+  return not vim.b[buf].big_file
+    and require("config.util").is_file_buffer(buf)
+    and not FOLD_VIEW_SKIP_FT[vim.bo[buf].filetype]
 end
 
 -- The file :mkview writes for `buf` (Neovim's get_view_file()): the

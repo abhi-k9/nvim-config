@@ -81,6 +81,56 @@ describe("on-demand parser installation", function()
     assert.are.equal(2, attempts)
   end)
 
+  it("skips parser provisioning for a large file, then allows an ordinary file", function()
+    vim.b[buf].big_file = true
+    filetype()
+    assert.equals(0, attempts)
+    vim.b[buf].big_file = nil
+    filetype()
+    assert.equals(1, attempts)
+  end)
+
+  it("installs a missing parser after session restore without a FileType event", function()
+    vim.api.nvim_exec_autocmds("SessionLoadPost", { group = "user_treesitter_session" })
+    vim.wait(100, function()
+      return attempts > 0
+    end)
+    assert.equals(1, attempts)
+  end)
+
+  it("recovers from a synchronous installer exception rather than staying pending", function()
+    local original_install = package.loaded["nvim-treesitter"].install
+    package.loaded["nvim-treesitter"].install = function(languages)
+      if vim.tbl_contains(languages, "audit_parser") then
+        attempts = attempts + 1
+        error("synthetic install exception")
+      end
+      return original_install(languages)
+    end
+    filetype()
+    filetype()
+    assert.equals(1, attempts)
+    assert.is_truthy(table.concat(notes, "\n"):find("synthetic install exception", 1, true))
+    fake_time = fake_time + 300
+    package.loaded["nvim-treesitter"].install = original_install
+    filetype()
+    assert.equals(2, attempts)
+  end)
+
+  it("recovers from a synchronous await exception", function()
+    local original_install = package.loaded["nvim-treesitter"].install
+    package.loaded["nvim-treesitter"].install = function(languages)
+      if vim.tbl_contains(languages, "audit_parser") then
+        attempts = attempts + 1
+        return { await = function() error("synthetic await exception") end }
+      end
+      return original_install(languages)
+    end
+    filetype()
+    assert.equals(1, attempts)
+    assert.is_truthy(table.concat(notes, "\n"):find("synthetic await exception", 1, true))
+  end)
+
   it("honors the opt-out for both startup and first-use installation", function()
     vim.g.treesitter_auto_install = false
     dofile(vim.fn.getcwd() .. "/lua/plugins/treesitter.lua")[1].config(nil, {
