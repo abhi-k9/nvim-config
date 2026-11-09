@@ -188,11 +188,10 @@ jobs:
           path: |
             ~/.local/share/nvim
             ~/.cache/nvim
-          # The tracked lazy-lock.json pins plugin revisions, so it is
-          # part of the key: a lock bump invalidates the cache.
-          key: nvim-data-${{ runner.os }}-${{ matrix.nvim }}-${{ hashFiles('lua/plugins/**/*.lua', 'lazy-lock.json') }}
-          restore-keys: |
-            nvim-data-${{ runner.os }}-${{ matrix.nvim }}-
+          # Exact matches only: Lazy setup does not restore already-installed
+          # plugins to lockfile revisions. A fallback can load an old upstream
+          # checkout after switching to a fork. v2 retires those stale caches.
+          key: nvim-data-v2-${{ runner.os }}-${{ matrix.nvim }}-${{ hashFiles('lua/plugins/**/*.lua', 'lazy-lock.json') }}
 
       - name: Test config (smoke, leader maps, behaviour specs)
         timeout-minutes: 10
