@@ -340,6 +340,15 @@ return {
           end
         end
       end,
+      -- Scope can recreate hidden buffers after SessionLoadPost. Apply saved
+      -- pin names only after scope restoration and visibility reconciliation.
+      function()
+        if scope_restore_failed then return end
+        local line = package.loaded.bufferline
+        if type(line) == "table" and type(line.restore_pins) == "function" then
+          line.restore_pins()
+        end
+      end,
     },
 
     -- The backend closes these filetypes BEFORE pre_save_cmds, also covering

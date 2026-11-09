@@ -46,6 +46,22 @@ describe("session scope ordering", function()
     assert.are.same({ first_buf }, core.cache[first_tab])
   end)
 
+  it("restores pins after scope recreates a hidden buffer", function()
+    local line = require("bufferline")
+    line.setup({})
+    local name = vim.fn.tempname() .. ",hidden.lua"
+    vim.g.ScopeState = vim.json.encode({ cache = { {}, { name } } })
+    vim.g.BufferlinePinnedBuffers = "bufferline-pins-v1:" .. vim.json.encode({ name })
+    vim.api.nvim_exec_autocmds("SessionLoadPost", {})
+    for _, hook in ipairs(spec.opts.post_restore_cmds) do
+      hook()
+    end
+    local hidden = core.cache[first_tab][1]
+    assert.is_true(line.is_pinned(hidden))
+    assert.is_false(vim.bo[hidden].buflisted)
+    vim.g.BufferlinePinnedBuffers = nil
+  end)
+
   it("restores hidden filenames literally without executing Ex syntax", function()
     local name = vim.fn.tempname() .. " hidden | let g:session_filename_executed = 1"
     vim.g.ScopeState = vim.json.encode({ cache = { { name }, {} }, last_tab = 0 })

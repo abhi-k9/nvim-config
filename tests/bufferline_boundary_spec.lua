@@ -16,11 +16,10 @@ describe("Bufferline inspection boundary", function()
         return { mode = "buffers", elements = elements }
       end,
     }
-    groups = {
-      _is_pinned = function(element)
-        return pins[element.id] == true
-      end,
-    }
+    line.is_pinned = function(bufnr)
+      return pins[bufnr] == true
+    end
+    groups = {}
     package.loaded.bufferline, package.loaded["bufferline.groups"] = line, groups
   end)
   after_each(function()
@@ -44,8 +43,8 @@ describe("Bufferline inspection boundary", function()
   end)
 
   it("refuses the entire close when any pin state is unknown", function()
-    groups._is_pinned = function(element)
-      if element.id ~= buffers[3] then return false end
+    line.is_pinned = function(bufnr)
+      if bufnr ~= buffers[3] then return false end
     end
     boundary.close_unpinned()
     for _, buf in ipairs(buffers) do
@@ -56,10 +55,10 @@ describe("Bufferline inspection boundary", function()
   end)
 
   it("refuses missing or incompatible APIs and tabpage-mode IDs", function()
-    local original = groups._is_pinned
-    groups._is_pinned = nil
+    local original = line.is_pinned
+    line.is_pinned = nil
     assert.is_nil(boundary.unpinned_buffers())
-    groups._is_pinned = original
+    line.is_pinned = original
     line.get_elements = function()
       return { mode = "tabs", elements = elements }
     end

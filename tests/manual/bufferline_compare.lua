@@ -50,8 +50,13 @@ elseif kind == "mini" then
   require("mini.tabline").setup({ show_icons = false })
   redraw = require("mini.tabline").make_tabline_string
 else
-  require("bufferline").setup({ options = { show_buffer_icons = false, diagnostics = "nvim_lsp" } })
-  if kind == "cached" then require("config.bufferline_diagnostics").setup() end
+  require("bufferline").setup({
+    options = {
+      show_buffer_icons = false,
+      diagnostics = "nvim_lsp",
+      diagnostics_cache = kind == "cached",
+    },
+  })
   redraw = _G.nvim_bufferline
 end
 local setup_ms = (vim.uv.hrtime() - started) / 1e6
@@ -107,10 +112,10 @@ if kind == "native" then
   g.remove_element("pinned", { id = a })
   vim.g.BufferlinePinnedBuffers = saved
   vim.api.nvim_exec_autocmds("SessionLoadPost", {})
-  report.comma_pin_restored = g._is_pinned({ id = a })
-  report.unrelated_prefix_pinned = g._is_pinned({ id = decoy })
+  report.comma_pin_restored = require("bufferline").is_pinned(a)
+  report.unrelated_prefix_pinned = require("bufferline").is_pinned(decoy)
   vim.g.BufferlinePinnedBuffers = vim.api.nvim_buf_get_name(b)
   vim.api.nvim_exec_autocmds("SessionLoadPost", {})
-  report.second_session_pin_restored = g._is_pinned({ id = b })
+  report.second_session_pin_restored = require("bufferline").is_pinned(b)
 end
 return report

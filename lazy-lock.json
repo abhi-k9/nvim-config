@@ -4,7 +4,7 @@
   "auto-session": { "branch": "main", "commit": "02a5588f677970a9bc784115c62bef9e5855499b" },
   "blink.cmp": { "branch": "main", "commit": "78336bc89ee5365633bcf754d93df01678b5c08f" },
   "blink.indent": { "branch": "main", "commit": "2e9c9768affeaf3a48b2dc329eb59763012f79f6" },
-  "bufferline.nvim": { "branch": "main", "commit": "655133c3b4c3e5e05ec549b9f8cc2894ac6f51b3" },
+  "bufferline.nvim": { "branch": "main", "commit": "4e964066ed10eb61f7b42b634f9b0877047eccdd" },
   "catppuccin": { "branch": "main", "commit": "edefef779ab08ce1a4a404713e3012b0d202bd35" },
   "conform.nvim": { "branch": "master", "commit": "016802de402556da54c36bd7359b441266b01cdd" },
   "diffview-plus.nvim": { "branch": "main", "commit": "2a2d89a07f5d5d3cef7f542b99c3e28050ca205c" },

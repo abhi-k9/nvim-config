@@ -106,8 +106,9 @@ overrides rather than separate configuration keys.
 
 ## Bufferline diagnostic counts
 
-`ui.bufferline_diagnostic_cache` defaults to `true`. A local adapter caches
-native diagnostic counts by buffer and namespace. It reads the workspace once,
+`ui.bufferline_diagnostic_cache` defaults to `true` and selects the maintenance
+fork's supported `diagnostics_cache` option. It caches exact native diagnostic
+counts by buffer and namespace. It reads the workspace once,
 then refreshes only changed buffers on the next eligible redraw. Repeated
 `DiagnosticChanged` events coalesce; wiping a buffer drops its cached counts.
 Namespace, buffer and global enable/disable changes remain live because redraws
@@ -118,30 +119,32 @@ Insert/replace mode keeps the previous counts unless Neovim's diagnostic
 `update_in_insert` setting permits updates. Other diagnostic providers delegate
 to Bufferline's original getter.
 
-The plugin and its lockfile revision stay unchanged. Bufferline exposes no
-custom source hook, so this adapter replaces only `bufferline.diagnostics.get`;
-it never replaces Neovim diagnostic functions. Regression tests exercise the
-real renderer and getter contract. Recheck those tests when updating Bufferline.
-Setup is idempotent; disposal restores the getter only if the adapter still owns
-it and removes its event handlers.
+The maintenance fork owns the cache; no config module replaces its diagnostic
+getter or Neovim's diagnostic APIs. Calling Bufferline setup again resets its
+cache and event ownership. Exact count and insert/disable policy regressions
+now live with the fork; config tests cover the supported option and getter identity.
 
-To return to the plugin's original getter, add this to `local.lua` and restart:
+To use the plugin's uncached getter, add this to `local.lua` and restart:
 
 ```lua
 return { ui = { bufferline_diagnostic_cache = false } }
 ```
 
-If the plugin's getter is unavailable or incompatible, the cache warns once and
-lets Bufferline use its native behavior. Close-unpinned (`<leader>bP`) uses a
-separate checked pin-inspection boundary: unknown pin state cancels the whole
-operation, and stale entries hidden by tab scoping are excluded. The ordinary
-shared close helpers continue to skip unsaved edits and preserve windows.
+Close-unpinned (`<leader>bP`) keeps its checked inspection boundary, using the
+public `is_pinned(bufnr)` API. Unknown pin state cancels the whole operation,
+and stale entries hidden by tab scoping are excluded. The shared close helpers
+continue to skip unsaved edits and preserve windows.
+
+Pins use validated JSON and exact filenames. Legacy comma-separated pin data
+needs re-pinning and a session save; a single legacy filename is restored exactly.
+The config calls `restore_pins()` after scope has recreated hidden buffers.
+See the [migration and rollback plan](bufferline-fork-migration-2026-11-09.md).
 
 The [responsiveness review](performance-review-2026-11-04.md#follow-up-local-bufferline-cache--2026-11-05)
 records the before/after measurements and their limits.
 The [Bufferline audit](bufferline-audit-2026-11-08.md) compares alternatives,
-documents remaining upstream pin-persistence defects and outlines a small
-maintenance fork that would preserve the current workflow and dependency count.
+records the original upstream defects and the maintenance-fork rationale.
+It is a historical audit; the migration document records the prepared fixes.
 
 ## Fold persistence and split sizing
 

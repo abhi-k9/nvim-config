@@ -15,7 +15,7 @@ describe("buffer menu split placement", function()
     vim.bo[scratch].filetype = "neo-tree"
     vim.api.nvim_win_set_width(panel, 20)
     for _, spec in ipairs(dofile(vim.fn.getcwd() .. "/lua/plugins/ui.lua")) do
-      if spec[1] == "akinsho/bufferline.nvim" then options = spec.opts().options end
+      if spec[1] == "abhi-k9/bufferline.nvim" then options = spec.opts().options end
     end
   end)
 

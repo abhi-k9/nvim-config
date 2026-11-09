@@ -6,6 +6,24 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-09 — Prepare the Bufferline maintenance-fork integration
+
+### Changed
+
+- Pin `abhi-k9/bufferline.nvim` in the spec and lockfile; this candidate remains
+  on an isolated local integration branch until publication/adoption is authorized.
+- Use public `is_pinned(bufnr)` inside the existing checked close boundary.
+  Safe deletion, visibility filtering and keymaps remain in the config.
+- Replace the local diagnostic getter adapter with the fork's exact-count cache
+  option, preserving the existing cache setting and indicator format.
+- Reapply saved pins after scope restoration/reconciliation so hidden buffers
+  created after SessionLoadPost receive their saved membership.
+
+### Docs
+
+- Record the exact pin, adapter removal, legacy-session caveat, validation and
+  publication/adoption/rollback sequence in the Bufferline migration document.
+
 ## 2026-11-08 — Guard Bufferline compatibility boundaries
 
 ### Fixed

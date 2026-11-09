@@ -147,7 +147,8 @@ return {
   -- bufferline — tabs at the top, one per open buffer.
   -- -------------------------------------------------------------------------
   {
-    "akinsho/bufferline.nvim",
+    "abhi-k9/bufferline.nvim",
+    commit = "4e964066ed10eb61f7b42b634f9b0877047eccdd",
     -- At startup, not VeryLazy: setup() registers the SessionLoadPost
     -- handler that restores pinned buffers, and auto-session restores the
     -- session in VimEnter, before VeryLazy.
@@ -511,6 +512,7 @@ return {
           mode = "buffers", -- "tabs" if you prefer tab-pages
           themable = true,
           diagnostics = "nvim_lsp", -- show LSP error/warn counts on each tab
+          diagnostics_cache = settings.get("ui.bufferline_diagnostic_cache", true),
           diagnostics_indicator = function(_, _, diag)
             -- bufferline passes a table with error/warning/info/hint counts;
             -- all four are shown, so an info-only buffer doesn't look clean.
@@ -563,15 +565,6 @@ return {
         -- integration switch); a function, so it follows flavour changes.
         highlights = bufferline_highlights(),
       }
-    end,
-    config = function(_, opts)
-      local diagnostics = require("config.bufferline_diagnostics")
-      if require("config.settings").get("ui.bufferline_diagnostic_cache", true) then
-        diagnostics.setup()
-      else
-        diagnostics.dispose()
-      end
-      require("bufferline").setup(opts)
     end,
   },
 

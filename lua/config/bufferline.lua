@@ -1,13 +1,12 @@
 -- Keep Bufferline-specific inspection out of the shared safe-delete helpers.
--- get_elements() is public but omits pin state at the locked revision; the
--- private membership check is isolated here until a public getter is available.
+-- Validate the public snapshot and pin query before selecting any close targets.
 local M = {}
 
 function M.unpinned_buffers()
   local ok, result = pcall(function()
-    local line, groups = require("bufferline"), require("bufferline.groups")
+    local line = require("bufferline")
     assert(type(line.get_elements) == "function", "buffer list API unavailable")
-    assert(type(groups._is_pinned) == "function", "pin inspection API unavailable")
+    assert(type(line.is_pinned) == "function", "pin inspection API unavailable")
     local snapshot = line.get_elements()
     assert(type(snapshot) == "table" and snapshot.mode == "buffers", "not in buffer mode")
     assert(
@@ -27,7 +26,7 @@ function M.unpinned_buffers()
       -- Rendered state can lag a tab switch. Scope owns buflisted; never close
       -- a hidden tab's buffer merely because it appeared in the last redraw.
       if vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].buflisted then
-        local pinned = groups._is_pinned(element)
+        local pinned = line.is_pinned(buf)
         assert(type(pinned) == "boolean", "unknown pin state")
         if not pinned and not seen[buf] then
           buffers[#buffers + 1], seen[buf] = buf, true
