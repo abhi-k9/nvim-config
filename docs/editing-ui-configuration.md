@@ -139,6 +139,9 @@ shared close helpers continue to skip unsaved edits and preserve windows.
 
 The [responsiveness review](performance-review-2026-11-04.md#follow-up-local-bufferline-cache--2026-11-05)
 records the before/after measurements and their limits.
+The [Bufferline audit](bufferline-audit-2026-11-08.md) compares alternatives,
+documents remaining upstream pin-persistence defects and outlines a small
+maintenance fork that would preserve the current workflow and dependency count.
 
 ## Fold persistence and split sizing
 

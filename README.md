@@ -307,7 +307,8 @@ nvim/
 │   ├── debug_policy_spec.lua  idempotent adapters and custom launch providers
 │   ├── debug_activation_spec.lua  overrides before first debugger activation
 │   ├── manual/
-│   │   └── portable_smoke.lua  opt-in real plugin workflows and bounded lifecycle cycles
+│   │   ├── portable_smoke.lua  opt-in real plugin workflows and bounded lifecycle cycles
+│   │   └── bufferline_compare.lua  opt-in isolated tabline performance and pin-persistence probes
 │   ├── dap_breakpoint_list_spec.lua  breakpoint list with optional Trouble fallback
 │   ├── terminal_policy_spec.lua  inherited shells and per-project lazygit
 │   ├── tool_intent_spec.lua  disabled/pinned tools and strict offline requirements
@@ -389,6 +390,7 @@ nvim/
 │   ├── generalization-verification.md  test environment, acceptance cases and platform limits
 │   ├── documentation-audit-2026-10-28.md  documentation/comment coverage, corrections and evidence
 │   ├── performance-review-2026-11-04.md  responsiveness measurements, retained safeguards and deferred options
+│   ├── bufferline-audit-2026-11-08.md  maintenance evidence, feature parity, fork scope and bounded probes
 │   ├── tooling-configuration.md  selected languages, executable discovery and offline intent
 │   ├── scoper-core-notes.md   scope model, revisions, schema and persistence outcomes
 │   ├── scoper-integration-notes.md  build selection, clangd modes, startup and source refresh
