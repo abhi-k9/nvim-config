@@ -349,6 +349,11 @@ return {
           line.restore_pins()
         end
       end,
+      function()
+        -- Reconcile files scope restored after SessionLoadPost without loading DAP.
+        local persistence = package.loaded["persistent-breakpoints.api"]
+        if persistence then persistence.load_breakpoints() end
+      end,
     },
 
     -- The backend closes these filetypes BEFORE pre_save_cmds, also covering

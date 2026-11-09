@@ -377,3 +377,9 @@ debuggee. The fork carries its own focused control-lifecycle regression tests.
 References: [nvim-dap configurations and providers](https://github.com/mfussenegger/nvim-dap/blob/master/doc/dap.txt),
 [nvim-dap VS Code launch support](https://github.com/mfussenegger/nvim-dap/blob/master/lua/dap/ext/vscode.lua),
 and [Toggleterm configuration](https://github.com/akinsho/toggleterm.nvim#setup).
+
+## Saved breakpoints
+
+Breakpoint mappings retain ordinary, conditional, hit-count and logpoint data.
+See [breakpoint persistence](breakpoint-persistence.md) for project ownership,
+legacy import, atomic storage, concurrent-editor conflicts and recovery.

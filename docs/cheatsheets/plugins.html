@@ -327,11 +327,12 @@
 
 <!-- ═══════════════════ PERSISTENT BREAKPOINTS ═══════════════════ -->
 <div class="card">
-  <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>persistent-breakpoints <span class="note">breakpoint persistence</span></h2></div>
+  <div class="card-header"><div class="dot" style="background:var(--mauve)"></div><h2>Saved breakpoints <span class="note">breakpoint persistence</span></h2></div>
   <table>
     <tr><td colspan="2" class="note">Breakpoints survive <code>:qa</code> and re-attach when
       you re-open the file. State lives in <code>stdpath("data")/nvim_checkpoints/</code>,
-      one file per working directory (so open the project from the same cwd), and
+      one versioned file per canonical working directory; legacy files are retained. See
+      <a href="../breakpoint-persistence.md">storage and recovery</a>. The store
       includes conditions, hit counts, and log-point messages.</td></tr>
     <tr class="divider"><td colspan="2">Wrapped keymaps <span class="note">(saved automatically)</span></td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;db</kbd></td><td>Toggle breakpoint</td></tr>
@@ -341,7 +342,7 @@
     <tr><td><kbd class="mauve">&lt;leader&gt;dX</kbd></td><td>Clear all breakpoints</td></tr>
     <tr class="divider"><td colspan="2">"Disable" without losing the marker</td></tr>
     <tr><td colspan="2" class="note">dap-ui's Breakpoints panel has <kbd>t</kbd> (enable/disable) and
-      <kbd>d</kbd> (remove), but neither is saved: on the next start the breakpoint is back, enabled.
+      <kbd>d</kbd> (remove), and changes in an already tracked file are saved on file write or editor exit.
       To silence one for good, give it hit-count <code>&gt; 999999</code> or convert it to a log
       point — both keep the marker visible and are saved. To delete one for good: <kbd>o</kbd> in the
       panel, then <kbd class="mauve">&lt;leader&gt;db</kbd>.</td></tr>

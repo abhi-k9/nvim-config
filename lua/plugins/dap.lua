@@ -57,12 +57,7 @@ return {
       {
         "<leader>dB",
         function()
-          -- Conditional and/or hit-count breakpoint. persistent-breakpoints'
-          -- own set_conditional_breakpoint() only asks for a condition (so a
-          -- hit count was unreachable) and turns a cancelled prompt into a
-          -- plain breakpoint. Ask for both here; leave both empty to cancel.
-          -- breakpoints_changed_in_current_buffer() persists the result
-          -- (hitCondition round-trips through the store).
+          -- Ask for both fields; leaving both empty cancels.
           local cond = vim.fn.input("Condition (empty = none): ")
           local hits = vim.fn.input("Hit count, e.g. 5 or >= 5 (empty = none): ")
           if cond == "" and hits == "" then
@@ -82,12 +77,7 @@ return {
           -- Example: "i={i}, value={values[i]}"
           local msg = vim.fn.input("Log message ({expr} for variables): ")
           if msg == "" then return end
-          -- Set via dap (persistent-breakpoints' set_log_point() has its own
-          -- terse prompt and no cancel), then persist like <leader>dB:
-          -- breakpoints_changed_in_current_buffer() updates the plugin's
-          -- in-memory set and writes it. store_breakpoints() would write
-          -- without updating that set, so the next breakpoint change in
-          -- any other file would write the log point away again.
+          -- Use the public DAP setter, then persist the updated buffer.
           require("dap").set_breakpoint(nil, nil, msg)
           require("persistent-breakpoints.api").breakpoints_changed_in_current_buffer()
         end,
@@ -115,15 +105,11 @@ return {
       {
         "<leader>dX",
         function()
-          -- Use persistent-breakpoints' clear_all_breakpoints(): it calls
-          -- dap.clear_breakpoints() AND writes the now-empty set to disk.
-          -- Calling dap.clear_breakpoints() directly only clears the
-          -- running session — the on-disk store keeps the old
-          -- breakpoints, so they reappear on the next BufReadPost, on :cd (the
-          -- plugin reloads on DirChanged), or on the next nvim start. There is
-          -- no generic save listener to catch a raw dap call.
-          require("persistent-breakpoints.api").clear_all_breakpoints()
-          vim.notify("All breakpoints cleared")
+          -- Persist an explicit empty store, including unloaded files. Report
+          -- success only after the fork verifies the write; failures retain data.
+          if require("persistent-breakpoints.api").clear_all_breakpoints() then
+            vim.notify("All breakpoints cleared")
+          end
         end,
         desc = "Clear all breakpoints",
       },
@@ -383,35 +369,13 @@ return {
   },
 
   -- -------------------------------------------------------------------------
-  -- persistent-breakpoints.nvim — save/load breakpoints across nvim sessions.
-  --
-  -- Stores them in stdpath("data")/nvim_checkpoints/, one JSON file per
-  -- working directory (keyed by file path inside it), so re-opening the
-  -- same project from the same cwd picks them back up. Conditional breakpoints,
-  -- log points and hit counts are saved through the wrappers below.
-  --
-  -- We bind the same <leader>db / <leader>dB chords to the persistent
-  -- variants so you don't have to remember a second set of keys. The
-  -- non-persistent dap.toggle_breakpoint() is still available via lua if
-  -- you want a one-off non-saved breakpoint.
-  --
-  -- Load order: this spec declares nvim-dap as a dependency, which means
-  -- lazy.nvim loads nvim-dap TOGETHER WITH IT on BufReadPost — and dap-ui
-  -- and dap-virtual-text (event = VeryLazy, also depending on nvim-dap)
-  -- pull it in around startup regardless. So despite nvim-dap's `keys`
-  -- spec, DAP is effectively loaded shortly after startup; the `keys`
-  -- entries act as the keymaps' source of truth, not as a meaningful
-  -- lazy-load gate. Note the plugin has no change listener: it only writes
-  -- to disk from its own api calls, which is why every breakpoint key here
-  -- goes through its api (or calls it right after a raw dap call).
+  -- Maintained persistence fork: validated atomic stores, preserved legacy JSON,
+  -- safe project ownership and DAP-aware restoration. See breakpoint-persistence.md.
   -- -------------------------------------------------------------------------
   {
-    "Weissle/persistent-breakpoints.nvim",
+    "abhi-k9/persistent-breakpoints.nvim",
     event = "BufReadPost",
     dependencies = { "mfussenegger/nvim-dap" },
-    opts = {
-      load_breakpoints_event = { "BufReadPost" },
-      always_reload = false, -- avoid repeat file loads; DirChanged still reloads the cwd's store
-    },
+    opts = {},
   },
 }

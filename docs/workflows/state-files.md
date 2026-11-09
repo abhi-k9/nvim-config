@@ -124,12 +124,18 @@ source file. Keep useful sidecars and inspect the original error first.
 
 ## Breakpoints
 
-persistent-breakpoints.nvim keeps one JSON file per project in
-`nvim_checkpoints`, keyed by its own current-cwd contract. Inside a project,
-`<leader>dX` clears in-memory breakpoints and writes an empty breakpoint map to
-the current cwd's JSON file; it does not remove every project's saved file.
-Delete JSON files of projects you no longer need while no instance is using them.
-A separate debugger root or `launch.json` path does not relocate this storage.
+The config keeps versioned breakpoint JSON in
+`stdpath("data")/nvim_checkpoints/v1-<sha256-of-canonical-cwd>.json`.
+`<leader>dX` clears DAP markers and persists an empty map for the owned project;
+it does not delete other projects or the original legacy JSON files.
+A debugger root or `launch.json` path does not relocate storage. During an active
+debugging session, project switching is deferred to preserve adapter state.
+
+Legacy files are imported without modification; an existing versioned empty store
+prevents old breakpoints from reappearing. Do not delete the versioned file to
+clear breakpoints, since that would expose its legacy source again. See
+[breakpoint persistence](../breakpoint-persistence.md) for failure recovery,
+concurrent editors, migration and rollback.
 
 ## Other saved state
 

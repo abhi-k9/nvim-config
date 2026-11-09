@@ -293,7 +293,7 @@ nvim/
 │       ├── finder.lua        telescope + fzf-lua
 │       ├── images.lua        on-demand Snacks image renderer; automatic image/document hooks off
 │       ├── terminal.lua      toggleterm
-│       ├── dap.lua           nvim-dap + dap-ui + virtual-text + persistent-breakpoints
+│       ├── dap.lua           nvim-dap + dap-ui + virtual-text + persistent-breakpoints fork
 │       ├── trouble.lua       trouble.nvim
 │       ├── folding.lua       nvim-ufo
 │       ├── session.lua       auto-session
@@ -309,6 +309,7 @@ nvim/
 │   │   ├── portable_smoke.lua  opt-in real plugin workflows and bounded lifecycle cycles
 │   │   ├── terminal_parity.lua  opt-in real terminal identity, lifecycle and session comparison
 │   │   └── bufferline_compare.lua  opt-in isolated tabline performance and pin-persistence probes
+│   ├── breakpoint_lifecycle_spec.lua  mapped fields, file lifecycle, project and session restoration
 │   ├── dap_breakpoint_list_spec.lua  breakpoint list with optional Trouble fallback
 │   ├── terminal_policy_spec.lua  inherited shells and per-project lazygit
 │   ├── tool_intent_spec.lua  disabled/pinned tools and strict offline requirements
@@ -393,6 +394,7 @@ nvim/
 │   ├── performance-review-2026-11-04.md  responsiveness measurements, retained safeguards and deferred options
 │   ├── bufferline-audit-2026-11-08.md  maintenance evidence, feature parity, fork scope and bounded probes
 │   ├── bufferline-fork-migration-2026-11-09.md  fork adoption, pin migration and rollback
+│   ├── breakpoint-persistence.md  storage reliability audit, migration, recovery and fork assessment
 │   ├── terminal-migration-evaluation-2026-11-08.md  Snacks parity evidence and retained terminal workflows
 │   ├── tooling-configuration.md  selected languages, executable discovery and offline intent
 │   ├── scoper-core-notes.md   scope model, revisions, schema and persistence outcomes
@@ -470,9 +472,9 @@ Each is documented in its file and easy to remove if you don't want it.
 | `nvim-mini/mini.align`            | `ga=` column-aligns selected lines on a delimiter.           | `editor.lua`      |
 | `folke/todo-comments.nvim`        | Highlight + jump between `TODO` / `FIXME` / `NOTE`.          | `editor.lua`      |
 | `JoosepAlviste/nvim-ts-context-commentstring` | Right comment style in JSX/Vue/Astro.            | `editor.lua`      |
-| `Weissle/persistent-breakpoints.nvim` | DAP breakpoints survive `:qa` and persist per-file.      | `dap.lua`         |
 | `theHamsta/nvim-dap-virtual-text`  | Inline variable values at end-of-line while stopped (VS-style inline values). | `dap.lua`         |
 | `danymat/neogen`                  | `<leader>cd` to scaffold a doc-comment for the function under the cursor (doxygen for C/C++, conventional style for other langs). | `neogen.lua`      |
+| `abhi-k9/persistent-breakpoints.nvim` | Validated, atomic DAP breakpoint persistence with legacy import. | `dap.lua` |
 | `XXiaoA/atone.nvim`               | `<leader>u` opens a visual undo-tree pane with TreeSitter-highlighted diff preview and persistent node marks. | `atone.lua`       |
 | `folke/lazydev.nvim`              | Real completion + hover for the whole `vim.*` API and `require`d plugin modules while editing this config; feeds lua_ls on demand. | `lazydev.lua`     |
 | `MeanderingProgrammer/render-markdown.nvim` | In-buffer rendering of Markdown (headings, bullets, code blocks, tables). `:RenderMarkdown toggle`. | `editor.lua`      |
