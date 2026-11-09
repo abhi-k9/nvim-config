@@ -6,6 +6,18 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
+## 2026-11-08 — Guard Bufferline compatibility boundaries
+
+### Fixed
+
+- Isolate private pin inspection behind a checked boundary. Close-unpinned now
+  refuses unknown pin state or tabpage-mode IDs and ignores stale rendered
+  buffers hidden by tab scoping. Shared safe deletion still protects edits.
+- Treat an unavailable diagnostic-cache getter as an optional optimization
+  failure: warn once and let Bufferline configure its native behavior.
+- Add focused compatibility regressions without introducing a runtime dependency
+  or changing the configured tabline plugin, keys or session ownership.
+
 ## 2026-11-08 — Use the DAP UI fork and retire the local controls adapter
 
 ### Changed

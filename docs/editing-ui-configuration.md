@@ -131,6 +131,12 @@ To return to the plugin's original getter, add this to `local.lua` and restart:
 return { ui = { bufferline_diagnostic_cache = false } }
 ```
 
+If the plugin's getter is unavailable or incompatible, the cache warns once and
+lets Bufferline use its native behavior. Close-unpinned (`<leader>bP`) uses a
+separate checked pin-inspection boundary: unknown pin state cancels the whole
+operation, and stale entries hidden by tab scoping are excluded. The ordinary
+shared close helpers continue to skip unsaved edits and preserve windows.
+
 The [responsiveness review](performance-review-2026-11-04.md#follow-up-local-bufferline-cache--2026-11-05)
 records the before/after measurements and their limits.
 

@@ -267,6 +267,7 @@ nvim/
 │   │   ├── dap_ui_layout.lua  preserve fixed columns across debugger layout changes
 │   │   ├── diagnostics.lua   :DiagnosticDump (hang triage)
 │   │   ├── bufferline_diagnostics.lua  event-invalidated counts for the pinned Bufferline getter
+│   │   ├── bufferline.lua    guarded pin inspection for safe bulk closing
 │   │   ├── lsp_format.lua    asynchronous LSP formatting with buffer lifecycle guards
 │   │   ├── health.lua        :checkhealth config (external toolchain check)
 │   │   ├── health_reminder.lua  persisted, configurable monthly tooling review prompt
@@ -319,6 +320,7 @@ nvim/
 │   ├── feature_help_spec.lua  undo/diff help and Scoper's native multi-selection controls
 │   ├── picker_help_spec.lua  live help, safe bulk closing and cross-tab picker behavior
 │   ├── bufferline_diagnostics_spec.lua  cached counts, live toggles, insert policy and getter ownership
+│   ├── bufferline_boundary_spec.lua  pin API compatibility and stale tab visibility
 │   ├── search_policy_spec.lua  literal visibility, selector and session settings
 │   ├── minimal_init.lua
 │   ├── config_spec.lua

@@ -34,11 +34,18 @@ function M.dispose()
 end
 
 function M.setup()
-  local owner = require("bufferline.diagnostics")
+  local ok, owner = pcall(require, "bufferline.diagnostics")
+  if not ok or type(owner) ~= "table" or type(owner.get) ~= "function" then
+    M.dispose()
+    vim.notify_once(
+      "Bufferline diagnostic cache unavailable; using the plugin's native behavior",
+      vim.log.levels.WARN
+    )
+    return false
+  end
   if attachment and owner.get == attachment.get then return end
   M.dispose()
   local original = owner.get
-  assert(type(original) == "function", "Unsupported Bufferline diagnostic getter")
   local counts, result
   local dirty = {}
   local last = setmetatable({}, missing)

@@ -259,6 +259,21 @@ describe("local Bufferline diagnostic counts", function()
     assert.equals(replacement, diagnostics.get)
   end)
 
+  it("skips an incompatible optional getter without breaking plugin setup", function()
+    local saved_notify, notices = vim.notify_once, {}
+    vim.notify_once = function(message)
+      notices[#notices + 1] = message
+    end
+    diagnostics.get = nil
+    local ok, enabled = pcall(adapter.setup)
+    vim.notify_once = saved_notify
+    assert.is_true(ok, enabled)
+    assert.is_false(enabled)
+    assert.is_nil(diagnostics.get)
+    assert.equals(0, vim.fn.exists("#user_bufferline_diagnostic_cache"))
+    assert.equals(1, #notices)
+  end)
+
   it("can disable and re-enable caching through the plugin configuration", function()
     local settings = require("config.settings")
     local previous = settings.get("ui.bufferline_diagnostic_cache", true)

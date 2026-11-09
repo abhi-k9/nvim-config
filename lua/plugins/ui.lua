@@ -183,13 +183,7 @@ return {
       {
         "<leader>bP",
         function()
-          local groups = require("bufferline.groups")
-          local bufs = {}
-          for _, el in ipairs(require("bufferline").get_elements().elements) do
-            if not groups._is_pinned(el) then bufs[#bufs + 1] = el.id end
-          end
-          local util = require("config.util")
-          util.notify_bulk_result(util.delete_buffers_keep_windows(bufs))
+          require("config.bufferline").close_unpinned()
         end,
         desc = "Close unpinned buffers",
       },
