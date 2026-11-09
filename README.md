@@ -395,6 +395,7 @@ nvim/
 │   ├── performance-review-2026-11-04.md  responsiveness measurements, retained safeguards and deferred options
 │   ├── bufferline-audit-2026-11-08.md  maintenance evidence, feature parity, fork scope and bounded probes
 │   ├── bufferline-fork-migration-2026-11-09.md  fork adoption, pin migration and rollback
+│   ├── audit-hardening-2026-11-09.md  lifecycle fixes, validation status and follow-up ledger
 │   ├── breakpoint-persistence.md  storage reliability audit, migration, recovery and fork assessment
 │   ├── terminal-migration-evaluation-2026-11-08.md  Snacks parity evidence and retained terminal workflows
 │   ├── tooling-configuration.md  selected languages, executable discovery and offline intent
