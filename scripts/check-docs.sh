@@ -121,15 +121,21 @@ while IFS= read -r p; do
 done <"$tmp1"
 
 # ── Guard 2: <leader> maps in source <-> keymaps.html ───────────────────────
-# Strip whole-line comments first so prose that mentions a mapping (e.g. a
-# doc comment referencing <leader>lr) is not mistaken for a binding. Only
-# alphabetic suffixes are compared: numeric jumps (<leader>1..9) are
-# documented as a single "1…9" range, so listing them literally would
-# false-fail.
+# Strip whole-line comments first so prose mentioning a binding does not
+# count as its implementation. Include numeric mappings as well as letters.
+# keymaps.html uses a compact 1…9 range; expand that range only when both
+# endpoints and the ellipsis occur on the same line.
 find lua -type f -name '*.lua' -exec grep -hvE '^[[:space:]]*--' {} + 2>/dev/null \
-  | grep -oE '<leader>[A-Za-z]+' | sort -u >"$tmp2" || :
-grep -oE '(&lt;leader&gt;|<leader>)[A-Za-z]+' docs/cheatsheets/keymaps.html 2>/dev/null \
-  | sed 's/&lt;/</g; s/&gt;/>/g' | sort -u >"$tmp3" || :
+  | grep -oE '<leader>([A-Za-z]+|[0-9]+)' | sort -u >"$tmp2" || :
+{
+  grep -oE '(&lt;leader&gt;|<leader>)([A-Za-z]+|[0-9]+)' docs/cheatsheets/keymaps.html 2>/dev/null \
+    | sed 's/&lt;/</g; s/&gt;/>/g' || :
+  if grep -Eq '&lt;leader&gt;1.*….*&lt;leader&gt;9' docs/cheatsheets/keymaps.html; then
+    for digit in 2 3 4 5 6 7 8; do
+      printf '<leader>%s\n' "$digit"
+    done
+  fi
+} | sort -u >"$tmp3"
 only_in "$tmp2" "$tmp3" | while IFS= read -r m; do
   report "leader map in source but not in keymaps.html: $m"
 done

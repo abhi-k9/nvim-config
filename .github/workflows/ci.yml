@@ -52,7 +52,7 @@
 # Runs the targets in `make ci` (check, check-docs, check-actions, test, test-scoper,
 # test-seed), but not in the same environment: CI is Linux (plus the Windows
 # and macOS jobs),
-# installs the latest stylua and tree-sitter CLI, and runs check-docs's
+# installs checksum-verified StyLua v2.6.0 and tree-sitter CLI, and runs check-docs's
 # clang-format comparison only if the runner image has clang-format.
 
 name: CI
@@ -105,14 +105,17 @@ jobs:
       - name: Install luacheck
         run: luarocks install luacheck
 
-      # The latest stylua, like the unpinned Mason package used locally. A
-      # release that formats some lines differently fails this job on
-      # untouched code: update locally (`:MasonToolsUpdate`), run
-      # `make format`, and commit the result.
-      - name: Install stylua (latest)
+      # Pin the reviewed Linux archive AND its GitHub release SHA-256 digest.
+      # Upgrade both deliberately and reformat in a separate reviewed change.
+      # Mason's local formatter remains independently managed.
+      - name: Install stylua (v2.6.0, checksum-verified)
         run: |
-          curl -sSL -o /tmp/stylua.zip \
-            https://github.com/JohnnyMorganz/StyLua/releases/latest/download/stylua-linux-x86_64.zip
+          curl -fSL --retry 3 --proto '=https' --proto-redir '=https' \
+            -o /tmp/stylua.zip \
+            https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-linux-x86_64.zip
+          printf '%s  %s\n' \
+            'a485f72bbfa22e4642e77a84b5edc2611a5cab7477b34e2e709dd8f78e919895' \
+            /tmp/stylua.zip | sha256sum --check
           sudo unzip -o -q /tmp/stylua.zip -d /usr/local/bin
           stylua --version
 

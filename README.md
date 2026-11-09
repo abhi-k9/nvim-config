@@ -187,7 +187,7 @@ brew install bat stylua luacheck
 
 Whatever the OS: run `tree-sitter --version` (must be **0.26.1+**); see
 [Installing the tree-sitter CLI](#installing-the-tree-sitter-cli) if it
-fails. Keep stylua current (`:MasonToolsUpdate`): CI uses the latest
+fails. Keep stylua compatible (`:MasonToolsUpdate`): CI pins v2.6.0
 release, and an older one may format some lines differently.
 
 Xcode Command Line Tools provide the C compiler (`xcode-select --install` if you haven't already).
@@ -349,6 +349,7 @@ nvim/
 │   ├── history_literal_paths_spec.lua  exact-file history guards
 │   ├── scoper_telescope_spec.lua  real Telescope and ripgrep scope filtering
 │   ├── ci_actions_test.py     immutable pin guard and explicit updater tests
+│   ├── docs_guard_test.py     isolated negative tests for documentation mapping drift
 │   ├── lsp_format_race_spec.lua  delayed formatting and buffer lifecycle races
 │   ├── search_file_navigation_spec.lua  Grug result header navigation
 │   ├── health_paths_spec.lua  state path types and native option decoding
@@ -742,7 +743,7 @@ make lint         # luacheck init.lua lua/ tests/
 make fmt-check    # stylua --check (this tree)
 make format       # stylua, both trees, in place
 make check        # luacheck + stylua --check over this tree AND scoper.nvim/ (lua/ plugin/ tests/)
-make check-docs   # doc-sync guards: README tree, keymaps, commands, plugins, version floor, templates
+make check-docs   # doc-sync guards + isolated numeric-keymap drift regressions
 make check-actions # offline CI action pin guard and updater tests (Python)
 make ci           # check + check-docs + check-actions + test + test-scoper + test-seed
 make hooks        # enable the tracked pre-commit hook (one-time per clone)

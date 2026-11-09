@@ -5,8 +5,8 @@
 #   make lint        — luacheck init.lua lua/ tests/
 #   make check       — luacheck + stylua --check, here AND in scoper.nvim/
 #                      (its lua/, plugin/ and tests/)
-#   make check-docs  — verify the docs still match the code (scripts/check-docs.sh
-#                      lists the guards) — no Neovim needed
+#   make check-docs  — verify docs/code drift + negative-control tests
+#                      (POSIX shell and Python stdlib; no Neovim needed)
 #   make format      — stylua reformat both trees in place
 #   make all         — check + check-docs + test
 #   make test-scoper — `make test` inside scoper.nvim/
@@ -79,6 +79,7 @@ fmt-check:
 # header). Pure POSIX shell, no Neovim — the same gate the pre-commit hook runs.
 check-docs:
 	sh scripts/check-docs.sh
+	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) -m unittest discover -s tests -p "docs_guard_test.py"
 
 check: lint fmt-check
 	$(MAKE) -C scoper.nvim lint fmt-check

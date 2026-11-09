@@ -1,5 +1,10 @@
 # Responsiveness review — 2026-11-04
 
+> **Historical implementation notice (2026-11-09):** Bufferline now uses
+> [the published maintenance fork](bufferline-fork-migration-2026-11-09.md),
+> which implements the diagnostic cache natively. The local adapter measured
+> below was removed. Its original benchmarks remain historical evidence.
+
 This review follows the Telescope result-formatting and prompt-cursor fixes.
 It covers startup settings, Scoper database selection, LSP attachment/highlights,
 completion/snippets, Tree-sitter, status components and Neo-tree scanning. These

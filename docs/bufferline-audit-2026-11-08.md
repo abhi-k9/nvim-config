@@ -1,5 +1,10 @@
 # Bufferline maintenance and alternatives — 2026-11-08
 
+> **Historical decision record:** The recommended fork was subsequently
+> [published and adopted on November 9](bufferline-fork-migration-2026-11-09.md).
+> The statements below that no fork was published describe the November 8
+> baseline; they are not current installation instructions.
+
 ## Recommendation
 
 **Retain Bufferline's workflow, harden the current integration, and prefer a
