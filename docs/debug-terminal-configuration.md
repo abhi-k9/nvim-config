@@ -350,6 +350,12 @@ handle; returning to a project toggles its existing process. Each process starts
 in the active cwd at its first invocation. A project switch never terminates
 an earlier process, and quitting lazygit drops only that process's handle.
 
+Toggleterm remains the terminal backend after the
+[Snacks migration evaluation](terminal-migration-evaluation-2026-11-08.md).
+That report compares process identity, shell behavior, layouts, LazyGit and
+sessions, with a short opt-in comparison runner. Snacks continues to supply
+optional image previews.
+
 Neogen annotation conventions remain ordinary plugin options. For example,
 return a Lazy override under `plugins` for `"danymat/neogen"` with
 `opts.languages.python.template.annotation_convention = "google_docstrings"`.

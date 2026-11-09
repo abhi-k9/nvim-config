@@ -392,6 +392,8 @@ nvim/
 │   ├── documentation-audit-2026-10-28.md  documentation/comment coverage, corrections and evidence
 │   ├── performance-review-2026-11-04.md  responsiveness measurements, retained safeguards and deferred options
 │   ├── bufferline-audit-2026-11-08.md  maintenance evidence, feature parity, fork scope and bounded probes
+│   ├── bufferline-fork-migration-2026-11-09.md  fork adoption, pin migration and rollback
+│   ├── terminal-migration-evaluation-2026-11-08.md  Snacks parity evidence and retained terminal workflows
 │   ├── tooling-configuration.md  selected languages, executable discovery and offline intent
 │   ├── scoper-core-notes.md   scope model, revisions, schema and persistence outcomes
 │   ├── scoper-integration-notes.md  build selection, clangd modes, startup and source refresh
