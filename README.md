@@ -307,6 +307,7 @@ nvim/
 │   ├── debug_activation_spec.lua  overrides before first debugger activation
 │   ├── manual/
 │   │   ├── portable_smoke.lua  opt-in real plugin workflows and bounded lifecycle cycles
+│   │   ├── terminal_parity.lua  opt-in real terminal identity, lifecycle and session comparison
 │   │   └── bufferline_compare.lua  opt-in isolated tabline performance and pin-persistence probes
 │   ├── dap_breakpoint_list_spec.lua  breakpoint list with optional Trouble fallback
 │   ├── terminal_policy_spec.lua  inherited shells and per-project lazygit
@@ -329,6 +330,7 @@ nvim/
 │   ├── config_runtime_spec.lua  checkout discovery after a cold plugin install
 │   ├── lsp_initialization_spec.lua  first-client settings and capabilities
 │   ├── fixtures/
+│   │   ├── terminal_child.lua    controlled PTY child for terminal lifecycle checks
 │   │   ├── settings_startup.lua  controlled real machine-local startup profile
 │   │   ├── lsp_initialization.lua  real Lazy startup with controlled Mason boundary
 │   │   ├── image_open.lua       plugin-free image commands and native platform/path handling
@@ -439,6 +441,7 @@ nvim/
 │   ├── check-docs.sh             doc-sync guards: tree, keymaps, commands, plugins, version floor, templates, health
 │   ├── ci-run.py                 stream CI output and annotate bounded failure details
 │   ├── portable-smoke.py         isolated native smoke/stress runner with process deadlines
+│   ├── terminal-parity.py        opt-in terminal comparison using installed test plugins
 │   ├── update-ci-actions.py       explicitly refresh immutable action pins
 │   ├── offline-seed.py           pack / install plugins + Mason tools + parsers for an offline machine
 │   └── offline-seed-check.lua    what this install would still download (used by offline-seed.py)
