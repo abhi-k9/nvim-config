@@ -1,14 +1,14 @@
-# Prepared Bufferline fork migration
+# Published Bufferline fork migration
 
-This is a **local candidate**, based on `c287c4e` and `e09c9a6`. The production
-checkout remains on `c287c4e`, using upstream Bufferline
-`655133c3b4c3e5e05ec549b9f8cc2894ac6f51b3`. No ignored local configuration was
-edited. Nothing has been published, pushed or opened as a PR.
+Published and adopted on 2026-11-09 after explicit authorization. Both repositories'
+`main` branches were fast-forwarded: the fork to
+`4e964066ed10eb61f7b42b634f9b0877047eccdd` and nvim-config to
+`6d5a6dba83650e7663b70195758003ab1e05b77f` (based on `c287c4e`, including
+`e09c9a6`). No force-push or PR was used; ignored local configuration was untouched.
 
-The candidate spec and lockfile select `abhi-k9/bufferline.nvim` at
-`4e964066ed10eb61f7b42b634f9b0877047eccdd`. This commit currently exists locally;
-it must be published with authorization before a normal Lazy installation can
-fetch it. Validation used the local fork checkout directly.
+The plugin spec and lockfile now select the published `abhi-k9/bufferline.nvim`
+commit `4e964066ed10eb61f7b42b634f9b0877047eccdd`. Normal Lazy installations can
+fetch it. Pre-publication validation used the local fork checkout directly.
 
 ## Exact changes
 
@@ -54,16 +54,16 @@ font/input/clipboard behavior, live CoC and terminal job shutdown remain manual
 acceptance work. Existing superscript/visual-position mismatch is unchanged;
 very narrow strips may clip all buffer labels without losing navigation state.
 
-## Adoption, only after explicit authorization
+## Adoption record and remaining user steps
 
 1. Back up session files. Re-pin ambiguous legacy comma-separated pin records
    and save them after adoption. Re-save pre-0.12 session scripts, or ensure
    they emit SessionLoadPre before globals; new 0.12 sessions already do so.
-2. Publish the reviewed fork commit (planned as a fast-forward of fork `main`),
-   then verify the remote advertises the exact SHA. Do not force-push.
-3. Review and apply this integration commit to the production config, then
-   restore the locked dependency and restart Neovim. Apply all integration
-   changes together; do not remove the adapter with the old upstream pin.
+2. Completed: published the reviewed fork commit by fast-forwarding fork `main`
+   and verified the exact remote SHA.
+3. Completed: applied and pushed integration commit `6d5a6db` to nvim-config
+   `main`. Existing installations should pull, restore the locked dependency,
+   and restart Neovim. Keep the pin and adapter changes together.
 4. Perform native terminal acceptance on each target OS: scoped/global tabs,
    dirty buffers and terminals in several splits, menus and picks, Catppuccin
    and icons, and repeated sessions. The opt-in fork UI probe can be repeated

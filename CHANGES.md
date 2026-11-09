@@ -6,12 +6,12 @@ feature guides for current operation. New entries use one `## YYYY-MM-DD — <ti
 change, with `### Fixed` / `### Changed` / `### Docs` subsections. An item
 that a later change undid is marked *(Reverted in …)* where it appears.
 
-## 2026-11-09 — Prepare the Bufferline maintenance-fork integration
+## 2026-11-09 — Adopt the Bufferline maintenance-fork integration
 
 ### Changed
 
-- Pin `abhi-k9/bufferline.nvim` in the spec and lockfile; this candidate remains
-  on an isolated local integration branch until publication/adoption is authorized.
+- Pin `abhi-k9/bufferline.nvim` in the spec and lockfile; the reviewed fork and
+  integration were published to both default branches after explicit authorization.
 - Use public `is_pinned(bufnr)` inside the existing checked close boundary.
   Safe deletion, visibility filtering and keymaps remain in the config.
 - Replace the local diagnostic getter adapter with the fork's exact-count cache
