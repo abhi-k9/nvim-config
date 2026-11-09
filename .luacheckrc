@@ -37,7 +37,7 @@ files["tests/*.lua"] = {
 files["lua/plugins/editor.lua"] = {
   globals = { "vim.filetype.get_option" },
 }
-files["lua/plugins/finder.lua"] = {
+files["lua/config/selector.lua"] = {
   globals = { "vim.ui.select" },
 }
 

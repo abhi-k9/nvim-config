@@ -237,11 +237,47 @@ grug-far cannot retain the required per-instance directory and scope contract.
 
 ## Selector and explorer ownership
 
-`selector.provider` defaults to `"telescope"`. `"fzf"` registers fzf-lua on the
-first selection request, falling back to the prior selector when the `fzf`
-executable is unavailable. `"native"` or `false` leaves `vim.ui.select` alone.
-This decision is made before installing the lazy selection hook; a later manual
-Telescope load does not install its selection extension for another provider.
+`selector.provider` defaults to `"fzf"`. The existing fzf-lua plugin loads on
+first selection, with compact short menus and more room for code actions or
+caller-provided previews. Ordinary Telescope pickers and mappings are unchanged.
+The legacy `"telescope"` value now aliases `"fzf"`; `"native"` or `false` leaves
+`vim.ui.select` alone. Unknown values warn and preserve the prior selector.
+These settings take effect on restart.
+
+If `fzf` is missing from PATH, or picker loading raises an error, selection falls
+back to the prior provider (normally Neovim's numbered menu). Later requests
+retry when fzf becomes available. Install a supported fzf version; Windows users
+should use at least 0.52.1. Accept with Enter; cancel with Escape or Ctrl-C.
+Selection menus cannot be resumed: their callbacks belong to the original
+request. Ordinary fzf pickers retain their existing resume behavior.
+
+The provider preserves formatted items, original indices, cancellation, and
+single callback delivery. Code-action presentation differs from Telescope's
+client/title columns; previews depend on the caller and fzf-lua support.
+
+
+### Selection provider assessment and validation
+
+The removed Telescope UI Select pin (`6e51d7d`, December 2023) supports ordinary
+formatted choices and specialized LSP columns, but has longstanding open
+presentation/preview reports. Slow development alone is not the reason for this
+change: the already-installed fzf-lua provides the required selection contract
+without an additional extension. Its pinned `d9725e6` implementation supports
+callable menu options and previews; no fzf-lua update is required.
+
+References: [Telescope UI Select issues](https://github.com/nvim-telescope/telescope-ui-select.nvim/issues),
+[fzf-lua selection implementation](https://github.com/ibhagwan/fzf-lua/blob/d9725e6446b82ed38186686fe9d4f9826a98c269/lua/fzf-lua/providers/ui_select.lua).
+
+Regression coverage includes lazy registration, prior-provider fallback, legacy
+settings, cancellation, formatted/false items, callback failures and duplicate
+callbacks. Linux attached-UI checks during evaluation verified selection,
+Escape cancellation, focus restoration and a caller-provided preview. Native
+Windows/macOS interaction and live LSP server code actions still require manual
+validation; try a multi-action menu and both Escape and Ctrl-C after it opens.
+No startup benchmark claim is made: initialization installs only the small
+selection dispatcher, while fzf-lua remains lazy. A broken or unsupported fzf
+binary can still fail inside upstream without raising a Lua error; native mode
+is the recovery option in that case.
 
 `explorer.auto_open=false` disables the config-owned startup directory hook.
 For a directory launch, the deferred open keeps the requested directory even

@@ -249,6 +249,7 @@ nvim/
 │   │   ├── guides.lua        on-demand reader for the maintained workflow documents
 │   │   ├── readonly.lua      scoped read-only reference windows with close hints
 │   │   ├── workspace.lua     inspect existing roots, scopes, clients and debug state
+│   │   ├── selector.lua      lazy selection ownership and native fallback
 │   │   ├── search.lua        literal visibility policies and backend root resolution
 │   │   ├── session.lua       automatic-save veto and literal tab-buffer persistence
 │   │   ├── tool_intent.lua   selected package identities, pins and intentional opt-outs
@@ -323,6 +324,7 @@ nvim/
 │   ├── picker_help_spec.lua  live help, safe bulk closing and cross-tab picker behavior
 │   ├── bufferline_diagnostics_spec.lua  native cache option and getter identity
 │   ├── bufferline_boundary_spec.lua  pin API compatibility and stale tab visibility
+│   ├── selector_spec.lua  selection lifecycle and fallback regression tests
 │   ├── search_policy_spec.lua  literal visibility, selector and session settings
 │   ├── minimal_init.lua
 │   ├── config_spec.lua

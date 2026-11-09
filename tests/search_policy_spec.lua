@@ -132,7 +132,7 @@ describe("search and session policies", function()
   end)
 
   it("leaves the selector alone for native or disabled ownership", function()
-    local spec = dofile(previous .. "/lua/plugins/finder.lua")[1]
+    local spec = dofile(previous .. "/lua/plugins/finder.lua")[2]
     for _, provider in ipairs({ "native", false }) do
       Settings.configure({ selector = { provider = provider } })
       spec.init()

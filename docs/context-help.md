@@ -58,7 +58,7 @@ tab or attempt to open a deleted buffer.
 | grug-far replacement (`<leader>sr`) | Normal-mode `g?` opens native help; F1 lists local mappings. | `q` / Esc closes help. Fields remain editable; replacement is a separate action. |
 | Scoper status (`:ScoperShow`) | Footer advertises `q` / Esc. Named close mappings appear in the config's F1 / `<leader>?` reference. | `q` / Esc closes the read-only report. The footer works in standalone Scoper without which-key. |
 | Scoper remove/delete selectors | Telescope: F1 / Normal-mode `g?`, Tab/Enter hints and named actions. fzf: native F1, named confirmation and Ctrl-a toggle-all. | Tab marks; Enter confirms. The plain fallback uses its `(done)` row rather than a picker help overlay. |
-| Code actions, session selection and other `vim.ui.select` dialogs | The selected Telescope/fzf UI inherits native help. | Follow that selector's accept/cancel controls. Native selectors have no added F1 popup. |
+| Code actions, session selection and other `vim.ui.select` dialogs | fzf selection uses its native controls; ordinary Telescope pickers keep their own help. | Follow that selector's accept/cancel controls. Native selectors have no added F1 popup. |
 
 Telescope's native help is a compact, current-mode overlay. Long lists can be
 clipped on small terminals; use mapping/help search for a larger reference.

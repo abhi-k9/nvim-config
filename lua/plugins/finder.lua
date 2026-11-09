@@ -82,27 +82,7 @@ return {
         "nvim-telescope/telescope-fzf-native.nvim",
         build = require("config.tooling").native_sorter_build(),
       },
-      -- Routes vim.ui.select (code actions, etc.) through telescope.
-      "nvim-telescope/telescope-ui-select.nvim",
     },
-    -- Install the selected lazy UI provider on the first selection request.
-    -- Native/false leave the previous selector alone; an unavailable fzf
-    -- falls back to it. Telescope's config installs ui-select only when owned.
-    init = function()
-      local provider = require("config.settings").get("selector.provider", "telescope")
-      if provider == false or provider == "native" then return end
-      local builtin_select = vim.ui.select
-      local function stub(...)
-        if provider == "fzf" then
-          if vim.fn.executable("fzf") == 1 then require("fzf-lua").register_ui_select() end
-        else
-          require("lazy").load({ plugins = { "telescope.nvim" } })
-        end
-        if vim.ui.select == stub then vim.ui.select = builtin_select end
-        return vim.ui.select(...)
-      end
-      vim.ui.select = stub
-    end,
     keys = {
       -- Files / text
       -- stylua: ignore start
@@ -314,10 +294,6 @@ return {
           },
         },
         extensions = {
-          -- ui-select uses the "dropdown" theme — small popup near the
-          -- editor center by default, no preview. Suits short choice lists (LSP code
-          -- actions, refactor menus) where a full split would be overkill.
-          ["ui-select"] = { require("telescope.themes").get_dropdown({}) },
           -- telescope-fzf-native: C sorter built via make or cmake,
           -- whichever is on PATH (see the dependency spec above). Override
           -- the generic + file sorters to use it; smart_case matches
@@ -334,9 +310,6 @@ return {
     config = function(_, opts)
       local ts = require("telescope")
       ts.setup(opts)
-      if require("config.settings").get("selector.provider", "telescope") == "telescope" then
-        ts.load_extension("ui-select")
-      end
       -- The native sorter is a build artefact: when the make/cmake build
       -- failed, telescope still works with its Lua sorter.
       pcall(ts.load_extension, "fzf")
@@ -348,6 +321,9 @@ return {
   -- -------------------------------------------------------------------------
   {
     "ibhagwan/fzf-lua",
+    init = function()
+      require("config.selector").setup(require("config.settings").get("selector.provider", "fzf"))
+    end,
     cmd = "FzfLua",
     dependencies = { "nvim-tree/nvim-web-devicons" },
     keys = {

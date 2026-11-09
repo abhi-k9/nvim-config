@@ -455,10 +455,9 @@
     <tr><td><code>:Telescope builtin</code></td><td>List all pickers</td></tr>
     <tr><td><code>:Telescope resume</code></td><td>Reopen last picker</td></tr>
     <tr><td colspan="2" class="note">Extensions: fzf (native sorter, very fast — compiled on install, so it needs
-      <code>make</code> + gcc or cmake; telescope carries on without it if the build failed), ui-select
-      (replaces vim.ui.select).</td></tr>
-    <tr><td colspan="2" class="note">Loads on first use: a <kbd>&lt;leader&gt;f</kbd> key, <code>:Telescope</code>,
-      or the first <code>vim.ui.select()</code> (code actions and the like), which is then shown in telescope.</td></tr>
+      <code>make</code> + gcc or cmake; telescope carries on without it if the build failed).</td></tr>
+    <tr><td colspan="2" class="note">Loads on first use: a <kbd>&lt;leader&gt;f</kbd> key or <code>:Telescope</code>.
+      Selection dialogs use fzf-lua by default, with native fallback when fzf is unavailable.</td></tr>
     <tr class="divider"><td colspan="2">Inside a Telescope picker (insert mode)</td></tr>
     <tr><td><kbd>&lt;C-j&gt;</kbd> / <kbd>&lt;C-k&gt;</kbd></td><td>Next / previous result</td></tr>
     <tr><td><kbd>&lt;C-q&gt;</kbd></td><td>Send all results to quickfix + open</td></tr>
