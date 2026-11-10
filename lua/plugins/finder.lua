@@ -120,6 +120,7 @@ return {
       { "<leader>fk", "<cmd>Telescope keymaps<cr>",                   desc = "Keymaps" },
       { "<leader>fc", "<cmd>Telescope commands<cr>",                  desc = "Commands" },
       { "<leader>fm", "<cmd>Telescope marks<cr>",                     desc = "Marks" },
+      { "<leader>fj", "<cmd>Telescope jumplist<cr>",                  desc = "Jump history" },
       { "<leader>f:", "<cmd>Telescope command_history<cr>",           desc = "Command history" },
       { "<leader>fR", "<cmd>Telescope registers<cr>",                 desc = "Registers" },
       -- stylua: ignore end

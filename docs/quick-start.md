@@ -98,10 +98,16 @@ for `:tcd`, `:lcd`, sessions, terminals, language servers and debug launches.
 | Definition / references | `gd` / `gr` | Definition lookup / focused Trouble references panel. |
 | Symbols in this file / workspace | `<leader>fs` / `<leader>fS` | Ask the language server for symbols. |
 | Jump back / forward | Ctrl-o / Ctrl-i | Neovim's jump history. |
+| Search jump history | `<leader>fj` | Search the current window's jumplist by filename or line text; Enter opens the selected location. |
 
 The uppercase `<leader>F...` family offers fzf-lua alternatives when `fzf` is
 installed. You only need to learn one finder initially. Ordinary `ff` / `fg`
 do not acquire Scoper's membership filter just because a scope is selected.
+
+The jump picker lists newest jumps first, with a preview and the usual Telescope
+controls (F1 for help). It can include locations outside the current project;
+entries whose buffers are no longer valid are omitted. It searches recorded
+jumps, not every cursor movement. Ctrl-o / Ctrl-i still navigate history directly.
 
 ## Edit, inspect and format
 
