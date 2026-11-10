@@ -226,6 +226,26 @@ describe("scoper.lsp filtered compile_commands", function()
     assert.equals(flag(dir), lsp.clangd_cmd()[2])
   end)
 
+  it(
+    "filters an exclude-only scope, caches it and restores unrestricted disabled behavior",
+    function()
+      State.clear_active()
+      State.add_excludes("lib/**")
+      local dir = lsp.write_filtered_compile_commands()
+      assert.same({ p.entry("src/a.c") }, read_json(dir .. "/compile_commands.json"))
+      local cached, info = lsp.write_filtered_compile_commands()
+      assert.equals(dir, cached)
+      assert.is_truthy(info:find("(cached)", 1, true))
+      State.add_excludes("**")
+      local empty = lsp.write_filtered_compile_commands()
+      assert.same({}, read_json(empty .. "/compile_commands.json"))
+      State.set_enabled(false)
+      assert.is_nil(lsp.write_filtered_compile_commands())
+      assert.equals(flag(p.root .. "/build"), lsp.clangd_cmd()[2])
+      assert.equals(2, #read_json(p.cc))
+    end
+  )
+
   it("reuses the previous result while nothing changed", function()
     lsp.write_filtered_compile_commands()
     local _, info, changed = lsp.write_filtered_compile_commands()

@@ -232,6 +232,15 @@ describe("scoper.state", function()
       assert.is_true(State.is_in_scope("/anywhere/at/all.cpp"))
     end)
 
+    it("applies excludes with no includes and ignores them only when disabled", function()
+      State.set_enabled(true)
+      State.add_excludes("**/generated/**")
+      assert.is_false(State.is_in_scope("generated/hidden.cpp"))
+      assert.is_true(State.is_in_scope("src/main.cpp"))
+      State.set_enabled(false)
+      assert.is_true(State.is_in_scope("generated/hidden.cpp"))
+    end)
+
     it("includes paths under an include directory", function()
       State.set_enabled(true)
       -- Use an absolute path so cwd doesn't matter for this assertion.

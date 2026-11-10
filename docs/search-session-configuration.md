@@ -230,8 +230,8 @@ and filter final results. Without ripgrep, individual-file finding uses the
 native fallback because fd accepts directory roots. Picker results keep the scope
 captured when the picker opened; editing a scope does not mutate an open picker.
 
-For compatibility, disabled scoping or an empty include list searches everything
-and ignores the scope's excludes. The existing `g:scoper_follow_links` policy
+Disabled scoping ignores both lists. Enabled scoping with empty includes searches
+the whole project while applying all exclusions; exclusions always win. The existing `g:scoper_follow_links` policy
 remains independent and defaults on. Restricted replacement remains refused:
 grug-far cannot retain the required per-instance directory and scope contract.
 

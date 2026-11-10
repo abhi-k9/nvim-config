@@ -45,7 +45,7 @@ function M.compile(scope, cwd)
         break
       end
     end
-    local included = root_dir ~= nil
+    local included = #scope.include == 0 or root_dir ~= nil
     if not included then
       for _, g in ipairs(globs) do
         if Path.match_glob(abs, g.pattern, cwd) then
@@ -74,7 +74,7 @@ end
 -- The exact matcher is normative; adapters must not broaden these results.
 function M.query(scope, root, enabled)
   scope = vim.deepcopy(scope or { include = {}, exclude = {} })
-  if enabled == false or #(scope.include or {}) == 0 then
+  if enabled == false or (#(scope.include or {}) == 0 and #(scope.exclude or {}) == 0) then
     return {
       roots = nil,
       restricted = false,
@@ -86,7 +86,9 @@ function M.query(scope, root, enabled)
   end
   local matches = M.compile(scope, root)
   local roots, missing, seen = {}, {}, {}
-  for _, entry in ipairs(scope.include) do
+  -- Empty includes admit every path; searches still start at the project root.
+  local search_entries = #scope.include == 0 and { "." } or scope.include
+  for _, entry in ipairs(search_entries) do
     local path = Path.absolute(entry, root)
     if Path.is_glob(entry) then
       local first = path:find("[%*%?%[{]")

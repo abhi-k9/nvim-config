@@ -247,9 +247,9 @@ For a large tree, use Scoper's explicit commands:
 
 Replace those example paths with your own. `:ScoperNew` creates and selects a
 named scope. Includes can be directories, files or globs; `:ScoperFind` and
-`:ScoperGrep` use the captured membership. Disabled scoping or **an empty include
-list is unrestricted**, so excluding paths alone is insufficient: include `.`
-when you mean the project minus exclusions. Restricted Scoper replacement is
+`:ScoperGrep` use the captured membership. Disabled scoping is unrestricted. **Empty includes admit everything but still
+apply exclusions** when enabled; exclude-only scopes search the project minus
+those paths. Restricted Scoper replacement is
 refused by the current backend contract.
 
 Scoper's default clangd integration can also filter a selected compilation

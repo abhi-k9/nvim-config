@@ -520,7 +520,7 @@ M.build_matcher = Scope.compile
 
 function M.matcher(cwd)
   local definition = M.active_scope()
-  if not M.is_enabled() or not definition or #definition.include == 0 then
+  if not M.is_enabled() or not definition then
     return function()
       return true
     end

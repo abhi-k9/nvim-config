@@ -491,7 +491,7 @@
     <tr><td><code>:ScoperFind</code></td><td>Find files within active scope</td></tr>
     <tr><td><code>:ScoperGrep</code></td><td>Live grep within active scope</td></tr>
     <tr><td><code>:ScoperReplace</code></td><td>Unrestricted grug-far only; restricted scopes are refused because deferred operations cannot keep a stable project directory</td></tr>
-    <tr><td><code>:ScoperToggle</code></td><td>Enable / disable scoping <span class="note">off or empty includes ignore scope excludes. Find/Grep use the loaded project root; unrestricted Replace opens ordinary grug-far at its normal current directory.</span></td></tr>
+    <tr><td><code>:ScoperToggle</code></td><td>Enable / disable scoping <span class="note">off ignores scope excludes; empty includes while enabled still apply them. Find/Grep use the loaded project root; unrestricted Replace opens ordinary grug-far at its normal current directory.</span></td></tr>
     <tr><td><code>:ScoperStatus</code></td><td>Show active scope + sizes</td></tr>
     <tr><td><code>:ScoperNew &lt;name&gt;</code></td><td>Create a new scope</td></tr>
     <tr><td><code>:ScoperUse &lt;name&gt;</code></td><td>Switch active scope</td></tr>
@@ -511,7 +511,7 @@
       in the prompt title without closing the picker.</td></tr>
     <tr class="divider"><td colspan="2">clangd integration</td></tr>
     <tr><td colspan="2" class="note">The host's automatic policy prepares a filtered compilation database for an active,
-      nonempty scope, or the complete selected database otherwise. A changed effective configuration restarts this project's
+      scope with includes or excludes, or the complete selected database otherwise. A changed effective configuration restarts this project's
       clangd clients. Build selection is independent of search scope; explicit <code>selected</code>, <code>native</code> and
       <code>disabled</code> modes provide other policies. Filtering build entries does not sandbox headers or files you open.
       Startup preparation can be immediate or wait-before-start according to policy.

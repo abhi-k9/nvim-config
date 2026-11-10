@@ -132,8 +132,8 @@ existing project. The enabled state is persisted alongside the active scope.
 | `:ScoperReplace` | Open ordinary grug-far only when scoping is unrestricted; restricted replacement is refused. |
 | `:ScoperTogglePicker` | Switch the backend of `:ScoperFind` / `:ScoperGrep` between fzf-lua and telescope (sets `vim.g.scoper_picker`). |
 
-While scoping is off, or the active scope has no includes, these commands
-search without the scope's excludes. Find and grep use the loaded project
+While scoping is off, these commands ignore includes and excludes. Empty
+includes while enabled mean include everything, then apply all exclusions. Find and grep use the loaded project
 root; unrestricted replacement retains grug-far's ordinary current-directory
 behavior. All three find/grep backends apply the excludes; the plain `:find`
 fallback opens the first match the excludes don't hide.
@@ -213,8 +213,8 @@ usable root is refused instead of silently searching the whole project.
 Special cases:
 
 - Disabled scoping means everything is in scope.
-- An empty include list also means everything is in scope, and excludes are
-  ignored. For a whole-project scope with exclusions, include `.` explicitly.
+- An empty include list includes everything, then applies exclusions. Exclusions
+  always take precedence. Find/grep still search from the loaded project root.
 - Path comparison normalizes separators/device prefixes and is case-insensitive
   on Windows. Native short-name aliases are expanded for comparison. Directory
   symlinks retain their logical spelling; following them is a backend policy.

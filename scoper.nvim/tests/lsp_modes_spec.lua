@@ -179,22 +179,44 @@ describe("Scoper compilation integration policy", function()
     assert.equals("--compile-commands-dir=" .. root .. "/filtered", LSP._cmd[2])
     vim.api.nvim_buf_delete(buf, { force = true })
   end)
-  it("accepts full database preparation when filtering is off or its includes are empty", function()
-    for _, enabled in ipairs({ false, true }) do
-      State.clear_active()
-      State.set_enabled(enabled)
-      mode("filtered", { lsp = { startup = "prepare" } })
-      local buf = vim.api.nvim_create_buf(false, true)
-      vim.api.nvim_buf_set_name(buf, root .. "/src/a.c")
-      local attached = false
-      vim.lsp.config.clangd.root_dir(buf, function()
-        attached = true
-      end)
-      assert.is_true(attached)
-      assert.equals("ready", LSP.status().startup.state)
-      assert.equals("--compile-commands-dir=" .. root, LSP._cmd[2])
-      vim.api.nvim_buf_delete(buf, { force = true })
+  it(
+    "accepts full database preparation when filtering is off or both scope lists are empty",
+    function()
+      for _, enabled in ipairs({ false, true }) do
+        State.clear_active()
+        State.set_enabled(enabled)
+        mode("filtered", { lsp = { startup = "prepare" } })
+        local buf = vim.api.nvim_create_buf(false, true)
+        vim.api.nvim_buf_set_name(buf, root .. "/src/a.c")
+        local attached = false
+        vim.lsp.config.clangd.root_dir(buf, function()
+          attached = true
+        end)
+        assert.is_true(attached)
+        assert.equals("ready", LSP.status().startup.state)
+        assert.equals("--compile-commands-dir=" .. root, LSP._cmd[2])
+        vim.api.nvim_buf_delete(buf, { force = true })
+      end
     end
+  )
+
+  it("does not attach to an unfiltered database when exclude-only preparation fails", function()
+    State.clear_active()
+    State.add_excludes("other.c")
+    State.set_enabled(true)
+    LSP._filter_async = function(cb)
+      cb(nil, "filter failed", false)
+    end
+    mode("filtered", { lsp = { startup = "prepare" } })
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_name(buf, root .. "/src/a.c")
+    local attached = false
+    vim.lsp.config.clangd.root_dir(buf, function()
+      attached = true
+    end)
+    assert.is_false(attached)
+    assert.equals("unavailable", LSP.status().startup.state)
+    vim.api.nvim_buf_delete(buf, { force = true })
   end)
 
   it("bounds strict preparation without starting on an unfiltered database", function()

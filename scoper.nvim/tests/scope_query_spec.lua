@@ -64,10 +64,25 @@ describe("shared scope query plans", function()
     assert.is_false(query.matches(root .. "/src/main.c"))
   end)
 
-  it("retains unrestricted disabled and empty-include semantics", function()
+  it("applies excludes with empty includes while bounding searches to the project", function()
+    local definition = { include = {}, exclude = { "**/nested/**" } }
+    local query = Scope.query(definition, root, true)
+    assert.is_true(query.restricted)
+    assert.same({ root }, query.roots)
+    assert.same(definition.exclude, query.excludes)
+    for _, matches in ipairs({ query.matches, Scope.compile(definition, root) }) do
+      assert.is_true(matches(root .. "/src/main.c"))
+      assert.is_true(matches(root .. "/../other.c"))
+      assert.is_false(matches(root .. "/src/nested/hidden.c"))
+    end
+    definition.exclude = { "**" }
+    assert.is_false(Scope.query(definition, root, true).matches(root .. "/src/main.c"))
+  end)
+
+  it("retains unrestricted disabled and empty-definition semantics", function()
     for _, fixture in ipairs({
       { scope = { include = { "src" }, exclude = { "**" } }, enabled = false },
-      { scope = { include = {}, exclude = { "**" } }, enabled = true },
+      { scope = { include = {}, exclude = {} }, enabled = true },
     }) do
       local query = Scope.query(fixture.scope, root, fixture.enabled)
       assert.is_false(query.restricted)

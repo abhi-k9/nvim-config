@@ -17,9 +17,8 @@
 -- entries through the same captured matcher as the compilation database;
 -- it does not approximate Neovim globs with Lua patterns.
 --
--- Scoping off, or an empty include list, means everything is in scope
--- (as in is_in_scope): find/grep use the whole loaded project, without
--- the scope's excludes. Unrestricted replace retains grug-far's usual cwd.
+-- Empty includes search the whole loaded project, still applying excludes.
+-- Scoping off ignores both lists. Unrestricted replace retains grug-far's cwd.
 
 local State = require("scoper.state")
 local Path = require("scoper.path")

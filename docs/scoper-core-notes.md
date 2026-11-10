@@ -63,9 +63,10 @@ relative excludes use that include's directory or a glob's deepest literal
 ancestor. Symlinks retain their logical spelling; they are not canonicalized to
 their target. Backend link-following policy remains a separate choice.
 
-For compatibility, **disabled scoping or an empty include list is unrestricted**,
-and excludes are not applied in that state. An exclude-only scope does not mean
-"the whole project minus these paths". Add `.` if that is the intended scope.
+**Disabled scoping is unrestricted** and ignores exclusions. When enabled,
+empty includes admit everything but exclusions always take precedence. An
+exclude-only scope searches the project minus those paths; compilation-database
+filtering applies the same predicate to all entries, including outside files.
 
 The shared `scoper.scope` module is stateless:
 
@@ -85,10 +86,10 @@ local query = Scope.query({ include = { "src/**/*.c" }, exclude = {} }, root, tr
 | `excludes` | A copy of active excludes; empty for unrestricted queries. |
 | `missing` | Includes without an existing literal search root. |
 
-`compile()` evaluates the supplied definition directly; an empty include list
-matches nothing there. `query()` applies Scoper's compatibility policy first,
-so a disabled or empty scope returns an unrestricted predicate and no roots.
-Use `query()` when implementing a search adapter that must honor that policy.
+`compile()` evaluates the supplied definition directly: empty includes admit
+every path before applying excludes. `query()` returns an unrestricted predicate
+and no roots only when disabled or both lists are empty. Exclude-only queries
+use the project root as their search root. Use `query()` for search adapters.
 
 A file contributes its own path. A glob contributes its deepest complete literal
 ancestor; glob expansion never triggers an unbounded discovery walk. Search

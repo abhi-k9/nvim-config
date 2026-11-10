@@ -256,7 +256,7 @@ function M.show()
     ("Include (%d):"):format(#scope.include),
   }
   if #scope.include == 0 then
-    table.insert(lines, "  (empty — :ScoperAdd <path>)")
+    table.insert(lines, "  (all paths; exclusions still apply when enabled)")
   else
     for _, p in ipairs(scope.include) do
       table.insert(lines, "  " .. p)

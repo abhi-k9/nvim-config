@@ -155,7 +155,10 @@ function prepare(opts, selection)
   selection = selection or M.resolve()
   local cc = selection.path
   local scope = vim.deepcopy(State.active_scope())
-  local scoped = mode == "filtered" and State.is_enabled() and scope and #scope.include > 0
+  local scoped = mode == "filtered"
+    and State.is_enabled()
+    and scope
+    and (#scope.include > 0 or #scope.exclude > 0)
   -- clangd accepts a directory, not an arbitrary filename. Publish a full,
   -- immutable copy when the selected source has a different basename.
   local copy = cc and vim.fs.basename(cc) ~= "compile_commands.json" and not scoped
@@ -167,7 +170,7 @@ function prepare(opts, selection)
   if not copy and not State.is_enabled() then
     return { info = "disabled", reason = "scope_disabled" }, nil, selection
   end
-  if not copy and (not scope or #scope.include == 0) then
+  if not copy and (not scope or (#scope.include == 0 and #scope.exclude == 0)) then
     return { info = "active scope is empty", reason = "empty_scope" }, nil, selection
   end
   if not cc then return { info = selection.reason, reason = "unavailable" }, nil, selection end
@@ -189,9 +192,9 @@ function prepare(opts, selection)
   -- too so the skip path can report the same message as a real run.
   -- -------------------------------------------------------------------
   local fingerprint = vim.fn.sha256(vim.json.encode({
-    -- Output objects and source/output generation checks changed. Keep older
-    -- versions from sharing their mutable output/metadata with this layout.
-    4,
+    -- Empty includes now apply excludes, including for renamed databases that
+    -- older versions copied unfiltered. Do not reuse those cached outputs.
+    5,
     Path.key(State.root()),
     cc,
     mode,

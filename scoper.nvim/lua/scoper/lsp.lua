@@ -62,7 +62,7 @@ local function cmd_from(filtered_dir, info, changed, stale, selection)
     return cmd, info, changed, stale
   end
 
-  -- Unscoped path: filtering didn't apply (scoper off, empty scope, no
+  -- Unscoped path: filtering didn't apply (scoper off, no includes/excludes, no
   -- CC.json, or parse error). Still point clangd at the project's
   -- actual compile_commands.json if we can find one — this is the
   -- "always explicit" rationale above. Synchronous preparation returns its
@@ -632,7 +632,7 @@ local function install_prepare_gate()
           local restricted = Pipeline.mode() == "filtered"
             and snapshot.enabled
             and snapshot.definition
-            and #snapshot.definition.include > 0
+            and (#snapshot.definition.include > 0 or #snapshot.definition.exclude > 0)
           local selected_ready = not restricted
             and selection.path
             and vim.fs.basename(selection.path) == "compile_commands.json"

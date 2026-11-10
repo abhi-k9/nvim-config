@@ -313,7 +313,7 @@
     </tr>
     <tr>
       <td colspan="2"><b>Scope-wide</b></td>
-      <td colspan="2"><code>:ScoperFind</code> / <code>:ScoperGrep</code> use active includes (directories, files or globs) and excludes. Add includes with <code>:ScoperAdd</code>, enable scoping and search. Disabled scoping or an empty include list is unrestricted and ignores excludes; add <code>.</code> for “project minus excludes”.</td>
+      <td colspan="2"><code>:ScoperFind</code> / <code>:ScoperGrep</code> use active includes (directories, files or globs) and excludes. Add includes with <code>:ScoperAdd</code>, enable scoping and search. Disabled scoping ignores both lists. Empty includes while enabled search the project minus excludes; exclusions always win.</td>
     </tr>
   </table>
 </div>
