@@ -280,6 +280,8 @@ binary can still fail inside upstream without raising a Lua error; native mode
 is the recovery option in that case.
 
 `explorer.auto_open=false` disables the config-owned startup directory hook.
+The startup hook ignores preliminary buffer entries and checks again at VimEnter,
+then retires so later file opens do not trigger it.
 For a directory launch, the deferred open keeps the requested directory even
 if cwd changes, but is discarded if you change tabs, replace the directory
 buffer, move/close its window or disable automatic opening before it runs.

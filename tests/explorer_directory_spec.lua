@@ -26,6 +26,44 @@ describe("explorer directory startup", function()
     vim.fn.delete(root, "rf")
   end)
 
+  local function startup_hook()
+    local original_v = vim.v
+    vim.v = { vim_did_enter = 0 }
+    local ok, err = pcall(require("plugins.explorer").init)
+    vim.v = original_v
+    assert.is_true(ok, err)
+  end
+
+  it("ignores early buffer entries before opening the startup directory once", function()
+    startup_hook()
+    vim.api.nvim_exec_autocmds("BufEnter", { buffer = buf })
+    local directory = root .. "/requested directory"
+    vim.api.nvim_buf_set_name(buf, directory)
+    vim.api.nvim_exec_autocmds("BufEnter", { buffer = buf })
+    assert.is_true(vim.wait(1000, function()
+      return opened ~= nil
+    end))
+    assert.equals(directory, opened.dir)
+    assert.same({}, vim.api.nvim_get_autocmds({ group = "user_neotree_dir" }))
+  end)
+
+  it("checks the current directory buffer at VimEnter when BufEnter was missed", function()
+    vim.api.nvim_buf_set_name(buf, root .. "/requested directory")
+    startup_hook()
+    vim.api.nvim_exec_autocmds("VimEnter", {})
+    assert.is_true(vim.wait(1000, function()
+      return opened ~= nil
+    end))
+    assert.equals(vim.api.nvim_buf_get_name(buf), opened.dir)
+  end)
+
+  it("retires the startup hook at VimEnter without a directory", function()
+    startup_hook()
+    vim.api.nvim_exec_autocmds("VimEnter", {})
+    assert.same({}, vim.api.nvim_get_autocmds({ group = "user_neotree_dir" }))
+    assert.is_nil(opened)
+  end)
+
   it("opens the entered directory even if cwd changes before the scheduled callback", function()
     local directory = root .. "/requested directory"
     vim.api.nvim_buf_set_name(buf, directory)

@@ -121,18 +121,15 @@ return {
   init = function()
     local group = vim.api.nvim_create_augroup("user_neotree_dir", { clear = true })
     if not require("config.settings").get("explorer.auto_open", true) then return end
-    vim.api.nvim_create_autocmd("BufEnter", {
+    local starting = vim.v.vim_did_enter == 0
+    vim.api.nvim_create_autocmd({ "BufEnter", "VimEnter" }, {
       group = group,
       desc = "Open neo-tree when nvim is launched on a directory",
-      once = true, -- ← only fires once: at startup, or after a reload
       callback = function(ev)
-        -- The `isdirectory(f) == 1` guard makes this reload-safe. On
-        -- `:Lazy reload neo-tree.nvim` the augroup is cleared and this
-        -- autocmd re-registers, then fires on the NEXT BufEnter — which
-        -- is almost always a regular file, not a directory. The guard
-        -- turns that into a no-op instead of accidentally popping
-        -- neo-tree open mid-session. Inspect the entered buffer: argv(0)
-        -- can still name a startup directory long after it was opened.
+        -- Startup can enter a temporary buffer before the directory argument.
+        -- Do not consume the hook on that event; VimEnter checks the final
+        -- buffer as well, then retires the hook. Reloads inspect one entry
+        -- without consulting stale startup argv.
         local f = vim.api.nvim_buf_get_name(ev.buf)
         if f ~= "" and vim.fn.isdirectory(f) == 1 then
           -- Buffer names are absolute. Capture this directory before
@@ -166,7 +163,10 @@ return {
               )
             end
           end)
+          vim.api.nvim_del_autocmd(ev.id) -- retire both events after scheduling once
+          return
         end
+        if not starting or ev.event == "VimEnter" then vim.api.nvim_del_autocmd(ev.id) end
       end,
     })
   end,
