@@ -121,7 +121,62 @@ return {
   init = function()
     local group = vim.api.nvim_create_augroup("user_neotree_dir", { clear = true })
     if not require("config.settings").get("explorer.auto_open", true) then return end
+    local function open_directory(ev, f)
+      local name = vim.api.nvim_buf_get_name(ev.buf)
+      local win, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
+      vim.schedule(function() -- ← defer until the event loop is idle
+        -- A startup command or another callback may already have opened
+        -- a file, closed this window or moved to a different tab.
+        if
+          not vim.api.nvim_win_is_valid(win)
+          or vim.api.nvim_win_get_tabpage(win) ~= tab
+          or vim.api.nvim_win_get_buf(win) ~= ev.buf
+          or vim.api.nvim_buf_get_name(ev.buf) ~= name
+          or vim.api.nvim_get_current_tabpage() ~= tab
+          or not require("config.settings").get("explorer.auto_open", true)
+        then
+          return
+        end
+        local ok, err = pcall(function()
+          require("neo-tree.command").execute({
+            action = "show",
+            source = "filesystem",
+            position = "left",
+            dir = f,
+          })
+        end)
+        if not ok then
+          vim.notify(
+            "Explorer could not open this directory: " .. tostring(err),
+            vim.log.levels.WARN
+          )
+        end
+      end)
+    end
     local starting = vim.v.vim_did_enter == 0
+    -- A startup session replaces the directory buffer. Honor the explicit
+    -- directory launch after restoration without affecting later restores.
+    local args = starting and vim.fn.argv() or {}
+    if #args == 1 and vim.fn.isdirectory(args[1]) == 1 then
+      local directory = vim.fn.fnamemodify(args[1], ":p")
+      local restore = vim.api.nvim_create_autocmd("SessionLoadPost", {
+        group = group,
+        once = true,
+        callback = function()
+          open_directory({ buf = vim.api.nvim_get_current_buf() }, directory)
+        end,
+      })
+      vim.api.nvim_create_autocmd("VimEnter", {
+        group = group,
+        once = true,
+        callback = function()
+          -- Let all synchronous VimEnter session handlers finish first.
+          vim.schedule(function()
+            pcall(vim.api.nvim_del_autocmd, restore)
+          end)
+        end,
+      })
+    end
     vim.api.nvim_create_autocmd({ "BufEnter", "VimEnter" }, {
       group = group,
       desc = "Open neo-tree when nvim is launched on a directory",
@@ -132,37 +187,7 @@ return {
         -- without consulting stale startup argv.
         local f = vim.api.nvim_buf_get_name(ev.buf)
         if f ~= "" and vim.fn.isdirectory(f) == 1 then
-          -- Buffer names are absolute. Capture this directory before
-          -- deferring: cwd may change while the scheduled open is pending.
-          local win, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
-          vim.schedule(function() -- ← defer until the event loop is idle
-            -- A startup command or another callback may already have opened
-            -- a file, closed this window or moved to a different tab.
-            if
-              not vim.api.nvim_win_is_valid(win)
-              or vim.api.nvim_win_get_tabpage(win) ~= tab
-              or vim.api.nvim_win_get_buf(win) ~= ev.buf
-              or vim.api.nvim_buf_get_name(ev.buf) ~= f
-              or vim.api.nvim_get_current_tabpage() ~= tab
-              or not require("config.settings").get("explorer.auto_open", true)
-            then
-              return
-            end
-            local ok, err = pcall(function()
-              require("neo-tree.command").execute({
-                action = "show",
-                source = "filesystem",
-                position = "left",
-                dir = f,
-              })
-            end)
-            if not ok then
-              vim.notify(
-                "Explorer could not open this directory: " .. tostring(err),
-                vim.log.levels.WARN
-              )
-            end
-          end)
+          open_directory(ev, f)
           vim.api.nvim_del_autocmd(ev.id) -- retire both events after scheduling once
           return
         end

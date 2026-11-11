@@ -281,7 +281,9 @@ is the recovery option in that case.
 
 `explorer.auto_open=false` disables the config-owned startup directory hook.
 The startup hook ignores preliminary buffer entries and checks again at VimEnter,
-then retires so later file opens do not trigger it.
+then retires so later file opens do not trigger it. An explicit directory launch
+(such as `nvim .`) also opens the sidebar after startup session restoration,
+keeping the restored files. Bare `nvim` and later manual restores do not force it open.
 For a directory launch, the deferred open keeps the requested directory even
 if cwd changes, but is discarded if you change tabs, replace the directory
 buffer, move/close its window or disable automatic opening before it runs.

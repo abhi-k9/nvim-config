@@ -64,6 +64,38 @@ describe("explorer directory startup", function()
     assert.is_nil(opened)
   end)
 
+  it("opens an explicit launch directory after the startup session replaces its buffer", function()
+    local directory = root .. "/requested directory"
+    vim.fn.argv = function()
+      return { directory }
+    end
+    startup_hook()
+    vim.api.nvim_buf_set_name(buf, root .. "/restored.lua")
+    vim.api.nvim_exec_autocmds("SessionLoadPost", {})
+    vim.api.nvim_exec_autocmds("VimEnter", {})
+    assert.is_true(vim.wait(1000, function()
+      return opened ~= nil
+    end))
+    assert.equals(vim.fn.fnamemodify(directory, ":p"), opened.dir)
+    assert.equals(buf, vim.api.nvim_get_current_buf())
+    opened = nil
+    vim.api.nvim_exec_autocmds("SessionLoadPost", {})
+    vim.wait(20)
+    assert.is_nil(opened)
+  end)
+
+  it("does not open the startup directory for a later manual session restore", function()
+    vim.fn.argv = function()
+      return { root .. "/requested directory" }
+    end
+    startup_hook()
+    vim.api.nvim_exec_autocmds("VimEnter", {})
+    vim.wait(20)
+    vim.api.nvim_exec_autocmds("SessionLoadPost", {})
+    vim.wait(20)
+    assert.is_nil(opened)
+  end)
+
   it("opens the entered directory even if cwd changes before the scheduled callback", function()
     local directory = root .. "/requested directory"
     vim.api.nvim_buf_set_name(buf, directory)
