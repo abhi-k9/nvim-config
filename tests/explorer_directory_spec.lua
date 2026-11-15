@@ -71,7 +71,9 @@ describe("explorer directory startup", function()
     end
     startup_hook()
     vim.api.nvim_buf_set_name(buf, root .. "/restored.lua")
-    vim.api.nvim_exec_autocmds("SessionLoadPost", {})
+    -- Native session files notify every buffer, including hidden ones.
+    -- A single nvim_exec_autocmds call misses the temporary buffer context.
+    vim.cmd("doautoall SessionLoadPost")
     vim.api.nvim_exec_autocmds("VimEnter", {})
     assert.is_true(vim.wait(1000, function()
       return opened ~= nil

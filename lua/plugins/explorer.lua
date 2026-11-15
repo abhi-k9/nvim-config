@@ -163,7 +163,14 @@ return {
         group = group,
         once = true,
         callback = function()
-          open_directory({ buf = vim.api.nvim_get_current_buf() }, directory)
+          -- Session files use :doautoall SessionLoadPost: the current buffer
+          -- here can be a temporary hidden-buffer context. Capture the final
+          -- restored window/buffer only after that iteration has finished.
+          local tab = vim.api.nvim_get_current_tabpage()
+          vim.schedule(function()
+            if vim.api.nvim_get_current_tabpage() ~= tab then return end
+            open_directory({ buf = vim.api.nvim_get_current_buf() }, directory)
+          end)
         end,
       })
       vim.api.nvim_create_autocmd("VimEnter", {
