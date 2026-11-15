@@ -321,6 +321,7 @@ nvim/
 │   ├── explorer_toggle_spec.lua  native source toggles, remembered roots and missing-plugin handling
 │   ├── context_help_spec.lua  normal-mode discovery, native precedence and dependency fallback
 │   ├── feature_help_spec.lua  undo/diff help and Scoper's native multi-selection controls
+│   ├── jumplist_spec.lua  jump history labels, wrapping and navigation
 │   ├── picker_help_spec.lua  live help, safe bulk closing and cross-tab picker behavior
 │   ├── bufferline_diagnostics_spec.lua  native cache option and getter identity
 │   ├── bufferline_boundary_spec.lua  pin API compatibility and stale tab visibility

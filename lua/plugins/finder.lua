@@ -19,6 +19,52 @@ local function fzf_search(method, kind)
   end
 end
 
+-- Keep native jumplist positions stable even when invalid buffers are skipped
+-- or the user filters the results. Preserve native zero-based byte columns
+-- for Telescope navigation; only the displayed column is one-based.
+local function jump_history()
+  local jumps = vim.fn.getjumplist()[1]
+  local entries = {}
+  for index = #jumps, 1, -1 do
+    local jump = jumps[index]
+    if vim.api.nvim_buf_is_valid(jump.bufnr) then
+      local filename = vim.api.nvim_buf_get_name(jump.bufnr)
+      local text = vim.api.nvim_buf_get_lines(jump.bufnr, jump.lnum - 1, jump.lnum, false)[1] or ""
+      local path = filename ~= "" and vim.fn.fnamemodify(filename, ":.") or "[No Name]"
+      local location = ("%s:%d:%d"):format(path, jump.lnum, jump.col + 1)
+      entries[#entries + 1] = {
+        value = jump,
+        display = ("#%d  %s  %s"):format(index, location, text),
+        ordinal = location .. " " .. text,
+        filename = filename,
+        bufnr = jump.bufnr,
+        lnum = jump.lnum,
+        col = jump.col,
+      }
+    end
+  end
+  local config = require("telescope.config").values
+  local opts = {
+    wrap_results = true,
+    layout_strategy = "vertical",
+    layout_config = { width = 0.95, height = 0.9, preview_height = 0.35 },
+  }
+  require("telescope.pickers")
+    .new(opts, {
+      prompt_title = "Jump history",
+      results_title = "History # (oldest = 1) | F1: keys",
+      finder = require("telescope.finders").new_table({
+        results = entries,
+        entry_maker = function(entry)
+          return entry
+        end,
+      }),
+      sorter = config.generic_sorter(opts),
+      previewer = config.qflist_previewer(opts),
+    })
+    :find()
+end
+
 -- Native help reads these descriptions from the actual registered mappings.
 local function telescope_action(fn, description)
   return { fn, type = "action", opts = { desc = description } }
@@ -120,7 +166,7 @@ return {
       { "<leader>fk", "<cmd>Telescope keymaps<cr>",                   desc = "Keymaps" },
       { "<leader>fc", "<cmd>Telescope commands<cr>",                  desc = "Commands" },
       { "<leader>fm", "<cmd>Telescope marks<cr>",                     desc = "Marks" },
-      { "<leader>fj", "<cmd>Telescope jumplist<cr>",                  desc = "Jump history" },
+      { "<leader>fj", jump_history,                  desc = "Jump history" },
       { "<leader>f:", "<cmd>Telescope command_history<cr>",           desc = "Command history" },
       { "<leader>fR", "<cmd>Telescope registers<cr>",                 desc = "Registers" },
       -- stylua: ignore end

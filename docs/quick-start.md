@@ -104,7 +104,10 @@ The uppercase `<leader>F...` family offers fzf-lua alternatives when `fzf` is
 installed. You only need to learn one finder initially. Ordinary `ff` / `fg`
 do not acquire Scoper's membership filter just because a scope is selected.
 
-The jump picker lists newest jumps first, with a preview and the usual Telescope
+The jump picker lists newest jumps first. `#N` is the original history position
+(oldest = 1), retained when filtering; gaps indicate skipped invalid buffers.
+Long paths and source lines wrap rather than being truncated. The preview sits
+above the full-width results. The picker uses the usual Telescope
 controls (F1 for help). It can include locations outside the current project;
 entries whose buffers are no longer valid are omitted. It searches recorded
 jumps, not every cursor movement. Ctrl-o / Ctrl-i still navigate history directly.
