@@ -67,6 +67,31 @@ describe("scoper commands", function()
     assert.are.same({ "src", "my dir" }, State.active_scope().include)
   end)
 
+  it("does not expand glob arguments during automatic or Tab completion", function()
+    local getcompletion = vim.fn.getcompletion
+    local scans = 0
+    vim.fn.getcompletion = function(...)
+      scans = scans + 1
+      return getcompletion(...)
+    end
+    local ok, err = pcall(function()
+      for _, lead in ipairs({ "*", "**", "**/*.cpp", "src/?", "src/[", "src/{" }) do
+        assert.same({}, getcompletion("ScoperAdd " .. lead, "cmdline"))
+      end
+      assert.equals(0, scans)
+    end)
+    vim.fn.getcompletion = getcompletion
+    assert.is_true(ok, err)
+    vim.cmd("ScoperAdd **/*.cpp")
+    assert.same({ "**/*.cpp" }, State.active_scope().include)
+  end)
+
+  it("retains literal path completion including escaped spaces", function()
+    assert.same({ "src/" }, vim.fn.getcompletion("ScoperAdd sr", "cmdline"))
+    assert.same({ "my\\ dir/" }, vim.fn.getcompletion("ScoperAdd my", "cmdline"))
+    assert.same({ "my\\ dir/" }, vim.fn.getcompletion([[ScoperAdd my\ d]], "cmdline"))
+  end)
+
   it(":ScoperAdd warns about a directory that doesn't exist, and keeps it", function()
     vim.cmd("ScoperAdd nope")
     assert.equals(vim.log.levels.WARN, notes[#notes].level)

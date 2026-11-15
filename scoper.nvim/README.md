@@ -95,7 +95,7 @@ three shapes:
 
 | Command | What |
 |---|---|
-| `:ScoperAdd [path...]` | Add directories, files or globs (`~` and `$VARS` expand). Missing paths remain selected with a warning. No args → interactive directory-input loop. |
+| `:ScoperAdd [path...]` | Add directories, files or globs (`~` and `$VARS` expand). Missing paths remain selected with a warning. Path-prefix completion stops at glob syntax to avoid recursive scans while typing. No args → interactive directory-input loop. |
 | `:ScoperRemove [path...]` | Remove include paths/globs. No args → multi-select picker of current includes. |
 | `:ScoperExclude [glob]` | Add a deny pattern (e.g. `**/dist/**`); the whole argument is one glob. A glob `vim.glob` can't parse is refused with a warning. No args → prompt. |
 | `:ScoperRemoveExclude [glob]` | Remove a deny pattern. No args → multi-select picker of current excludes. |

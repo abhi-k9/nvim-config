@@ -53,6 +53,12 @@ Includes accept directories, individual files and globs. For example:
 :ScoperToggle
 ```
 
+`ScoperAdd` completes ordinary file/directory prefixes. Once the argument contains
+glob syntax (`*`, `?`, `[` or `{`), automatic and Tab completion return no
+filesystem suggestions. This avoids recursive scans while typing `**/*.cpp`;
+Enter still stores the glob unchanged. A debounce would only postpone the
+synchronous filesystem scan, so completion skips glob expansion instead.
+
 Command-line paths with spaces use Vim escaping (`my\ dir`). Includes added by
 the user expand `~` and environment variables, are stored relative to the
 project when possible, and are deduplicated by path identity. Missing paths

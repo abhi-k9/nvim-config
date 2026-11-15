@@ -31,7 +31,20 @@ end
 -- ---------------------------------------------------------------------------
 cmd("ScoperAdd", function(args)
   require("scoper").add(split_args(args.args))
-end, { nargs = "*", complete = "file", desc = "Add paths or globs to active scope" })
+end, {
+  nargs = "*",
+  complete = function(lead)
+    -- Automatic command-line completion calls this while typing. Native file
+    -- completion expands ** recursively and blocks the editor; scope globs
+    -- are definitions, not requests to enumerate their matches.
+    if require("scoper.path").is_glob(lead) then return {} end
+    return vim.tbl_map(function(path)
+      -- Match split_args: escape whitespace, preserving Windows separators.
+      return (path:gsub("%s", "\\%0"))
+    end, vim.fn.getcompletion(lead, "file", true))
+  end,
+  desc = "Add paths or globs to active scope",
+})
 
 cmd("ScoperRemove", function(args)
   require("scoper").remove(split_args(args.args))
