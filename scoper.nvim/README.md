@@ -125,6 +125,8 @@ existing project. The enabled state is persisted alongside the active scope.
 
 ### Search within scope
 
+See the [glob cheatsheet](../docs/glob-cheatsheet.md) for common include/exclude patterns.
+
 | Command | What |
 |---|---|
 | `:ScoperFind` | Fuzzy-find files within **all** active include paths/globs (fzf-lua → telescope → :find fallback). |

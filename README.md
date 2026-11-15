@@ -27,6 +27,7 @@ and install the enabled plugin set. Wait for installation to finish before
 relaunching; downloads and supported native builds can take several minutes.
 
 For daily use, start with the [workflow quick start](docs/quick-start.md).
+For file filters, see the [glob cheatsheet](docs/glob-cheatsheet.md).
 Inside Neovim, `<leader>h` / `:ConfigHelp` opens these guides, with Tab-completed
 topics such as `buffers`, `workspace` and `debugging`. `<leader>wi` /
 `:WorkspaceInfo` compares directories, visible tree roots, Scoper/build state,
@@ -387,6 +388,7 @@ nvim/
 │   ├── session_dap_spec.lua    preserve normal files with debugger-like names
 │   └── offline_seed_test.py  Python tests for scripts/offline-seed.py (make test-seed)
 ├── docs/                     Human-facing docs (read on demand by :ConfigHelp)
+│   ├── glob-cheatsheet.md     path patterns for Scoper and Grug-Far
 │   ├── quick-start.md         common daily workflows and first-session essentials
 │   ├── context-help.md        in-feature help, native hints, input modes and reference commands
 │   ├── image-previews.md      opt-in image commands, platform support, dependencies and fallback

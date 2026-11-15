@@ -45,6 +45,8 @@ database information.
 
 ## Search membership
 
+See the [glob cheatsheet](glob-cheatsheet.md) for patterns and Scoper/Grug-Far examples.
+
 Includes accept directories, individual files and globs. For example:
 
 ```vim
