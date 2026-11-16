@@ -639,6 +639,31 @@ describe("scoper.pickers with telescope", function()
     assert.equals(1, #got.notifications)
   end)
 
+  it("shows literal full paths without expanding environment variables", function()
+    pickers.find()
+    local shown, mapping
+    local path = p.root .. "/$HOME/file.c"
+    package.loaded["telescope.actions.state"] = {
+      get_selected_entry = function()
+        return { path = path }
+      end,
+      get_current_picker = function()
+        return {
+          prompt_border = {
+            change_title = function(_, title)
+              shown = title
+            end,
+          },
+        }
+      end,
+    }
+    got.find.attach_mappings(0, function(_, key, callback)
+      if key == "<M-p>" then mapping = callback end
+    end)
+    mapping()
+    assert.equals(Path.normalize(path), shown)
+  end)
+
   it("registers path and native help keys through map, keeping defaults", function()
     pickers.find()
     local maps = {}

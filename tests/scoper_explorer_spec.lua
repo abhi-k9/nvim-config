@@ -124,6 +124,19 @@ describe("optional Scoper explorer decoration", function()
     assert.is_true(ok, err)
   end)
 
+  it("does not interpret literal root characters as environment variables", function()
+    local value = vim.env.NVIM_SCOPER_MARKER_TEST
+    vim.env.NVIM_SCOPER_MARKER_TEST = "expanded"
+    root = root .. "/$NVIM_SCOPER_MARKER_TEST"
+    local ok, err = pcall(function()
+      local other = root:gsub("%$NVIM_SCOPER_MARKER_TEST", "expanded")
+      assert.equals(decorations, render("file", other .. "/a.h", other))
+      assert.equals("- name", render("file", root .. "/a.h").text)
+    end)
+    vim.env.NVIM_SCOPER_MARKER_TEST = value
+    assert.is_true(ok, err)
+  end)
+
   it("supports custom or absent markers without overriding normal colours", function()
     Adapter.setup(opts, { enabled = true, marker = "", dim = false, show_scope = false })
     assert.same(decorations, render("file", root .. "/main.h"))

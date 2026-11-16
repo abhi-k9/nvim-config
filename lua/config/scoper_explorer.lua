@@ -43,8 +43,9 @@ local function capture()
 end
 
 local function path_key(path)
-  local key = vim.fs.normalize(path):gsub("\\", "/"):gsub("/+$", "")
-  return vim.fn.has("win32") == 1 and key:lower() or key
+  local windows = vim.fn.has("win32") == 1
+  local key = vim.fs.normalize(path, { expand_env = false, win = windows }):gsub("/+$", "")
+  return windows and key:lower() or key
 end
 
 local function related(tree, root)

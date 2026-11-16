@@ -192,7 +192,7 @@ local function attach_show_path_mapping(prompt_bufnr, map)
       local cwd = (action_state.get_current_picker(prompt_bufnr) or {}).cwd or vim.uv.cwd()
       p = vim.fs.joinpath(cwd, p)
     end
-    p = vim.fs.normalize(p)
+    p = Path.normalize(p)
     -- Telescope doesn't re-render the prompt title by itself: it shows
     -- this path until the next <M-p> or until the picker closes.
     local picker = action_state.get_current_picker(prompt_bufnr)
