@@ -64,7 +64,8 @@ end
 -- vim.g check must run first so `has()` never force-loads fzf-lua for a
 -- telescope user (see above).
 function M.prefer_fzf()
-  return vim.g.scoper_picker ~= "telescope" and M.has("fzf-lua")
+  local picker = vim.g.scoper_picker or require("scoper").config.picker
+  return picker ~= "telescope" and M.has("fzf-lua")
 end
 
 -- ---------------------------------------------------------------------------

@@ -45,6 +45,7 @@ end
 -- ---------------------------------------------------------------------------
 local defaults = {
   project = {},
+  project_config = { enabled = true, overrides = {} },
   compilation_database = {},
   picker = "auto",
   -- LSP integration (opt-in).
@@ -77,7 +78,8 @@ local defaults = {
 M.config = vim.deepcopy(defaults)
 
 -- Dictionary settings merge; list values, including {}, replace as a unit.
-local dictionaries = { project = true, compilation_database = true, lsp = true }
+local dictionaries =
+  { project_config = true, project = true, compilation_database = true, lsp = true }
 local function merge(base, overrides)
   for key, value in pairs(overrides) do
     if
@@ -93,11 +95,33 @@ local function merge(base, overrides)
   return base
 end
 
-function M.setup(opts)
+local base_options = {}
+local project_documents = {}
+
+local function setup(opts, document)
   assert(opts == nil or type(opts) == "table", "Scoper setup options must be a table")
-  -- Full setup is deterministic. patch() is the explicit cumulative operation.
-  M.config = merge(vim.deepcopy(defaults), opts or {})
+  base_options = vim.deepcopy(opts or {})
+  local base = merge(vim.deepcopy(defaults), base_options)
+  State().configure_project(base.project and base.project.root)
+  local root = State().resolve_root()
+  local Project = require("scoper.project_config")
+  Project.validate({ version = 1, settings = base.project_config.overrides })
+  local key = require("scoper.path").key(root)
+  local err
+  if base.project_config.enabled == false then
+    document = {}
+  elseif document == nil then
+    document, err = Project.read(root)
+    if not document then
+      vim.notify("Scoper project config: " .. tostring(err), vim.log.levels.WARN)
+      document = project_documents[key] or {}
+    end
+  end
+  if not err then project_documents[key] = vim.deepcopy(document) end
+  M.project_config_status = { path = Project.path(root), error = err }
+  M.config = merge(merge(base, document.settings or {}), base.project_config.overrides or {})
   State().default_excludes = vim.deepcopy(M.config.default_excludes or {})
+  State().project_defaults = vim.deepcopy(document)
   local previous_lsp = package.loaded["scoper.lsp"]
   if previous_lsp then
     if previous_lsp.dispose then
@@ -109,7 +133,7 @@ function M.setup(opts)
   State().configure_project(M.config.project and M.config.project.root)
   State().initialize()
   if M.config.lsp and (M.config.lsp.clangd or M.config.lsp.mode) then
-    local ok, err = pcall(function()
+    local ok, lsp_err = pcall(function()
       if LSP().configure then
         LSP().configure()
       elseif M.config.lsp.clangd then
@@ -118,21 +142,82 @@ function M.setup(opts)
       end
     end)
     if not ok then
-      vim.notify("Scoper LSP: initial config failed: " .. tostring(err), vim.log.levels.WARN)
+      vim.notify("Scoper LSP: initial config failed: " .. tostring(lsp_err), vim.log.levels.WARN)
     end
   end
   vim.api.nvim_create_autocmd("DirChanged", {
     group = vim.api.nvim_create_augroup("scoper_dir", { clear = true }),
     pattern = "global",
     callback = function()
-      State().follow_cwd()
+      local Path = require("scoper.path")
+      if Path.key(State().resolve_root()) ~= Path.key(State().root()) then M.setup(base_options) end
     end,
   })
   return M.status_snapshot()
 end
 
+function M.setup(opts)
+  return setup(opts)
+end
+
+function M.reload_project_config(apply_scopes)
+  if (M.config.project_config or {}).enabled == false then
+    return false, "project configuration is disabled"
+  end
+  local document, err = require("scoper.project_config").read(State().root())
+  if not document then return false, err end
+  setup(base_options, document)
+  if apply_scopes then
+    local result = State().apply_project_defaults()
+    if not result.applied or not result.persisted then
+      return false, result.error or result.reason
+    end
+  end
+  -- setup updates the future command; explicitly refresh active managed clients.
+  local integration = package.loaded["scoper.lsp"]
+  if
+    integration
+    and integration.reload_clangd
+    and M.config.lsp.mode ~= "disabled"
+    and M.config.lsp.mode ~= "native"
+    and (M.config.lsp.mode or M.config.lsp.clangd)
+  then
+    integration.reload_clangd({ auto = true })
+  end
+  return true
+end
+
+function M.export_project_config(overwrite)
+  State().context() -- incorporate other editors' saved scope changes first
+  local config = M.config
+  local settings = {
+    default_excludes = vim.deepcopy(config.default_excludes),
+    picker = config.picker,
+    compilation_database = vim.empty_dict(),
+    lsp = vim.empty_dict(),
+  }
+  for _, key in ipairs({ "path", "candidates" }) do
+    settings.compilation_database[key] = vim.deepcopy(config.compilation_database[key])
+  end
+  if State().database() then
+    settings.compilation_database.path =
+      require("scoper.path").relative(State().database(), State().root())
+  end
+  for _, key in ipairs({ "mode", "startup", "watch", "debounce_ms", "prepare_timeout_ms" }) do
+    settings.lsp[key] = config.lsp[key]
+  end
+  if settings.lsp.mode == nil and config.lsp.clangd then settings.lsp.mode = "filtered" end
+  return require("scoper.project_config").export(State().root(), {
+    version = 1,
+    settings = settings,
+    scopes = vim.deepcopy(State().state.scopes),
+    active = State().active_name(),
+    enabled = State().is_enabled(),
+  }, overwrite)
+end
+
 function M.patch(opts)
-  return M.setup(merge(vim.deepcopy(M.config), opts or {}))
+  return M.setup(merge(vim.deepcopy(base_options), opts or {}))
 end
 
 function M.snapshot()

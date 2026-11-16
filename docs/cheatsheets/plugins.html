@@ -491,6 +491,8 @@
     <tr><td><code>:ScoperFind</code></td><td>Find files within active scope</td></tr>
     <tr><td><code>:ScoperGrep</code></td><td>Live grep within active scope</td></tr>
     <tr><td><code>:ScoperReplace</code></td><td>Unrestricted grug-far only; restricted scopes are refused because deferred operations cannot keep a stable project directory</td></tr>
+    <tr><td><code>:ScoperConfigExport[!]</code></td><td>Export <a href="../scoper-project-config.md">.scoper.json</a>; ! replaces an existing file</td></tr>
+    <tr><td><code>:ScoperConfigReload[!]</code></td><td>Reload project settings; ! also applies configured scopes</td></tr>
     <tr><td><code>:ScoperToggle</code></td><td>Enable / disable scoping <span class="note">off ignores scope excludes; empty includes while enabled still apply them. Find/Grep use the loaded project root; unrestricted Replace opens ordinary grug-far at its normal current directory.</span></td></tr>
     <tr><td><code>:ScoperStatus</code></td><td>Show active scope + sizes</td></tr>
     <tr><td><code>:ScoperNew &lt;name&gt;</code></td><td>Create a new scope</td></tr>

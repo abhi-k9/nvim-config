@@ -609,7 +609,7 @@ end
 -- preserved. Setting it to "telescope" gives you the <M-p>-shows-path
 -- feature documented above; nothing else changes.
 function M.toggle_picker()
-  local current = vim.g.scoper_picker or "fzf"
+  local current = vim.g.scoper_picker or require("scoper").config.picker or "auto"
   local next_picker = (current == "telescope") and "fzf" or "telescope"
   vim.g.scoper_picker = next_picker
   vim.notify(("Scoper picker → %s"):format(next_picker), vim.log.levels.INFO)

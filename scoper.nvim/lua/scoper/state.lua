@@ -40,17 +40,26 @@ local M = {}
 -- project that has no state file yet. setup() sets it from
 -- `default_excludes`.
 M.default_excludes = {}
+M.project_defaults = {}
 
 local function fresh_scope()
   return { include = {}, exclude = vim.deepcopy(M.default_excludes) }
 end
 
 local function fresh_state()
+  local seed = M.project_defaults
+  local scopes = {}
+  for name, scope in pairs(seed.scopes or { default = {} }) do
+    scopes[name] = {
+      include = vim.deepcopy(scope.include or {}),
+      exclude = vim.deepcopy(scope.exclude or M.default_excludes),
+    }
+  end
   return {
     schema_version = Store.SCHEMA_VERSION,
-    active = "default",
-    enabled = false,
-    scopes = { default = fresh_scope() },
+    active = seed.active or (scopes.default and "default" or vim.fn.sort(vim.tbl_keys(scopes))[1]),
+    enabled = seed.enabled == true,
+    scopes = scopes,
   }
 end
 
@@ -85,7 +94,7 @@ local dirty = false
 -- not a second concurrently active project or an automatic disk-state merge.
 local unsaved = {}
 
-local function resolve_root()
+function M.resolve_root()
   local cwd = Path.normalize(Path.cwd())
   local chosen = root_resolver
   if type(root_resolver) == "function" then chosen = root_resolver(cwd) end
@@ -103,12 +112,12 @@ function M.configure_project(resolver)
 end
 
 function M.root()
-  return root or resolve_root()
+  return root or M.resolve_root()
 end
 
 local function ensure_store()
   if not store then
-    root = resolve_root()
+    root = M.resolve_root()
     store = Store.new(root, fresh_state)
   end
   return store
@@ -154,7 +163,7 @@ end
 
 function M.load(opts)
   opts = opts or {}
-  root = opts.root and Path.absolute(opts.root, Path.cwd()) or resolve_root()
+  root = opts.root and Path.absolute(opts.root, Path.cwd()) or M.resolve_root()
   store = Store.new(root, fresh_state)
   unsaved[store.path()] = nil
   local loaded = read_state()
@@ -184,7 +193,7 @@ function M.reload(opts)
 end
 
 function M.initialize()
-  local next_root = resolve_root()
+  local next_root = M.resolve_root()
   local next_store = Store.new(next_root, fresh_state)
   if store and store.path() == next_store.path() then return M.last_result() end
   if store and dirty then
@@ -265,6 +274,27 @@ local function sync()
         { applied = false, persisted = false, reason = store.reason(), error = store.error() }
     end
   end
+end
+
+-- Explicit project-file import: replace matching named definitions, retaining
+-- unmentioned scopes and the independently selected local database.
+function M.apply_project_defaults()
+  if dirty then
+    return unapplied("unsaved", "save or recover unsaved scope changes before importing")
+  end
+  sync()
+  if store.error() then return unapplied("storage_error", store.error()) end
+  local seed, normalized = M.project_defaults, fresh_state()
+  if seed.scopes then
+    for name in pairs(seed.scopes) do
+      M.state.scopes[name] = normalized.scopes[name]
+    end
+  end
+  if seed.active then M.state.active = seed.active end
+  if seed.enabled ~= nil then M.state.enabled = seed.enabled end
+  M.save()
+  fire_change("project_config", { "scope" })
+  return M.last_result()
 end
 
 -- A picker can outlive a project/scope switch. Refresh before capturing or

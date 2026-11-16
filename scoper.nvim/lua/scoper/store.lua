@@ -12,7 +12,8 @@ function M.new(root, fresh_state)
     messages[#messages + 1] = { message = message, level = level }
   end
   local function fresh_scope()
-    return fresh_state().scopes.default
+    local fresh = fresh_state()
+    return fresh.scopes.default or fresh.scopes[fresh.active]
   end
   local function fallback_scope(scopes)
     if scopes.default then return "default" end

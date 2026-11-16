@@ -26,6 +26,8 @@ local COMMANDS = {
   "ScoperLspReload",
   "ScoperReload",
   "ScoperDatabase",
+  "ScoperConfigExport",
+  "ScoperConfigReload",
 }
 
 describe("scoper commands", function()

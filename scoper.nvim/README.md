@@ -102,6 +102,16 @@ three shapes:
 | `:ScoperClear` | Empty includes of active scope (excludes kept). |
 | `:ScoperShow` | Panel: scope, project/revision, persistence and selected/effective database status. |
 
+### Project configuration
+
+Optional [`.scoper.json`](../docs/scoper-project-config.md) files provide settings
+and initial named scopes per configured root. Existing saved state is retained.
+
+| Command | What |
+|---|---|
+| `:ScoperConfigExport[!]` | Export current settings/scopes as readable JSON; `!` replaces an existing file. |
+| `:ScoperConfigReload[!]` | Reload project settings; `!` also applies configured scope definitions. |
+
 ### Scope management
 
 | Command | What |

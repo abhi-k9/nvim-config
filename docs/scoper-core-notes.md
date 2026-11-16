@@ -27,14 +27,15 @@ require("scoper").setup({
 `project.root` accepts a path string or `function(global_cwd)`. Relative paths
 resolve against that global directory. A resolver returning `nil`, `false` or
 an empty string uses the global directory. Resolvers run in the main editor;
-workers receive captured serializable inputs. Scoper does not discover or
-execute project-local Lua configuration.
+workers receive captured serializable inputs. Scoper reads a declarative
+[.scoper.json](scoper-project-config.md) at the configured root; it never executes
+project-local Lua configuration.
 
-`setup(options)` resolves configuration from stable shipped defaults on every
-call. Dictionary options merge; lists, including `{}`, replace. A second setup
+`setup(options)` resolves configuration from shipped defaults, local options,
+project JSON and explicit personal overrides on every call. Dictionary options merge; lists, including `{}`, replace. A second setup
 does not inherit a previous call's custom lists. Existing in-memory state for
 the same project is retained; new `default_excludes` apply to future scopes,
-not existing ones. `patch(options)` explicitly layers options over the effective
+not existing ones. `patch(options)` explicitly layers options over the local base
 configuration, then performs the same lifecycle reconfiguration. Neither is a
 state-recovery command.
 

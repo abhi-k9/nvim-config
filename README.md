@@ -402,6 +402,7 @@ nvim/
 │   ├── breakpoint-persistence.md  storage reliability audit, migration, recovery and fork assessment
 │   ├── terminal-migration-evaluation-2026-11-08.md  Snacks parity evidence and retained terminal workflows
 │   ├── tooling-configuration.md  selected languages, executable discovery and offline intent
+│   ├── scoper-project-config.md  per-root JSON settings, scope seeds and export commands
 │   ├── scoper-core-notes.md   scope model, revisions, schema and persistence outcomes
 │   ├── scoper-integration-notes.md  build selection, clangd modes, startup and source refresh
 │   ├── search-session-configuration.md  roots, visibility, selectors and persistence policies

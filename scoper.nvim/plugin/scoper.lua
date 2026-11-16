@@ -183,3 +183,20 @@ end, {
   complete = "file",
   desc = "Select compilation database independently of scope; ! clears selection",
 })
+
+-- Project configuration is only written by this explicit export command.
+cmd("ScoperConfigExport", function(args)
+  local ok, err = require("scoper").export_project_config(args.bang)
+  vim.notify(
+    ok and "Scoper: exported .scoper.json" or ("Scoper: " .. tostring(err)),
+    ok and vim.log.levels.INFO or vim.log.levels.WARN
+  )
+end, { bang = true, desc = "Export project settings/scopes; ! replaces existing config" })
+
+cmd("ScoperConfigReload", function(args)
+  local ok, err = require("scoper").reload_project_config(args.bang)
+  vim.notify(
+    ok and "Scoper: project config reloaded" or ("Scoper: " .. tostring(err)),
+    ok and vim.log.levels.INFO or vim.log.levels.WARN
+  )
+end, { bang = true, desc = "Reload project settings; ! also applies configured scopes" })
