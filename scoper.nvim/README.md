@@ -625,3 +625,7 @@ dead-owner recovery. The host config's `tests/scoper_telescope_spec.lua` runs
 the actual pinned Telescope and ripgrep. Standalone specs still use controlled
 picker modules and LSP clients; a full native debugger/clangd matrix is not
 covered by this suite.
+
+The host configuration also provides `:ScoperMarkersToggle` for optional Neo-tree
+markers. This host command changes presentation only and is not part of the
+standalone Scoper plugin.

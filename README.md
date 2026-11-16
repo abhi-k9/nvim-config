@@ -458,6 +458,7 @@ nvim/
 │   ├── offline-seed.py           pack / install plugins + Mason tools + parsers for an offline machine
 │   └── offline-seed-check.lua    what this install would still download (used by offline-seed.py)
 ├── CHANGES.md                changelog (recent entries, newest first)
+├── local.example.json        optional personal JSON settings template
 ├── lazy-lock.json            plugin commit pins (`:Lazy restore` / `:Lazy update`)
 ├── scoper.nvim/              Bundled local plugin (loaded via `dir=`)
 │   └── tests/                scoper's own unit tests
@@ -1195,3 +1196,15 @@ nvim
 | Sluggish typing | treesitter on a huge buffer | check `:DiagnosticDump`'s buffer table for big files with `ts=true` and `big_file=false` (the big-file guard isn't catching it) |
 | Hang on git operation in a huge repo | gitsigns / diffview blocking | `:Lazy reload gitsigns.nvim` to confirm |
 | Repeated slow native debugger startup on Windows | Symbol loading or another startup bottleneck | Try the per-project [CodeLLDB symbol-loading settings](docs/debug-terminal-configuration.md#codelldb-symbol-loading-for-slow-launches), then inspect adapter logs; timing alone does not identify antivirus scanning |
+
+### Local JSON settings and scope markers
+
+Copy `local.example.json` to `local.json` in the config root for optional personal
+settings. Both `local.json` and `local.lua` are ignored by Git. If both exist,
+`local.lua` takes precedence; they are not merged. JSON supports data settings
+only (no functions or comments). Restart after editing local settings.
+
+`:ScoperMarkersToggle` toggles Neo-tree scope markers for the current editor,
+including before Neo-tree loads. It does not open the explorer or change Scoper's
+include/exclude rules. Missing plugins are harmless. The toggle is temporary;
+set `explorer.scope_markers.enabled` in local settings for the startup default.

@@ -313,7 +313,8 @@ return {
 ```
 
 `explorer.scope_markers = true` enables these defaults; `false` disables the
-adapter. Out-of-scope files display as `- filename` with muted text. Included
+markers initially. Use `:ScoperMarkersToggle` to switch them on/off for this
+editor without opening Neo-tree or changing scope rules. Out-of-scope files display as `- filename` with muted text. Included
 files retain Neo-tree's normal colours. Dimming overrides filename git-status
 colours on excluded files; the separate git/diagnostic icons remain unchanged.
 The actual colour comes from your theme, so it is not necessarily darker on a
@@ -331,7 +332,7 @@ This host-config adapter lives in `lua/config/scoper_explorer.lua`, outside both
 plugins. It uses Scoper's public snapshot/matcher API and `ScoperChanged`, plus
 Neo-tree's custom name component and redraw API. Scope changes invalidate a
 cached matcher and debounce redraws of visible trees; they do not open Neo-tree
-or rescan the filesystem. Disable the setting and restart to remove the adapter.
+or rescan the filesystem. Disabled markers leave ordinary names unchanged.
 This is a personal explorer preference, not a `.scoper.json` setting.
 
 ## Sessions and global buffers

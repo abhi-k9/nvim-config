@@ -1,6 +1,29 @@
 -- Optional host adapter: neither plugin depends on the other. Decorate existing
 -- name components and request redraws, never alter tree membership or scan files.
 local M = {}
+local enabled
+
+function M.toggle()
+  if enabled == nil then
+    local option = require("config.settings").get("explorer.scope_markers", false)
+    enabled = option == true or type(option) == "table" and option.enabled == true
+  end
+  enabled = not enabled
+  local manager = package.loaded["neo-tree.sources.manager"]
+  if type(manager) == "table" and type(manager.redraw) == "function" then
+    pcall(manager.redraw, "filesystem")
+  end
+  vim.notify("Explorer scope markers: " .. (enabled and "ON" or "OFF"))
+end
+
+function M.configure(opts, options)
+  if enabled == nil then
+    enabled = options == true or type(options) == "table" and options.enabled == true
+  end
+  options = type(options) == "table" and vim.deepcopy(options) or {}
+  options.enabled = true
+  M.setup(opts, options)
+end
 local cached, owner, timer, generation = nil, nil, nil, 0
 local wrappers = setmetatable({}, { __mode = "k" })
 
@@ -58,6 +81,7 @@ function M.decorate(original, options)
   return function(config, node, state)
     local result = original(config, node, state)
     if type(result) ~= "table" or type(result.text) ~= "string" then return result end
+    if enabled == false then return result end
     local scope = capture()
     if not scope.root or not related(state.path, scope.root) then return result end
     if node.type == "directory" and node:get_depth() == 1 and options.show_scope ~= false then

@@ -204,10 +204,7 @@ return {
   end,
   config = function(_, opts)
     local markers = require("config.settings").get("explorer.scope_markers", false)
-    -- Also dispose an earlier adapter when reloading with the option disabled.
-    if markers or package.loaded["config.scoper_explorer"] then
-      require("config.scoper_explorer").setup(opts, markers)
-    end
+    require("config.scoper_explorer").configure(opts, markers)
     require("neo-tree").setup(opts)
   end,
   opts = {

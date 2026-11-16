@@ -28,3 +28,7 @@ end, {
   bang = true,
   desc = "Open local image; ! requests the system viewer",
 })
+
+vim.api.nvim_create_user_command("ScoperMarkersToggle", function()
+  require("config.scoper_explorer").toggle()
+end, { desc = "Toggle explorer scope markers for this editor" })

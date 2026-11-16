@@ -124,7 +124,17 @@ function M.load(path)
     )
     return false, stat_err
   end
-  local ok, result = pcall(dofile, path)
+  local ok, result = pcall(function()
+    if path:lower():match("%.json$") then
+      local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
+      assert(
+        type(decoded) == "table" and (next(decoded) == nil or not vim.islist(decoded)),
+        "expected a JSON object"
+      )
+      return decoded
+    end
+    return dofile(path)
+  end)
   if ok and type(result) == "table" then
     values = copy(result)
     return true
@@ -196,7 +206,10 @@ function M.bootstrap(config_root)
   if loaded then return end
   M.capture_options()
   local path = vim.g.config_local_file
-  if path == nil then path = vim.fs.joinpath(config_root, "local.lua") end
+  if path == nil then
+    path = vim.fs.joinpath(config_root, "local.lua")
+    if not vim.uv.fs_stat(path) then path = vim.fs.joinpath(config_root, "local.json") end
+  end
   if path ~= false and type(path) ~= "string" then
     vim.notify("g:config_local_file must be a filename or false", vim.log.levels.ERROR)
     path = false

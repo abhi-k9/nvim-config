@@ -1,0 +1,12 @@
+{
+  "explorer": {
+    "scope_markers": {
+      "enabled": false,
+      "marker": "-",
+      "dim": true,
+      "highlight": "NeoTreeDimText",
+      "show_scope": true,
+      "debounce_ms": 100
+    }
+  }
+}
