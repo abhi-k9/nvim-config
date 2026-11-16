@@ -458,6 +458,7 @@ nvim/
 │   ├── offline-seed.py           pack / install plugins + Mason tools + parsers for an offline machine
 │   └── offline-seed-check.lua    what this install would still download (used by offline-seed.py)
 ├── CHANGES.md                changelog (recent entries, newest first)
+├── local.example.lua         optional personal Lua settings template
 ├── local.example.json        optional personal JSON settings template
 ├── lazy-lock.json            plugin commit pins (`:Lazy restore` / `:Lazy update`)
 ├── scoper.nvim/              Bundled local plugin (loaded via `dir=`)
@@ -1197,7 +1198,11 @@ nvim
 | Hang on git operation in a huge repo | gitsigns / diffview blocking | `:Lazy reload gitsigns.nvim` to confirm |
 | Repeated slow native debugger startup on Windows | Symbol loading or another startup bottleneck | Try the per-project [CodeLLDB symbol-loading settings](docs/debug-terminal-configuration.md#codelldb-symbol-loading-for-slow-launches), then inspect adapter logs; timing alone does not identify antivirus scanning |
 
-### Local JSON settings and scope markers
+### Local settings templates and scope markers
+
+Copy `local.example.lua` to `local.lua` beside `init.lua`, customize the returned
+table, and restart Neovim. If you already have `local.lua`, merge the settings
+you want into it rather than overwriting your existing configuration.
 
 Copy `local.example.json` to `local.json` in the config root for optional personal
 settings. Both `local.json` and `local.lua` are ignored by Git. If both exist,
