@@ -47,6 +47,8 @@ database information.
 ## Search membership
 
 See the [glob cheatsheet](glob-cheatsheet.md) for patterns and Scoper/Grug-Far examples.
+The host offers optional [Neo-tree scope markers](search-session-configuration.md#optional-scoper-markers-in-neo-tree)
+without changing membership or hiding files.
 
 Includes accept directories, individual files and globs. For example:
 

@@ -250,6 +250,7 @@ nvim/
 │   │   ├── guides.lua        on-demand reader for the maintained workflow documents
 │   │   ├── readonly.lua      scoped read-only reference windows with close hints
 │   │   ├── workspace.lua     inspect existing roots, scopes, clients and debug state
+│   │   ├── scoper_explorer.lua  optional Scoper markers for Neo-tree
 │   │   ├── selector.lua      lazy selection ownership and native fallback
 │   │   ├── search.lua        literal visibility policies and backend root resolution
 │   │   ├── session.lua       automatic-save veto and literal tab-buffer persistence
@@ -359,6 +360,7 @@ nvim/
 │   ├── health_reminder_spec.lua  reminder cadence, persistence, and recovery
 │   ├── tooling_spec.lua       missing runtimes, native builds, and supported installs
 │   ├── diagnostic_tail_spec.lua  bounded regular-file log reads and I/O failures
+│   ├── scoper_explorer_spec.lua  optional scope decoration and redraw lifecycle
 │   ├── explorer_directory_spec.lua  directory startup and reload behavior
 │   ├── treesitter_context_bigfile_spec.lua  large-file context parser exclusion
 │   ├── treesitter_install_alias_spec.lua  shared-parser filetype aliases

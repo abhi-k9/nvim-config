@@ -292,6 +292,48 @@ Explorer toggle/reveal mappings remain available. `ui.icons=false` uses ASCII
 explorer markers and disables file-icon decoration in the owned Telescope/fzf
 pickers. Third-party layouts can still be customized with normal plugin options.
 
+## Optional Scoper markers in Neo-tree
+
+The adapter is off by default. Add this to your existing `local.lua` settings
+(return one combined table), then restart Neovim:
+
+```lua
+return {
+  explorer = {
+    scope_markers = {
+      enabled = true,
+      marker = "-",                 -- ASCII; "" hides the symbol
+      dim = true,                   -- false preserves filename colours
+      highlight = "NeoTreeDimText", -- theme-defined; e.g. "Comment" also works
+      show_scope = true,            -- append [scope: NAME] to the tree root
+      debounce_ms = 100,
+    },
+  },
+}
+```
+
+`explorer.scope_markers = true` enables these defaults; `false` disables the
+adapter. Out-of-scope files display as `- filename` with muted text. Included
+files retain Neo-tree's normal colours. Dimming overrides filename git-status
+colours on excluded files; the separate git/diagnostic icons remain unchanged.
+The actual colour comes from your theme, so it is not necessarily darker on a
+light background. Set `dim=false` for symbols alone.
+
+Folders are never marked outside the scope: an unmatched folder may contain
+included descendants. Nothing is hidden, deleted or prevented from opening.
+Neo-tree's existing hidden/gitignored filters still apply independently. The
+adapter decorates only its filesystem source when the tree root is Scoper's
+project root or a descendant. Unrelated roots, buffers/git views, disabled
+Scoper and missing plugin APIs retain ordinary rendering. Roots containing the
+project as a descendant are not annotated; root the tree at the project first.
+
+This host-config adapter lives in `lua/config/scoper_explorer.lua`, outside both
+plugins. It uses Scoper's public snapshot/matcher API and `ScoperChanged`, plus
+Neo-tree's custom name component and redraw API. Scope changes invalidate a
+cached matcher and debounce redraws of visible trees; they do not open Neo-tree
+or rescan the filesystem. Disable the setting and restart to remove the adapter.
+This is a personal explorer preference, not a `.scoper.json` setting.
+
 ## Sessions and global buffers
 
 `sessions.auto_save` and `auto_restore` default to `true`. Set both to `false`
