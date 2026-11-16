@@ -1,5 +1,6 @@
 describe("optional Scoper explorer decoration", function()
   local Adapter, scoper, manager, opts, enabled, captures, redraws, original, root, decorations
+  local previous_adapter
   local function node(kind, path, depth)
     return {
       type = kind,
@@ -15,6 +16,8 @@ describe("optional Scoper explorer decoration", function()
     return opts.filesystem.components.name({}, node(kind, path, depth), { path = tree or root })
   end
   before_each(function()
+    previous_adapter = package.loaded["config.scoper_explorer"]
+    package.loaded["config.scoper_explorer"] = nil
     Adapter = require("config.scoper_explorer")
     scoper, manager = package.loaded.scoper, package.loaded["neo-tree.sources.manager"]
     root = vim.fs.normalize(vim.fn.getcwd())
@@ -45,6 +48,7 @@ describe("optional Scoper explorer decoration", function()
   end)
   after_each(function()
     Adapter.setup(opts, false)
+    package.loaded["config.scoper_explorer"] = previous_adapter
     package.loaded.scoper, package.loaded["neo-tree.sources.manager"] = scoper, manager
   end)
 
@@ -68,6 +72,39 @@ describe("optional Scoper explorer decoration", function()
     end
     assert.equals("- name", render("directory", root .. "/vendor").text)
     assert.equals(decorations, render("directory", root .. "/src"))
+  end)
+
+  it("keeps scope labels and exclusion markers together on a rerooted directory", function()
+    package.loaded.scoper.excluded_directory_matcher = function()
+      return function(path)
+        return path == root .. "/vendor"
+      end
+    end
+    local result = render("directory", root .. "/vendor", root .. "/vendor", 1)
+    assert.equals("- name [scope: cpp]", result.text)
+    assert.equals("NeoTreeDimText", result.highlight)
+  end)
+
+  it("reconfigures defaults until an explicit runtime toggle takes ownership", function()
+    Adapter.configure(opts, false)
+    assert.equals(decorations, render("file", root .. "/a.h"))
+    Adapter.configure(opts, true)
+    assert.equals("- name", render("file", root .. "/a.h").text)
+    Adapter.toggle()
+    Adapter.configure(opts, true)
+    assert.equals(decorations, render("file", root .. "/a.h"))
+  end)
+
+  it("does not redraw disabled markers when a pending scope update arrives", function()
+    Adapter.configure(opts, true)
+    vim.api.nvim_exec_autocmds("User", {
+      pattern = "ScoperChanged",
+      group = "config_scoper_explorer",
+    })
+    Adapter.toggle()
+    local count = redraws
+    vim.wait(150)
+    assert.equals(count, redraws)
   end)
 
   it("leaves unrelated roots alone, including matching path prefixes", function()

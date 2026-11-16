@@ -1,7 +1,7 @@
 -- Optional host adapter: neither plugin depends on the other. Decorate existing
 -- name components and request redraws, never alter tree membership or scan files.
 local M = {}
-local enabled
+local enabled, override
 
 function M.toggle()
   if enabled == nil then
@@ -9,6 +9,7 @@ function M.toggle()
     enabled = option == true or type(option) == "table" and option.enabled == true
   end
   enabled = not enabled
+  override = enabled
   local manager = package.loaded["neo-tree.sources.manager"]
   if type(manager) == "table" and type(manager.redraw) == "function" then
     pcall(manager.redraw, "filesystem")
@@ -17,9 +18,9 @@ function M.toggle()
 end
 
 function M.configure(opts, options)
-  if enabled == nil then
-    enabled = options == true or type(options) == "table" and options.enabled == true
-  end
+  -- Reload defaults normally; an explicit toggle owns this editor's choice.
+  enabled = options == true or type(options) == "table" and options.enabled == true
+  if override ~= nil then enabled = override end
   options = type(options) == "table" and vim.deepcopy(options) or {}
   options.enabled = true
   M.setup(opts, options)
@@ -91,7 +92,8 @@ function M.decorate(original, options)
     if node.type == "directory" and node:get_depth() == 1 and options.show_scope ~= false then
       result = vim.tbl_extend("force", {}, result)
       result.text = result.text .. " [scope: " .. tostring(scope.scope or "active") .. "]"
-    elseif node.type == "file" or node.type == "directory" and scope.excluded_directory then
+    end
+    if node.type == "file" or node.type == "directory" and scope.excluded_directory then
       local path = node:get_id()
       if type(path) ~= "string" then return result end
       local directory = node.type == "directory"
@@ -133,10 +135,12 @@ function M.setup(opts, options)
     callback = function()
       cached, owner = nil, nil
       cancel()
+      if enabled == false then return end
       local ticket = generation
       timer = vim.defer_fn(function()
         if ticket ~= generation then return end
         timer = nil
+        if enabled == false then return end
         local manager = package.loaded["neo-tree.sources.manager"]
         if type(manager) == "table" and type(manager.redraw) == "function" then
           -- Neo-tree redraw visits only visible trees and does not rescan.

@@ -320,6 +320,12 @@ colours on excluded files; the separate git/diagnostic icons remain unchanged.
 The actual colour comes from your theme, so it is not necessarily darker on a
 light background. Set `dim=false` for symbols alone.
 
+Reloading the explorer configuration applies its current marker default until
+you explicitly use `:ScoperMarkersToggle`. A runtime toggle then takes precedence
+for the remainder of that editor session. Disabled markers do not request redraws
+for scope changes. An excluded directory used as the tree root shows both its
+exclusion marker and the active scope label.
+
 Folders are marked only when Scoper proves their entire subtree excluded, for
 example by `build`, `src/generated/**` or `**/vendor/**`. A folder merely failing
 an include such as `**/*.cpp` stays unchanged: it may contain matching files.
