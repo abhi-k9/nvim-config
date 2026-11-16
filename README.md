@@ -1208,6 +1208,8 @@ Copy `local.example.json` to `local.json` in the config root for optional person
 settings. Both `local.json` and `local.lua` are ignored by Git. If both exist,
 `local.lua` takes precedence; they are not merged. JSON supports data settings
 only (no functions or comments). Restart after editing local settings.
+The JSON root must be an object (`{}`), not an array or `null`. An unreadable
+or invalid Lua file reports an error; it does not silently select JSON instead.
 
 `:ScoperMarkersToggle` toggles Neo-tree scope markers for the current editor,
 including before Neo-tree loads. It does not open the explorer or change Scoper's

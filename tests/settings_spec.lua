@@ -88,6 +88,41 @@ describe("local customization lifecycle", function()
     assert.is_nil(settings.get("tools"))
   end)
 
+  it("accepts JSON objects but rejects arrays, null and malformed JSON", function()
+    local path = root .. "/local.json"
+    for _, input in ipairs({ "[]", "[1]", "null", "{" }) do
+      vim.fn.writefile({ input }, path)
+      assert.is_false(settings.load(path), input)
+    end
+    vim.fn.writefile({ '{"explorer":{"scope_markers":false}}' }, path)
+    assert.is_true(settings.load(path))
+    assert.is_false(settings.get("explorer.scope_markers", true))
+    vim.fn.writefile({ "{}" }, path)
+    assert.is_true(settings.load(path))
+  end)
+
+  it("uses JSON only when the default Lua file is absent", function()
+    vim.g.config_local_file = nil
+    vim.fn.writefile({ '{"example":"json"}' }, root .. "/local.json")
+    settings.bootstrap(root)
+    assert.equals("json", settings.get("example"))
+    settings.reset()
+    vim.fn.writefile({ 'return { example = "lua" }' }, root .. "/local.lua")
+    settings.bootstrap(root)
+    assert.equals("lua", settings.get("example"))
+    settings.reset()
+    local stat = vim.uv.fs_stat
+    vim.uv.fs_stat = function(path, ...)
+      if path == root .. "/local.lua" then return nil, "permission denied", "EACCES" end
+      return stat(path, ...)
+    end
+    local ok, err = pcall(settings.bootstrap, root)
+    vim.uv.fs_stat = stat
+    assert.is_true(ok, err)
+    assert.is_nil(settings.get("example"))
+    assert.equals(root .. "/local.lua", settings.info().source)
+  end)
+
   it("layers trusted project dictionaries and replaces lists without leaking on cd", function()
     settings.configure({ example = { machine = true, list = { "base" } } })
     settings.for_project(root .. "/project", { example = { parent = true, list = {} } })

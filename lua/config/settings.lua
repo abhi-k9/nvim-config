@@ -126,11 +126,10 @@ function M.load(path)
   end
   local ok, result = pcall(function()
     if path:lower():match("%.json$") then
-      local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
-      assert(
-        type(decoded) == "table" and (next(decoded) == nil or not vim.islist(decoded)),
-        "expected a JSON object"
-      )
+      local text = table.concat(vim.fn.readfile(path), "\n")
+      -- Empty JSON arrays and objects can both decode to empty Lua tables.
+      assert(text:match("^%s*{"), "expected a JSON object")
+      local decoded = vim.json.decode(text)
       return decoded
     end
     return dofile(path)
@@ -208,7 +207,8 @@ function M.bootstrap(config_root)
   local path = vim.g.config_local_file
   if path == nil then
     path = vim.fs.joinpath(config_root, "local.lua")
-    if not vim.uv.fs_stat(path) then path = vim.fs.joinpath(config_root, "local.json") end
+    local _, _, code = vim.uv.fs_stat(path)
+    if code == "ENOENT" then path = vim.fs.joinpath(config_root, "local.json") end
   end
   if path ~= false and type(path) ~= "string" then
     vim.notify("g:config_local_file must be a filename or false", vim.log.levels.ERROR)
