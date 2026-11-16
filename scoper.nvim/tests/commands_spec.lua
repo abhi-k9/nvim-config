@@ -89,9 +89,10 @@ describe("scoper commands", function()
   end)
 
   it("retains literal path completion including escaped spaces", function()
-    assert.same({ "src/" }, vim.fn.getcompletion("ScoperAdd sr", "cmdline"))
-    assert.same({ "my\\ dir/" }, vim.fn.getcompletion("ScoperAdd my", "cmdline"))
-    assert.same({ "my\\ dir/" }, vim.fn.getcompletion([[ScoperAdd my\ d]], "cmdline"))
+    local separator = vim.fn.has("win32") == 1 and not vim.o.shellslash and "\\" or "/"
+    assert.same({ "src" .. separator }, vim.fn.getcompletion("ScoperAdd sr", "cmdline"))
+    assert.same({ "my\\ dir" .. separator }, vim.fn.getcompletion("ScoperAdd my", "cmdline"))
+    assert.same({ "my\\ dir" .. separator }, vim.fn.getcompletion([[ScoperAdd my\ d]], "cmdline"))
   end)
 
   it(":ScoperAdd warns about a directory that doesn't exist, and keeps it", function()
