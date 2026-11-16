@@ -629,3 +629,9 @@ covered by this suite.
 The host configuration also provides `:ScoperMarkersToggle` for optional Neo-tree
 markers. This host command changes presentation only and is not part of the
 standalone Scoper plugin.
+
+`require("scoper").excluded_directory_matcher(root)` returns a captured predicate
+that proves directory subtrees excluded using the active exclusions. Disabled
+Scoper, paths outside the root and uncertain cases return false. Unlike file
+membership, failure to match an include never proves a subtree excluded. This
+API performs no directory traversal and is suitable for optional tree markers.

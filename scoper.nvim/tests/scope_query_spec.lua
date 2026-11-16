@@ -106,3 +106,22 @@ describe("shared scope query plans", function()
     end
   )
 end)
+
+describe("conservative directory exclusions", function()
+  it("marks excluded subtrees but not mixed directories or include mismatches", function()
+    local root = require("scoper.path").normalize(vim.fn.getcwd())
+    local excluded = Scope.excluded_directory_matcher({
+      include = { "**/*.cpp" },
+      exclude = { "**/vendor/**", "build", "src/generated/**", "**/*.o" },
+    }, root, true)
+    for _, name in ipairs({ "vendor", "vendor/nested", "src/vendor", "build", "src/generated" }) do
+      assert.is_true(excluded(root .. "/" .. name), name)
+    end
+    for _, name in ipairs({ "src", "headers", "vendor-other", "" }) do
+      assert.is_false(excluded(root .. "/" .. name), name)
+    end
+    assert.is_false(excluded(root .. "-other/vendor"))
+    local disabled = Scope.excluded_directory_matcher({ exclude = { "build" } }, root, false)
+    assert.is_false(disabled(root .. "/build"))
+  end)
+end)

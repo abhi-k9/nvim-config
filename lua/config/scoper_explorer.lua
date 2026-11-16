@@ -61,6 +61,10 @@ local function capture()
   local matched, matcher = pcall(scoper.matcher, snapshot.root)
   if matched and type(matcher) == "function" then
     cached = { root = snapshot.root, scope = snapshot.scope, matches = matcher }
+    if type(scoper.excluded_directory_matcher) == "function" then
+      local ok_dir, excluded = pcall(scoper.excluded_directory_matcher, snapshot.root)
+      if ok_dir and type(excluded) == "function" then cached.excluded_directory = excluded end
+    end
   end
   return cached
 end
@@ -87,11 +91,12 @@ function M.decorate(original, options)
     if node.type == "directory" and node:get_depth() == 1 and options.show_scope ~= false then
       result = vim.tbl_extend("force", {}, result)
       result.text = result.text .. " [scope: " .. tostring(scope.scope or "active") .. "]"
-    elseif node.type == "file" then
+    elseif node.type == "file" or node.type == "directory" and scope.excluded_directory then
       local path = node:get_id()
       if type(path) ~= "string" then return result end
-      local ok, included = pcall(scope.matches, path)
-      if ok and included == false then
+      local directory = node.type == "directory"
+      local ok, value = pcall(directory and scope.excluded_directory or scope.matches, path)
+      if ok and (directory and value == true or not directory and value == false) then
         result = vim.tbl_extend("force", {}, result)
         local marker = options.marker or "-"
         result.text = (marker ~= "" and marker .. " " or "") .. result.text

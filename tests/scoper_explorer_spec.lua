@@ -60,6 +60,16 @@ describe("optional Scoper explorer decoration", function()
     assert.equals("name [scope: cpp]", render("directory", root, root, 1).text)
   end)
 
+  it("marks only directories proven excluded by the optional public predicate", function()
+    package.loaded.scoper.excluded_directory_matcher = function()
+      return function(path)
+        return path == root .. "/vendor"
+      end
+    end
+    assert.equals("- name", render("directory", root .. "/vendor").text)
+    assert.equals(decorations, render("directory", root .. "/src"))
+  end)
+
   it("leaves unrelated roots alone, including matching path prefixes", function()
     assert.equals(decorations, render("file", root .. "-other/main.h", root .. "-other"))
     assert.equals("- name", render("file", root .. "/src/main.h", root .. "/src").text)

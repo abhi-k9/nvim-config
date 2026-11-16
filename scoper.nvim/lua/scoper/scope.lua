@@ -66,6 +66,23 @@ function M.compile(scope, cwd)
   end
 end
 
+-- Exclusion matching also checks ancestors, so a directory match proves its
+-- descendants excluded. A terminal /** covers descendants even when the glob
+-- does not match the directory itself. Includes cannot override exclusions.
+function M.excluded_directory_matcher(scope, root, enabled)
+  local excludes = {}
+  for _, pattern in ipairs(scope and scope.exclude or {}) do
+    excludes[#excludes + 1] = pattern
+    if pattern:sub(-3) == "/**" then excludes[#excludes + 1] = pattern:sub(1, -4) end
+  end
+  local matches = M.compile({ include = {}, exclude = excludes }, root)
+  return function(path)
+    -- Relative exclusion roots outside the project depend on the include that
+    -- admitted each file. Leave those trees uncertain rather than guess.
+    return enabled ~= false and Path.is_under(path, root) and not matches(path)
+  end
+end
+
 local function everything()
   return true
 end

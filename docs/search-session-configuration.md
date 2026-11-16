@@ -320,8 +320,11 @@ colours on excluded files; the separate git/diagnostic icons remain unchanged.
 The actual colour comes from your theme, so it is not necessarily darker on a
 light background. Set `dim=false` for symbols alone.
 
-Folders are never marked outside the scope: an unmatched folder may contain
-included descendants. Nothing is hidden, deleted or prevented from opening.
+Folders are marked only when Scoper proves their entire subtree excluded, for
+example by `build`, `src/generated/**` or `**/vendor/**`. A folder merely failing
+an include such as `**/*.cpp` stays unchanged: it may contain matching files.
+Mixed or uncertain folders stay unchanged, as do folders when the optional
+public directory predicate is unavailable. This requires no directory scans. Nothing is hidden, deleted or prevented from opening.
 Neo-tree's existing hidden/gitignored filters still apply independently. The
 adapter decorates only its filesystem source when the tree root is Scoper's
 project root or a descendant. Unrelated roots, buffers/git views, disabled

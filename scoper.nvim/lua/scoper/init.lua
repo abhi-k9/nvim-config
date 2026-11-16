@@ -528,4 +528,14 @@ function M.matcher(cwd)
   return State().matcher(cwd)
 end
 
+-- Captured conservative directory exclusion predicate for explorer adapters.
+function M.excluded_directory_matcher(cwd)
+  local snapshot = State().snapshot()
+  return require("scoper.scope").excluded_directory_matcher(
+    snapshot.definition,
+    cwd or snapshot.root,
+    snapshot.enabled
+  )
+end
+
 return M
