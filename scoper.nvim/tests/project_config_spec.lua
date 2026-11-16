@@ -110,6 +110,39 @@ describe("declarative project configuration", function()
     assert.is_true(Scoper.export_project_config(true))
   end)
 
+  it("refuses a config changed during the read and preserves effective settings", function()
+    write({ version = 1, settings = { picker = "telescope" } })
+    Scoper.setup({})
+    local read = vim.uv.fs_read
+    vim.uv.fs_read = function(...)
+      local contents, err = read(...)
+      vim.fn.writefile({ '{"version":1,"settings":{"picker":"fzf"}}' }, Project.path(root))
+      return contents, err
+    end
+    local called, ok, err = pcall(Scoper.reload_project_config)
+    vim.uv.fs_read = read
+    assert.is_true(called)
+    assert.is_false(ok)
+    assert.is_truthy(err:find("changed while reading", 1, true))
+    assert.equals("telescope", Scoper.config.picker)
+    assert.is_true(Scoper.reload_project_config())
+    assert.equals("fzf", Scoper.config.picker)
+  end)
+
+  it("does not clobber a competing editor's newly published config", function()
+    local link = vim.uv.fs_link
+    vim.uv.fs_link = function(source, target)
+      vim.fn.writefile({ '{"version":1,"enabled":false}' }, target)
+      return link(source, target)
+    end
+    local called, ok = pcall(Project.export, root, { version = 1, enabled = true }, false)
+    vim.uv.fs_link = link
+    assert.is_true(called)
+    assert.is_false(ok)
+    assert.is_false(assert(Project.read(root)).enabled)
+    assert.same({}, vim.fn.glob(Project.path(root) .. ".tmp.*", false, true))
+  end)
+
   it("keeps an existing export intact on publication failure", function()
     write({ version = 1 })
     local before = vim.fn.readfile(Project.path(root))

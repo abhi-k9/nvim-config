@@ -99,6 +99,20 @@ function M.path(root)
   return Path.normalize(root .. "/.scoper.json")
 end
 
+-- Compare the object and generation, ignoring access-time changes caused by
+-- this read. Concurrent edits/replacements must not be accepted as one snapshot.
+local function same_file(a, b)
+  return a
+    and b
+    and a.type == "file"
+    and b.type == "file"
+    and a.dev == b.dev
+    and a.ino == b.ino
+    and a.size == b.size
+    and vim.deep_equal(a.mtime, b.mtime)
+    and vim.deep_equal(a.ctime, b.ctime)
+end
+
 function M.read(root)
   local path = M.path(root)
   local stat, err, code = vim.uv.fs_lstat(path)
@@ -111,9 +125,17 @@ function M.read(root)
   local ok, doc = pcall(function()
     -- A bounded read also covers a file growing after the size check.
     local fd = assert(vim.uv.fs_open(path, "r", 0))
+    local opened = vim.uv.fs_fstat(fd)
     local contents, read_err = vim.uv.fs_read(fd, LIMIT + 1, 0)
+    local after = vim.uv.fs_fstat(fd)
     vim.uv.fs_close(fd)
     assert(contents, read_err)
+    assert(
+      same_file(stat, opened)
+        and same_file(opened, after)
+        and same_file(after, vim.uv.fs_lstat(path)),
+      "project config changed while reading; reload to retry"
+    )
     assert(#contents <= LIMIT, ".scoper.json exceeds 1 MiB")
     return M.validate(vim.json.decode(contents))
   end)

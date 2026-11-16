@@ -99,6 +99,9 @@ copying a project's settings into the next root's configuration.
 
 Files are limited to 1 MiB and must be regular files, not symlinks. Unknown
 fields, invalid types/globs and unsupported versions reject the whole document.
+Reads compare file identity, size and modification metadata before and after
+reading. If a concurrent edit or replacement is detected, reload is rejected;
+finish saving the file and run `:ScoperConfigReload` again.
 Explicit reload leaves the working configuration intact on validation failure;
 setup/root changes use that root's last valid document in this editor, or host
 defaults if none exists. Saved scope data is not deleted. Inspect file status
