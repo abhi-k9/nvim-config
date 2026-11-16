@@ -60,6 +60,7 @@ describe("asynchronous LSP formatting", function()
     original_clients, original_client, original_notify =
       vim.lsp.get_clients, vim.lsp.get_client_by_id, vim.notify
     vim.lsp.get_clients = function(filter)
+      if filter and filter.name and filter.name ~= client.name then return {} end
       if not filter or not filter.method or filter.method == "textDocument/formatting" then
         return { client }
       end

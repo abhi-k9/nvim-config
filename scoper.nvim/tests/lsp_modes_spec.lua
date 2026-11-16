@@ -128,6 +128,49 @@ describe("Scoper compilation integration policy", function()
     )
     assert.equals(external, LSP.status().selection.path)
   end)
+  it("restarts existing clients when project config selects a different database", function()
+    mode("selected")
+    local stopped = 0
+    local client = {
+      id = 987,
+      root_dir = root,
+      is_stopped = function()
+        return false
+      end,
+      attached_buffers = {},
+      stop = function()
+        stopped = stopped + 1
+      end,
+    }
+    vim.lsp.get_clients = function()
+      return { client }
+    end
+    vim.lsp.get_client_by_id = function()
+      return nil
+    end
+    LSP._timing = { poll = 1, grace = 1, kill = 1 }
+    LSP._filter_async = function(callback)
+      callback(nil, "selected", false)
+    end
+    vim.fn.mkdir(root .. "/alternate", "p")
+    vim.fn.writefile(
+      vim.fn.readfile(root .. "/compile_commands.json"),
+      root .. "/alternate/compile_commands.json"
+    )
+    vim.fn.writefile({
+      vim.json.encode({
+        version = 1,
+        settings = { compilation_database = { path = "alternate/compile_commands.json" } },
+      }),
+    }, root .. "/.scoper.json")
+    assert.is_true(Scoper.reload_project_config())
+    assert.equals(1, stopped)
+    assert.is_true(vim.wait(1000, function()
+      return not LSP._reloading
+    end))
+    assert.equals("--compile-commands-dir=" .. root .. "/alternate", LSP._cmd[2])
+  end)
+
   it("restores its command on disposal while retaining later user replacements", function()
     local original = vim.deepcopy(vim.lsp.config.clangd.cmd)
     mode("selected")

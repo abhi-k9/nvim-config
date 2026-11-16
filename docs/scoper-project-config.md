@@ -46,6 +46,10 @@ reload. Editing the file does not trigger a watcher. Ordinary Scoper commands
 still save only personal state under `stdpath("data")/scoper/`; they never rewrite
 `.scoper.json`.
 
+Reloading a changed database selection in `selected` or `filtered` mode also
+restarts affected running clangd clients with the updated command. Updating the
+launch settings alone would only affect future clients.
+
 Configured scopes seed a root without saved state. Existing saved scopes win.
 Reload with `!` replaces matching named definitions but retains unmentioned local
 scopes; `active` and `enabled` change only if present in the file. Unsaved local

@@ -466,7 +466,9 @@ function M.apply_initial()
   if Pipeline.mode() == "disabled" or Pipeline.mode() == "native" then return end
   local cmd, _, _, stale = build_cmd({ stale_ok = true })
   M._apply(cmd)
-  M._applied_cmd = table.concat(cmd, "\0")
+  -- Updating the launch configuration does not update running clients. Keep
+  -- their last applied command until reload compares and restarts them.
+  if #our_clients() == 0 then M._applied_cmd = table.concat(cmd, "\0") end
   if (require("scoper").config.lsp or {}).startup == "prepare" then return end
   if not stale then return end
   local generation = M._auto_generation
