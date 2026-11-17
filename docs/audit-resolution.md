@@ -137,3 +137,41 @@ GitHub source mirrors were read instead.
 - [Pinned Telescope file/grep implementation](https://github.com/nvim-telescope/telescope.nvim/blob/40aedd8a68c78a656a10a8d62d80c54af59420fb/lua/telescope/builtin/__files.lua): option resolution, public entry maker and additional arguments, and directory expansion.
 - [Pinned Toggleterm](https://github.com/akinsho/toggleterm.nvim/blob/9a88eae817ef395952e08650b3283726786fb5fb/lua/toggleterm/terminal.lua): directory expansion and terminal spawning.
 - [Pinned Diffview Git adapter](https://github.com/dlyongemallo/diffview-plus.nvim/blob/2a2d89a07f5d5d3cef7f542b99c3e28050ca205c/lua/diffview/vcs/adapters/git/init.lua): pathspec expansion and selected-line history handling.
+
+
+## Recent-change review (2026-11-17)
+
+The history inventory covers 203 commits from 2026-10-08 through `e6a1767`.
+Review used the current implementations: superseded local Bufferline and DAP UI
+adapters were not treated as live code. The preceding settings/Scoper-marker
+review remains applicable. This pass combined targeted source inspection with
+the complete host and standalone Scoper suites; it is not a claim of exhaustive
+line-by-line verification of every commit or dependency fork.
+
+| Area | Review focus |
+| --- | --- |
+| Search, selection and buffer UI | Picker entry contracts, callback ownership, native fallback, menu window reuse and safe deletion. |
+| DAP and sessions | Launch provider/context handling, adapter contracts, runtime-buffer cleanup and session ownership. |
+| Scoper persistence and compilation | Writer ownership, conflict detection, captured generations, asynchronous worker delivery and immutable output publication. |
+| Images, tooling and recovery | Deferred-operation cleanup, prerequisite checks, diagnostic reads, recovery-file identity and temporary-file ownership. |
+| Bootstrap, offline installation and CI | Clone publication, archive validation, install/rollback interleavings, action pins and bounded test runners. |
+
+Four defects were reproduced and corrected:
+
+| Finding | Practical impact and correction | Regression evidence |
+| --- | --- | --- |
+| Offline destination appears during extraction without `--force` | Existing data could be moved aside despite a non-overwriting install request. Recheck overwrite permission at publication. | Inject creation of a populated destination during extraction; installation refuses and preserves its contents. |
+| Incomplete offline rollback reports success | Recovery instructions incorrectly claimed the original layout survived. Report incomplete rollback and backup location explicitly. | Fail both publication and a rollback move; retain the old backup and verify the failure message. |
+| Windows tar preparations share one temporary filename | One editor can rename/delete another editor's pending copy, causing installation warnings/failure. Give each preparation a PID/time-based temporary path. | Interleave two preparations at the copy boundary; both finish and leave no temporary copies. |
+| Buffer menu closes a repurposed window | An old menu handle could close a different buffer's window. Check both window and buffer identity before cleanup. | Repurpose the window without leave autocmds, open another menu and verify the original window survives. |
+
+Validation: 879 Lua specs passed across the host and standalone suites;
+54 offline-seed tests passed with one platform-specific skip; 14 action-updater
+tests passed. Lua lint, formatting and documentation guards passed. The race
+regressions use controlled interleavings and temporary fixtures, not user data.
+
+Native Windows/macOS execution and interactive GUI behavior were not repeated
+locally. Offline installation still requires other editors/installers to be
+stopped: publication and rollback are not a transaction against arbitrary
+external filesystem writers. These checks do not establish crash durability on
+all filesystems, nor do they re-audit the full source of dependency forks.
