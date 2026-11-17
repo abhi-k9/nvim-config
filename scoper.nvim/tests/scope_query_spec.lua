@@ -125,3 +125,93 @@ describe("conservative directory exclusions", function()
     assert.is_false(disabled(root .. "/build"))
   end)
 end)
+
+describe("include-aware directory markers", function()
+  local root = Path.normalize(vim.fn.getcwd())
+  local function matcher(include, exclude, enabled)
+    return Scope.excluded_directory_matcher(
+      { include = include, exclude = exclude or {} },
+      root,
+      enabled
+    )
+  end
+
+  it("keeps literal includes and ancestors but marks disjoint subtrees", function()
+    local excluded = matcher({ "src/lib", "tests/unit.cpp" }, { "src/lib/generated/**" })
+    for _, name in ipairs({
+      "docs",
+      "src/other",
+      "src/library",
+      "tests/integration",
+      "src/lib/generated",
+    }) do
+      assert.is_true(excluded(root .. "/" .. name), name)
+    end
+    for _, name in ipairs({ "", "src", "src/lib", "src/lib/nested", "tests" }) do
+      assert.is_false(excluded(root .. "/" .. name), name)
+    end
+  end)
+
+  it("bounds uncertain globs by complete literal path components", function()
+    local excluded = matcher({ "src/**/*.cpp", "assets/{images,icons}/**" })
+    assert.is_true(excluded(root .. "/docs"))
+    assert.is_true(excluded(root .. "/src-other"))
+    assert.is_false(excluded(root .. "/src/headers"))
+    assert.is_false(excluded(root .. "/assets/other"))
+    for _, glob in ipairs({ "**/*.cpp", "test*/unit/*.cpp", "{src,docs}/**" }) do
+      assert.is_false(matcher({ glob })(root .. "/docs"), glob)
+    end
+  end)
+
+  it("captures includes and preserves empty, disabled and outside-root behavior", function()
+    local includes = { "src" }
+    local excluded = matcher(includes)
+    includes[1] = "docs"
+    assert.is_true(excluded(root .. "/docs"))
+    assert.is_false(excluded(root .. "/src"))
+    assert.is_false(matcher({ "src" }, {}, false)(root .. "/docs"))
+    assert.is_false(matcher({})(root .. "/docs"))
+    assert.is_false(excluded(root .. "-elsewhere/docs"))
+  end)
+
+  it("handles literal Windows paths and component boundaries", function()
+    local windows = Path.is_windows
+    Path.is_windows = true
+    local ok, err = pcall(function()
+      local excluded = Scope.excluded_directory_matcher({
+        include = { [[SRC\Library]] },
+        exclude = {},
+      }, [[C:\Work $NAME\Project]], true)
+      assert.is_false(excluded("c:/work $name/project/src/library/nested"))
+      assert.is_false(excluded("C:/Work $NAME/Project/SRC"))
+      assert.is_true(excluded("C:/Work $NAME/Project/docs"))
+      assert.is_true(excluded("C:/Work $NAME/Project/src/library-other"))
+    end)
+    Path.is_windows = windows
+    assert.is_true(ok, err)
+  end)
+  it("reuses results during redraws without directory scans", function()
+    local scan, under = vim.uv.fs_scandir, Path.key_under
+    local checks = 0
+    vim.uv.fs_scandir = function()
+      error("must not scan directories")
+    end
+    Path.key_under = function(...)
+      checks = checks + 1
+      return under(...)
+    end
+    local ok, err = pcall(function()
+      local excluded = matcher({ "src" })
+      assert.is_true(excluded(root .. "/docs"))
+      local first = checks
+      assert.is_true(first > 0)
+      for _ = 1, 100 do
+        assert.is_true(excluded(root .. "/docs"))
+      end
+      assert.equals(first, checks)
+      assert.is_false(matcher({ "docs" })(root .. "/docs"))
+    end)
+    vim.uv.fs_scandir, Path.key_under = scan, under
+    assert.is_true(ok, err)
+  end)
+end)

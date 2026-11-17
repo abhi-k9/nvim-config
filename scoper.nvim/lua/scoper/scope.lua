@@ -66,20 +66,64 @@ function M.compile(scope, cwd)
   end
 end
 
--- Exclusion matching also checks ancestors, so a directory match proves its
--- descendants excluded. A terminal /** covers descendants even when the glob
--- does not match the directory itself. Includes cannot override exclusions.
+-- Prove a directory cannot contain an admitted file without scanning it.
+-- Literal includes may overlap in either direction (ancestor or descendant).
+-- For globs, only their complete literal ancestor constrains the search region;
+-- everything below it remains uncertain. Exclusions always take precedence.
 function M.excluded_directory_matcher(scope, root, enabled)
+  if enabled == false then
+    return function()
+      return false
+    end
+  end
+  scope = scope or {}
+  local aliases = {}
+  local function key(path)
+    return Path.fold(Path.expand_short(Path.absolute(path, root), aliases))
+  end
+  root = Path.normalize(root)
+  local root_key = key(root)
+  local regions, seen = {}, {}
+  for _, entry in ipairs(scope.include or {}) do
+    local absolute = Path.absolute(entry, root)
+    local first = absolute:find("[%*%?%[{]")
+    if first then absolute = (absolute:sub(1, first - 1):match("^(.*)/") or "") .. "/" end
+    local region = key(absolute)
+    if not seen[region] then
+      regions[#regions + 1], seen[region] = region, true
+    end
+  end
   local excludes = {}
-  for _, pattern in ipairs(scope and scope.exclude or {}) do
+  for _, pattern in ipairs(scope.exclude or {}) do
     excludes[#excludes + 1] = pattern
+    -- A terminal /** covers descendants even when it misses the directory.
     if pattern:sub(-3) == "/**" then excludes[#excludes + 1] = pattern:sub(1, -4) end
   end
   local matches = M.compile({ include = {}, exclude = excludes }, root)
+  local function classify(path)
+    local directory = key(path)
+    -- Outside-root exclusion bases depend on which include admitted each file.
+    if not Path.key_under(directory, root_key) then return false end
+    if not matches(path) then return true end
+    if #regions == 0 then return false end -- empty includes admit everything
+    for _, region in ipairs(regions) do
+      if Path.key_under(directory, region) or Path.key_under(region, directory) then
+        return false
+      end
+    end
+    return true
+  end
+  -- Repeated redraws are table lookups. Bound memory for long-lived scopes;
+  -- paths beyond the cap still get the same result, without being memoized.
+  local cached, count = {}, 0
   return function(path)
-    -- Relative exclusion roots outside the project depend on the include that
-    -- admitted each file. Leave those trees uncertain rather than guess.
-    return enabled ~= false and Path.is_under(path, root) and not matches(path)
+    if type(path) ~= "string" then return false end
+    if cached[path] ~= nil then return cached[path] end
+    local result = classify(path)
+    if count < 4096 then
+      cached[path], count = result, count + 1
+    end
+    return result
   end
 end
 

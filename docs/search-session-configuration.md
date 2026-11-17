@@ -326,11 +326,20 @@ for the remainder of that editor session. Disabled markers do not request redraw
 for scope changes. An excluded directory used as the tree root shows both its
 exclusion marker and the active scope label.
 
-Folders are marked only when Scoper proves their entire subtree excluded, for
-example by `build`, `src/generated/**` or `**/vendor/**`. A folder merely failing
-an include such as `**/*.cpp` stays unchanged: it may contain matching files.
-Mixed or uncertain folders stay unchanged, as do folders when the optional
-public directory predicate is unavailable. This requires no directory scans. Nothing is hidden, deleted or prevented from opening.
+Folders are marked when their subtree is explicitly excluded (for example
+`build`, `src/generated/**` or `**/vendor/**`), or cannot overlap any include:
+
+- Include `src/lib`: `src`, `src/lib` and its descendants stay normal; `docs`
+  and `src/other` are marked. A literal file include keeps its parent folders normal.
+- Include `src/**/*.cpp`: folders below `src` stay uncertain; `docs` is marked.
+- Include `**/*.cpp`: every folder may contain a match, so includes alone mark none.
+- Empty includes admit everything; only explicit exclusions mark directories.
+
+Glob checks use the complete literal ancestor before the first wildcard. They
+do not guess whether a partial component such as `src*` or a brace expression
+will match. Exclusions always override inclusions. Mixed/uncertain folders stay
+normal, as do folders when the optional public directory predicate is unavailable.
+Nothing is hidden, deleted or prevented from opening.
 Neo-tree's existing hidden/gitignored filters still apply independently. The
 adapter decorates only its filesystem source when the tree root is Scoper's
 project root or a descendant. Unrelated roots, buffers/git views, disabled
@@ -341,7 +350,10 @@ This host-config adapter lives in `lua/config/scoper_explorer.lua`, outside both
 plugins. It uses Scoper's public snapshot/matcher API and `ScoperChanged`, plus
 Neo-tree's custom name component and redraw API. Scope changes invalidate a
 cached matcher and debounce redraws of visible trees; they do not open Neo-tree
-or rescan the filesystem. Disabled markers leave ordinary names unchanged.
+or rescan the filesystem. Include regions are computed once per snapshot;
+up to 4,096 directory results are cached for repeated redraws. Further paths are
+classified without caching. Scope changes discard the cache. Disabled markers
+leave ordinary names unchanged.
 This is a personal explorer preference, not a `.scoper.json` setting.
 
 ## Sessions and global buffers

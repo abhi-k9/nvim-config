@@ -631,7 +631,10 @@ markers. This host command changes presentation only and is not part of the
 standalone Scoper plugin.
 
 `require("scoper").excluded_directory_matcher(root)` returns a captured predicate
-that proves directory subtrees excluded using the active exclusions. Disabled
-Scoper, paths outside the root and uncertain cases return false. Unlike file
-membership, failure to match an include never proves a subtree excluded. This
-API performs no directory traversal and is suitable for optional tree markers.
+that proves a directory subtree outside the effective scope, either through
+exclusions or lack of overlap with every include region. Literal includes retain
+their ancestors and descendants. Glob includes conservatively retain the subtree
+below their complete literal ancestor; `**/*.cpp` cannot rule out any directory.
+Empty includes admit everything, and exclusions always win. Disabled Scoper,
+paths outside the root and uncertain cases return false. The predicate performs
+no directory traversal and caches at most 4,096 path results per snapshot.
