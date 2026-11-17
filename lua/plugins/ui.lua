@@ -221,8 +221,8 @@ return {
     opts = function()
       -- Right-click context menu for a tab. Bufferline calls this with
       -- the clicked buffer's bufnr; we render a small floating-window menu.
-      -- Not vim.ui.select: through telescope-ui-select's dropdown theme
-      -- these short menus render with a progressive indent.
+      -- Keep this menu anchored to the clicked tab or text cursor, independent
+      -- of the global selection provider.
       --
       -- This replaces bufferline's default `right_mouse_command =
       -- "bdelete! %d"` (close on right-click) which is hostile — there's
@@ -231,7 +231,7 @@ return {
       -- Tracks the currently-open menu so a fresh right-click closes any
       -- existing menu first — otherwise repeated right-clicks pile floats
       -- on top of each other.
-      local current_menu_win
+      local current_menu_win, current_menu_buf
 
       -- `anchor` selects where the float opens: "mouse" (default, for
       -- right-click — the pointer is where the user's attention is) or
@@ -240,10 +240,14 @@ return {
       -- last was — (0,0) if it never moved.
       local function show_menu(actions, prompt, anchor, target)
         -- Tear down any stale menu before opening a new one.
-        if current_menu_win and vim.api.nvim_win_is_valid(current_menu_win) then
+        if
+          current_menu_win
+          and vim.api.nvim_win_is_valid(current_menu_win)
+          and vim.api.nvim_win_get_buf(current_menu_win) == current_menu_buf
+        then
           pcall(vim.api.nvim_win_close, current_menu_win, true)
         end
-        current_menu_win = nil
+        current_menu_win, current_menu_buf = nil, nil
         local source_win = vim.api.nvim_get_current_win()
         local source_tab = vim.api.nvim_get_current_tabpage()
 
@@ -308,7 +312,7 @@ return {
           footer_pos = "right",
           -- stylua: ignore end
         })
-        current_menu_win = win
+        current_menu_win, current_menu_buf = win, buf
         -- stylua: ignore start
         vim.wo[win].cursorline      = true
         vim.wo[win].number          = false
@@ -317,8 +321,12 @@ return {
         vim.api.nvim_win_set_cursor(win, { 1, 0 })
 
         local function close()
-          if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_close(win, true) end
-          if current_menu_win == win then current_menu_win = nil end
+          if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf then
+            vim.api.nvim_win_close(win, true)
+          end
+          if current_menu_win == win then
+            current_menu_win, current_menu_buf = nil, nil
+          end
         end
         local function pick(idx)
           close()

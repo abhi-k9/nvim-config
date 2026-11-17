@@ -57,6 +57,23 @@ describe("buffer menu split placement", function()
     assert.equals(height, vim.api.nvim_win_get_height(panel))
   end)
 
+  it("leaves a repurposed menu window intact when opening another menu", function()
+    options.right_mouse_command(file, "cursor")
+    local win = vim.api.nvim_get_current_win()
+    local replacement = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_cmd(
+      { cmd = "buffer", args = { tostring(replacement) }, mods = { noautocmd = true } },
+      {}
+    )
+    vim.api.nvim_set_current_win(panel)
+    options.right_mouse_command(file, "cursor")
+    local intact = vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == replacement
+    vim.api.nvim_win_close(0, true)
+    if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_close(win, true) end
+    vim.api.nvim_buf_delete(replacement, { force = true })
+    assert.is_true(intact)
+  end)
+
   local function queued_action()
     options.right_mouse_command(file, "cursor")
     local action = vim.fn.maparg("1", "n", false, true).callback
