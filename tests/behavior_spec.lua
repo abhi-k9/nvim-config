@@ -321,6 +321,28 @@ describe("Windows tar shim (forced branch)", function()
     assert.are.equal(saved, vim.env.PATH)
   end)
 
+  it("keeps overlapping shim preparations on separate temporary files", function()
+    local root = tmpdir()
+    local source = write(root .. "/tar.exe", { "bsdtar" })
+    local opts = { is_win = true, system_tar = source, dir = root .. "/shim" }
+    local copy, path = vim.uv.fs_copyfile, vim.env.PATH
+    local nested = false
+    vim.uv.fs_copyfile = function(...)
+      local ok, err = copy(...)
+      if not nested then
+        nested = true
+        assert.equals(opts.dir, require("config.util").windows_tar_shim(opts))
+      end
+      return ok, err
+    end
+    local ok, result = pcall(require("config.util").windows_tar_shim, opts)
+    vim.uv.fs_copyfile, vim.env.PATH = copy, path
+    assert.is_true(ok, result)
+    assert.equals(opts.dir, result)
+    assert.same({ "bsdtar" }, vim.fn.readfile(opts.dir .. "/tar.exe"))
+    assert.same({}, vim.fn.glob(opts.dir .. "/*.tmp*", false, true))
+  end)
+
   it("refreshes the copy when the system tar changes but keeps its size", function()
     local root = tmpdir()
     vim.fn.mkdir(root .. "/System32", "p")

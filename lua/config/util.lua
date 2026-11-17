@@ -354,7 +354,8 @@ function M.windows_tar_shim(o)
   local dst = vim.uv.fs_lstat(shim)
   if not dst or dst.type ~= "file" or dst.size ~= src.size or dst.mtime.sec ~= src.mtime.sec then
     vim.fn.mkdir(dir, "p")
-    local tmp = shim .. ".tmp"
+    -- Simultaneous editor starts must not rename or unlink each other's copy.
+    local tmp = shim .. ".tmp-" .. vim.fn.getpid() .. "-" .. vim.uv.hrtime()
     local ok, err = vim.uv.fs_copyfile(system_tar, tmp)
     if ok then
       ok, err = vim.uv.fs_utime(tmp, src.atime.sec, src.mtime.sec)
