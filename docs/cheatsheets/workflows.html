@@ -322,6 +322,9 @@
 <div class="card col-2">
   <div class="card-header"><div class="dot" style="background:var(--peach)"></div><h2>Customize this config <span class="note">where do I edit X?</span></h2></div>
   <table class="wide">
+    <tr><td>Start local settings</td><td>Copy <a href="../../local.example.lua"><code>local.example.lua</code></a> to <code>local.lua</code> beside <code>init.lua</code>, then restart. Merge into an existing file instead of overwriting it.</td></tr>
+    <tr><td>Data-only settings</td><td>Alternatively copy <a href="../../local.example.json"><code>local.example.json</code></a> to <code>local.json</code>. Lua takes precedence if both exist; files are not merged. JSON requires an object, with no comments/functions. Both personal files are Git-ignored.</td></tr>
+    <tr><td>Scope markers</td><td><code>:ScoperMarkersToggle</code> changes this editor's display only. Set <code>explorer.scope_markers.enabled=true</code> for startup. Excluded files/subtrees get <code>-</code> and muted text; mixed/uncertain folders stay unchanged. Missing plugins are harmless.</td></tr>
     <tr>
       <td>Add / change keymap</td><td>Use a normal Lazy <code>keys</code> override for plugin maps; core-map extensions need explicit trusted Lua</td>
       <td>Add / change option</td><td><code>local.lua</code> → <code>options</code></td>
