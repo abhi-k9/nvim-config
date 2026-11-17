@@ -122,7 +122,10 @@ machine and pass it with `--sha256` on the offline one.
       `offline-seed-backup-<date>-*/` in the data folder. This includes a
       link named `lazy`, so nothing is ever written through it. If a move
       fails (often because a running Neovim holds a file), it attempts to undo
-      earlier moves. A failed rollback emits warnings; inspect the reported
+      earlier moves. Without `--force`, a destination that appears during
+      extraction is also refused. A failed rollback reports `rollback incomplete`
+      and the backup location, rather than claiming the original layout was
+      restored; inspect the reported
       paths and backup before retrying rather than assuming recovery succeeded.
    6. Re-points Mason's Python venvs at this machine's Python. On POSIX it also
       rebases recognized console-script launchers to the installed venv,

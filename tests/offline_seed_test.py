@@ -356,6 +356,38 @@ class ExistingData(Base):
             self.skipTest("no directory links here")
         self.assertRefused(self.install(make_zip(self.tmp / "seed.zip")), "--force")
 
+    def test_refuses_target_created_while_extracting_without_force(self):
+        extract = S.extract_zip
+
+        def concurrent(z, entries, dest):
+            extract(z, entries, dest)
+            (self.data / "lazy").mkdir()
+            (self.data / "lazy" / "peer.txt").write_text("peer data")
+
+        with mock.patch.object(S, "extract_zip", side_effect=concurrent):
+            code = self.install(make_zip(self.tmp / "seed.zip"))
+        self.assertRefused(code, "--force")
+        self.assertEqual((self.data / "lazy" / "peer.txt").read_text(), "peer data")
+        self.assertEqual(self.leftovers(), [])
+
+    def test_reports_incomplete_rollback_and_preserves_backup(self):
+        (self.data / "lazy").mkdir(parents=True)
+        (self.data / "lazy" / "stale.txt").write_text("old")
+        real = os.replace
+
+        def flaky(src, dst):
+            if Path(src).name == "mason" or "offline-seed-backup" in str(src):
+                raise PermissionError("in use")
+            return real(src, dst)
+
+        with mock.patch.object(S.os, "replace", side_effect=flaky):
+            code = self.install(make_zip(self.tmp / "seed.zip"), force=True)
+        self.assertRefused(code, "rollback incomplete")
+        self.assertNotIn("left as it was", code)
+        backup = next(self.data.glob("offline-seed-backup-*"))
+        self.assertIn(str(backup), code)
+        self.assertEqual((backup / "lazy" / "stale.txt").read_text(), "old")
+
     def test_force_moves_old_parts_to_backup(self):
         (self.data / "lazy").mkdir(parents=True)
         (self.data / "lazy" / "stale.txt").write_text("old")

@@ -562,8 +562,8 @@ def remove_tree(path):
         warn(f"could not remove {path}: {e}")
 
 
-def promote(staging, data_dir, tops):
-    """Move staging/<top> into data_dir, moving any existing <top> to a backup folder first.
+def promote(staging, data_dir, tops, overwrite=False):
+    """Publish staging/<top>; only explicit overwrite permits backing up existing parts.
 
     os.replace renames a symlink or junction itself instead of writing through
     it. If a move fails, attempt to undo earlier moves; rollback failures warn.
@@ -576,6 +576,8 @@ def promote(staging, data_dir, tops):
         for top in tops:
             target = data_dir / top
             if os.path.lexists(target):
+                if not overwrite:
+                    raise FileExistsError(f"{target} appeared during extraction; refusing replacement without --force")
                 if backup is None:
                     stamp = time.strftime("%Y%m%d-%H%M%S")
                     backup = Path(tempfile.mkdtemp(prefix=f"offline-seed-backup-{stamp}-", dir=data_dir))
@@ -584,16 +586,22 @@ def promote(staging, data_dir, tops):
             os.replace(staging / top, target)
             done.append((staging / top, target))
     except OSError as e:
+        rollback_failed = False
         for src, dst in reversed(done):
             try:
                 os.replace(dst, src)
             except OSError as undo:
+                rollback_failed = True
                 warn(f"could not move {dst} back to {src}: {undo}")
         if backup is not None:
             try:
                 backup.rmdir()
             except OSError:
                 pass
+        if rollback_failed:
+            recovery = f" Backup location: {backup}." if backup else ""
+            fail(f"could not move {top} into {data_dir} ({e}); rollback incomplete."
+                 f"{recovery} Review the warnings and restore the affected folders before retrying.")
         fail(f"could not move {top} into {data_dir} ({e}); the data folder was left as it was. "
              "Quit every Neovim that uses it and try again.")
     return backup
@@ -1011,7 +1019,7 @@ def cmd_install(args):
                 archive.extractall(staging, [e.src for e in entries], filter="tar")
             else:
                 archive.extractall(staging, [e.src for e in entries])
-            backup = promote(staging, data_dir, tops)
+            backup = promote(staging, data_dir, tops, overwrite=args.force)
         finally:
             remove_tree(staging)
     if backup is not None:
