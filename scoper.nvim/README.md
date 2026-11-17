@@ -627,8 +627,10 @@ picker modules and LSP clients; a full native debugger/clangd matrix is not
 covered by this suite.
 
 The host configuration also provides `:ScoperMarkersToggle` for optional Neo-tree
-markers. This host command changes presentation only and is not part of the
-standalone Scoper plugin.
+markers and `:ScoperFilterToggle` for an optional includes-minus-excludes view.
+These host commands change presentation only and are not part of the standalone
+Scoper plugin. Filtering retains navigation ancestors and uncertain directories;
+see the host [explorer settings](../docs/search-session-configuration.md#optional-scoped-only-neo-tree-view).
 
 `require("scoper").excluded_directory_matcher(root)` returns a captured predicate
 that proves a directory subtree outside the effective scope, either through

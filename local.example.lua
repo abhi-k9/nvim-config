@@ -3,6 +3,7 @@
 -- Merge personal settings into this one returned table.
 return {
   explorer = {
+    scope_filter = false, -- Startup default; :ScoperFilterToggle switches at runtime.
     scope_markers = {
       enabled = false, -- Startup default; :ScoperMarkersToggle switches at runtime.
       marker = "-", -- Use "" for dimming without a symbol.

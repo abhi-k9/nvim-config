@@ -1,5 +1,6 @@
 {
   "explorer": {
+    "scope_filter": false,
     "scope_markers": {
       "enabled": false,
       "marker": "-",

@@ -204,7 +204,8 @@ return {
   end,
   config = function(_, opts)
     local markers = require("config.settings").get("explorer.scope_markers", false)
-    require("config.scoper_explorer").configure(opts, markers)
+    local filter = require("config.settings").get("explorer.scope_filter", false)
+    require("config.scoper_explorer").configure(opts, markers, filter)
     require("neo-tree").setup(opts)
   end,
   opts = {

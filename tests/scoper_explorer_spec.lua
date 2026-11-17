@@ -1,6 +1,6 @@
 describe("optional Scoper explorer decoration", function()
   local Adapter, scoper, manager, opts, enabled, captures, redraws, original, root, decorations
-  local previous_adapter
+  local previous_adapter, previous_renderer, renderer, refreshes
   local function node(kind, path, depth)
     return {
       type = kind,
@@ -20,6 +20,14 @@ describe("optional Scoper explorer decoration", function()
     package.loaded["config.scoper_explorer"] = nil
     Adapter = require("config.scoper_explorer")
     scoper, manager = package.loaded.scoper, package.loaded["neo-tree.sources.manager"]
+    previous_renderer = package.loaded["neo-tree.ui.renderer"]
+    renderer = {
+      show_nodes = function(items)
+        return items
+      end,
+    }
+    package.loaded["neo-tree.ui.renderer"] = renderer
+    refreshes = 0
     root = vim.fs.normalize(vim.fn.getcwd())
     enabled, captures, redraws = true, 0, 0
     decorations = { text = "name", highlight = "GitColour", extra = "kept" }
@@ -39,6 +47,10 @@ describe("optional Scoper explorer decoration", function()
       end,
     }
     package.loaded["neo-tree.sources.manager"] = {
+      refresh = function(source)
+        assert.equals("filesystem", source)
+        refreshes = refreshes + 1
+      end,
       redraw = function(source)
         assert.equals("filesystem", source)
         redraws = redraws + 1
@@ -49,6 +61,7 @@ describe("optional Scoper explorer decoration", function()
   after_each(function()
     Adapter.setup(opts, false)
     package.loaded["config.scoper_explorer"] = previous_adapter
+    package.loaded["neo-tree.ui.renderer"] = previous_renderer
     package.loaded.scoper, package.loaded["neo-tree.sources.manager"] = scoper, manager
   end)
 
@@ -205,5 +218,216 @@ describe("optional Scoper explorer decoration", function()
     assert.equals(original, opts.filesystem.components.name)
     vim.wait(120)
     assert.equals(0, redraws)
+  end)
+  local function items()
+    return {
+      {
+        type = "directory",
+        path = root,
+        children = {
+          { type = "file", path = root .. "/main.cpp" },
+          { type = "file", path = root .. "/main.h" },
+          { type = "directory", path = root .. "/src" },
+          { type = "directory", path = root .. "/vendor" },
+        },
+      },
+    }
+  end
+  local function filtered(source, path, entries)
+    return renderer.show_nodes(
+      entries or items(),
+      { name = source or "filesystem", path = path or root }
+    )
+  end
+
+  it("filters files and definite subtrees without mutating scan items", function()
+    package.loaded.scoper.excluded_directory_matcher = function()
+      return function(path)
+        return path == root .. "/vendor"
+      end
+    end
+    Adapter.configure(opts, false, true)
+    local entries = items()
+    local before = vim.deepcopy(entries)
+    local result = filtered(nil, nil, entries)
+    assert.equals(2, #result[1].children)
+    assert.equals(root .. "/main.cpp", result[1].children[1].path)
+    assert.equals(root .. "/src", result[1].children[2].path)
+    assert.same(before, entries)
+    assert.equals(decorations, render("file", root .. "/main.h"))
+    assert.equals(1, captures)
+  end)
+
+  it("keeps the tree root and flattens included children of excluded nesting parents", function()
+    package.loaded.scoper.excluded_directory_matcher = function()
+      return function()
+        return true
+      end
+    end
+    Adapter.configure(opts, false, true)
+    local entries = items()
+    entries[1].children = {
+      {
+        type = "file",
+        path = root .. "/main.h",
+        children = {
+          { type = "file", path = root .. "/main.cpp", is_nested = true },
+        },
+      },
+    }
+    local result = filtered(nil, nil, entries)
+    assert.equals(root, result[1].path)
+    assert.equals(root .. "/main.cpp", result[1].children[1].path)
+    assert.is_false(result[1].children[1].is_nested)
+    assert.is_true(entries[1].children[1].children[1].is_nested)
+  end)
+
+  it("leaves other sources, unrelated roots and missing or disabled Scoper unchanged", function()
+    Adapter.configure(opts, false, true)
+    assert.same(items(), filtered("buffers"))
+    assert.same(items(), filtered(nil, root .. "-other"))
+    enabled = false
+    vim.api.nvim_exec_autocmds(
+      "User",
+      { pattern = "ScoperChanged", group = "config_scoper_explorer" }
+    )
+    assert.same(items(), filtered())
+    package.loaded.scoper = nil
+    assert.same(items(), filtered())
+  end)
+
+  it("fails open on predicate failures and retains folders without a directory API", function()
+    Adapter.configure(opts, false, true)
+    assert.equals(3, #filtered()[1].children)
+    package.loaded.scoper = {
+      snapshot = function()
+        return { enabled = true, root = root }
+      end,
+      matcher = function()
+        return function()
+          error("unavailable")
+        end
+      end,
+    }
+    assert.same(items(), filtered())
+  end)
+
+  it("refreshes filters independently and honors a runtime toggle across configuration", function()
+    Adapter.configure(opts, false, true)
+    for _ = 1, 3 do
+      vim.api.nvim_exec_autocmds(
+        "User",
+        { pattern = "ScoperChanged", group = "config_scoper_explorer" }
+      )
+    end
+    assert.is_true(vim.wait(1000, function()
+      return refreshes == 1
+    end))
+    assert.equals(0, redraws)
+    Adapter.toggle_filter()
+    assert.equals(2, refreshes)
+    assert.same(items(), filtered())
+    Adapter.configure(opts, false, true)
+    assert.same(items(), filtered())
+    Adapter.toggle_filter()
+    assert.equals(3, #filtered()[1].children)
+    enabled = false
+    vim.api.nvim_exec_autocmds(
+      "User",
+      { pattern = "ScoperChanged", group = "config_scoper_explorer" }
+    )
+    assert.is_true(vim.wait(1000, function()
+      return refreshes == 4
+    end))
+    assert.same(items(), filtered())
+  end)
+
+  it("does not stack renderer wrappers and restores the original on teardown", function()
+    Adapter.setup(opts, false)
+    local original_renderer = renderer.show_nodes
+    Adapter.configure(opts, false, true)
+    local first = renderer.show_nodes
+    Adapter.configure(opts, false, true)
+    assert.is_not.equals(first, renderer.show_nodes)
+    Adapter.setup(opts, false)
+    assert.equals(original_renderer, renderer.show_nodes)
+    package.loaded["neo-tree.sources.manager"] = nil
+    Adapter.toggle_filter()
+    assert.is_nil(package.loaded["neo-tree.sources.manager"])
+  end)
+end)
+
+describe("Scoper filtering with the pinned Neo-tree renderer", function()
+  local adapter, previous_scoper, previous_adapter, root, opts, command
+  after_each(function()
+    if command then pcall(command.execute, { action = "close", source = "filesystem" }) end
+    if adapter then adapter.setup(opts, false) end
+    package.loaded.scoper = previous_scoper
+    package.loaded["config.scoper_explorer"] = previous_adapter
+    if root then vim.fn.delete(root, "rf") end
+  end)
+
+  it("restores scanned entries after toggling and disabling scope", function()
+    previous_scoper = package.loaded.scoper
+    previous_adapter = package.loaded["config.scoper_explorer"]
+    -- Load BufEnter consumers before installing the deliberately minimal Scoper stub.
+    require("lazy").load({ plugins = { "neo-tree.nvim", "nvim-lspconfig" } })
+    command = require("neo-tree.command")
+    root = vim.fn.tempname() .. " space-λ"
+    vim.fn.mkdir(root .. "/vendor", "p")
+    vim.fn.writefile({}, root .. "/keep.cpp")
+    vim.fn.writefile({}, root .. "/hide.h")
+    vim.fn.writefile({}, root .. "/.hidden.cpp")
+    local active = true
+    package.loaded.scoper = {
+      snapshot = function()
+        return { root = root, enabled = active }
+      end,
+      matcher = function()
+        return function(path)
+          return path:match("%.cpp$") ~= nil
+        end
+      end,
+      excluded_directory_matcher = function()
+        return function(path)
+          return path == root .. "/vendor"
+        end
+      end,
+    }
+    package.loaded["config.scoper_explorer"] = nil
+    adapter = require("config.scoper_explorer")
+    opts = {}
+    adapter.configure(opts, false, true)
+    local state = require("neo-tree.sources.manager").get_state("filesystem")
+    state.follow_current_file.enabled = false
+    state.filtered_items.visible = false
+    state.filtered_items.hide_dotfiles = true
+    command.execute({ action = "show", source = "filesystem", dir = root })
+    local function visible(path)
+      return state.tree and state.tree:get_node(root .. "/" .. path) ~= nil
+    end
+    assert.is_true(vim.wait(3000, function()
+      return visible("keep.cpp")
+    end))
+    assert.is_false(visible("hide.h"))
+    assert.is_false(visible("vendor"))
+    assert.is_false(visible(".hidden.cpp"))
+    adapter.toggle_filter()
+    assert.is_true(vim.wait(3000, function()
+      return visible("hide.h") and visible("vendor")
+    end))
+    adapter.toggle_filter()
+    assert.is_true(vim.wait(3000, function()
+      return not visible("hide.h")
+    end))
+    active = false
+    vim.api.nvim_exec_autocmds(
+      "User",
+      { pattern = "ScoperChanged", group = "config_scoper_explorer" }
+    )
+    assert.is_true(vim.wait(3000, function()
+      return visible("hide.h") and visible("vendor")
+    end))
+    assert.is_false(visible(".hidden.cpp"))
   end)
 end)

@@ -32,3 +32,7 @@ end, {
 vim.api.nvim_create_user_command("ScoperMarkersToggle", function()
   require("config.scoper_explorer").toggle()
 end, { desc = "Toggle explorer scope markers for this editor" })
+
+vim.api.nvim_create_user_command("ScoperFilterToggle", function()
+  require("config.scoper_explorer").toggle_filter()
+end, { desc = "Toggle explorer included-minus-excluded view for this editor" })

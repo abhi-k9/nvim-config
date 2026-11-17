@@ -1,7 +1,26 @@
 -- Optional host adapter: neither plugin depends on the other. Decorate existing
--- name components and request redraws, never alter tree membership or scan files.
+-- name components; optionally filter scanned items before Neo-tree builds nodes.
 local M = {}
 local enabled, override
+local filter_enabled, filter_override
+local renderer_owner, render_original, render_wrapper
+
+local function refresh()
+  local manager = package.loaded["neo-tree.sources.manager"]
+  if type(manager) == "table" and type(manager.refresh) == "function" then
+    pcall(manager.refresh, "filesystem")
+  end
+end
+
+function M.toggle_filter()
+  if filter_enabled == nil then
+    filter_enabled = require("config.settings").get("explorer.scope_filter", false) == true
+  end
+  filter_enabled = not filter_enabled
+  filter_override = filter_enabled
+  refresh()
+  vim.notify("Explorer scope filter: " .. (filter_enabled and "ON" or "OFF"))
+end
 
 function M.toggle()
   if enabled == nil then
@@ -17,7 +36,11 @@ function M.toggle()
   vim.notify("Explorer scope markers: " .. (enabled and "ON" or "OFF"))
 end
 
-function M.configure(opts, options)
+function M.configure(opts, options, filter_option)
+  filter_enabled = filter_option == true
+  if filter_override ~= nil then filter_enabled = filter_override end
+  -- Configure runs inside Neo-tree loading; toggles themselves never load it.
+  pcall(require, "neo-tree.ui.renderer")
   -- Reload defaults normally; an explicit toggle owns this editor's choice.
   enabled = options == true or type(options) == "table" and options.enabled == true
   if override ~= nil then enabled = override end
@@ -82,6 +105,55 @@ local function related(tree, root)
   return path == base or path:sub(1, #base + 1) == base .. "/"
 end
 
+-- Only prune proven exclusions. Keep the tree root and uncertain directories so
+-- navigation works without recursively discovering descendants on disk.
+local function filter_items(items, scope, tree_path)
+  local result = {}
+  for _, item in ipairs(items) do
+    local path = item.path or item.id
+    local keep = true
+    if type(path) == "string" then
+      if item.type == "file" then
+        keep = scope.matches(path) ~= false
+      elseif item.type == "directory" and scope.excluded_directory then
+        keep = path_key(path) == tree_path or not scope.excluded_directory(path)
+      end
+    end
+    if keep then
+      local copy = vim.tbl_extend("force", {}, item)
+      if item.children then copy.children = filter_items(item.children, scope, tree_path) end
+      result[#result + 1] = copy
+    elseif item.type == "file" and item.children then
+      -- An excluded nesting parent must not hide included nested files.
+      for _, child in ipairs(filter_items(item.children, scope, tree_path)) do
+        child.is_nested = false
+        result[#result + 1] = child
+      end
+    end
+  end
+  return result
+end
+
+local function install_filter()
+  local renderer = package.loaded["neo-tree.ui.renderer"]
+  if type(renderer) ~= "table" or type(renderer.show_nodes) ~= "function" then return end
+  renderer_owner, render_original = renderer, renderer.show_nodes
+  local original = render_original
+  -- Neo-tree has no configurable predicate. Keep this single exported-function
+  -- integration isolated and covered against the pinned renderer's item API.
+  render_wrapper = function(items, state, parent, callback)
+    if filter_enabled and items and state.name == "filesystem" then
+      local scope = capture()
+      if scope.root and related(state.path, scope.root) then
+        local ok, filtered = pcall(filter_items, items, scope, path_key(state.path))
+        if ok then items = filtered end -- Fail open if an optional predicate fails.
+      end
+    end
+    return original(items, state, parent, callback)
+  end
+  renderer.show_nodes = render_wrapper
+end
+
 function M.decorate(original, options)
   return function(config, node, state)
     local result = original(config, node, state)
@@ -111,6 +183,10 @@ end
 
 function M.setup(opts, options)
   cancel()
+  if renderer_owner and renderer_owner.show_nodes == render_wrapper then
+    renderer_owner.show_nodes = render_original
+  end
+  renderer_owner, render_original, render_wrapper = nil, nil, nil
   cached, owner = nil, nil
   local group = vim.api.nvim_create_augroup("config_scoper_explorer", { clear = true })
   local existing = opts.filesystem and opts.filesystem.components
@@ -122,6 +198,7 @@ function M.setup(opts, options)
   if not options or options == false or type(options) == "table" and not options.enabled then
     return
   end
+  install_filter()
   options = type(options) == "table" and options or {}
   opts.filesystem = opts.filesystem or {}
   opts.filesystem.components = opts.filesystem.components or {}
@@ -135,11 +212,15 @@ function M.setup(opts, options)
     callback = function()
       cached, owner = nil, nil
       cancel()
-      if enabled == false then return end
+      if enabled == false and not filter_enabled then return end
       local ticket = generation
       timer = vim.defer_fn(function()
         if ticket ~= generation then return end
         timer = nil
+        if filter_enabled then
+          refresh() -- Rebuild pruned trees; also restores entries when Scoper is OFF.
+          return
+        end
         if enabled == false then return end
         local manager = package.loaded["neo-tree.sources.manager"]
         if type(manager) == "table" and type(manager.redraw) == "function" then

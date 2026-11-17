@@ -323,7 +323,7 @@ light background. Set `dim=false` for symbols alone.
 Reloading the explorer configuration applies its current marker default until
 you explicitly use `:ScoperMarkersToggle`. A runtime toggle then takes precedence
 for the remainder of that editor session. Disabled markers do not request redraws
-for scope changes. An excluded directory used as the tree root shows both its
+for scope changes (the independent scope filter may still refresh the tree). An excluded directory used as the tree root shows both its
 exclusion marker and the active scope label.
 
 Folders are marked when their subtree is explicitly excluded (for example
@@ -355,6 +355,44 @@ up to 4,096 directory results are cached for repeated redraws. Further paths are
 classified without caching. Scope changes discard the cache. Disabled markers
 leave ordinary names unchanged.
 This is a personal explorer preference, not a `.scoper.json` setting.
+
+## Optional scoped-only Neo-tree view
+
+Use `:ScoperFilterToggle` to show only files in Scoper's **includes minus
+excludes**, then run it again to restore the ordinary tree. This is independent
+of `:ScoperMarkersToggle`; both options default to off. To enable filtering at
+startup, set `explorer.scope_filter = true` in your existing `local.lua` returned
+table (or the corresponding boolean in `local.json`). The example templates
+include this setting. A runtime toggle takes precedence until you exit Neovim.
+
+- Empty includes mean all files, with exclusions still applied. Exclusions win.
+- Only the filesystem source rooted at the active Scoper project or below it is
+  filtered. Unrelated/ancestor roots and the buffers/git sources are unchanged.
+- Navigation ancestors and mixed/uncertain directories remain visible. Entire
+  subtrees are hidden only when proven outside scope, using the directory rules
+  above. The tree root always remains. With `**/*.cpp`, a folder can remain even
+  if it contains no matching files; the adapter does not recursively scan to find out.
+- Neo-tree's own dotfile/gitignore filters still apply. Its show-hidden toggle
+  does not bypass scope filtering. Revealing an out-of-scope file does not make
+  that file visible while filtering is active; turn the filter off to browse it.
+- Missing or disabled Scoper restores normal membership. Missing Neo-tree is
+  harmless; toggling stores the preference without opening or loading it.
+- This changes the explorer display only: it neither deletes files nor changes
+  Scoper rules, search results, open buffers, or clangd configuration.
+
+Filtering uses Scoper's cached predicates on items Neo-tree has already scanned.
+A small isolated adapter wraps Neo-tree's exported `renderer.show_nodes` function
+because Neo-tree has no configurable membership predicate. It copies the item
+structure before pruning; included nested files survive an excluded nesting
+parent. Predicate failures leave the incoming tree unchanged. Compatibility
+with the pinned renderer is covered by a focused integration test.
+
+Toggles and debounced scope changes request a normal Neo-tree refresh to restore
+previously hidden entries. This uses Neo-tree's normal filesystem scan; ordinary
+redraws add no scans. Other tabs are marked dirty by Neo-tree and refresh when
+visited. Scoper changes share the marker debounce interval (100 ms by default).
+There is no recursive discovery of unopened folders or added startup scan.
+Like markers, this preference belongs in local settings, not `.scoper.json`.
 
 ## Sessions and global buffers
 
