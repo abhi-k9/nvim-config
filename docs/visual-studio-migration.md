@@ -122,6 +122,8 @@ see [customization](customization.md#project-context-and-trust) and
 | Go to File / Ctrl+T | `<leader>ff`; `<leader>Ff` uses the fzf-lua alternative |
 | Recent files | `<leader>fr` |
 | Search navigation history | `<leader>fj` searches the current window's jumplist; Enter jumps to the selected location |
+| Search edit locations | `<leader>fC` for this file; `<leader>fE` across loaded, listed files in all tabs. No Git required; current line text, not historical contents. |
+| Previous / next edit location | `g;` / `g,` within the current file; `:changes` lists locations |
 | Open documents list | `<leader>fb` for the current tab; `<leader>fB` for all buffers |
 | Solution Explorer | `<leader>e` toggles Neo-tree; `<leader>E` reveals the current file |
 | Next/previous document | `Shift+L` / `Shift+H` in Normal mode |

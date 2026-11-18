@@ -491,3 +491,26 @@ The pinned [session path matcher](https://github.com/rmagatti/auto-session/blob/
 [native fzf syntax](https://github.com/nvim-telescope/telescope-fzf-native.nvim/blob/b25b749b9db64d375d782094e2b9dce53ad53a40/README.md), and
 [fzf filename-first formatter](https://github.com/ibhagwan/fzf-lua/blob/d9725e6446b82ed38186686fe9d4f9826a98c269/lua/fzf-lua/defaults.lua#L385)
 explain the matching boundaries described above.
+
+## Search edit locations without Git
+
+Use `<leader>fC` (capital C) for the current file's change list, or
+`<leader>fE` (capital E) across loaded, listed file buffers in all tabs.
+Search filenames or current line text, then press Enter to jump to the stored
+line and byte column. Long results wrap; F1 opens picker help.
+Lowercase `<leader>fc` remains the commands picker.
+
+The across-files picker puts the current file first. Changes are newest-first
+within each file, not globally chronological: Neovim supplies no global edit
+timestamps. `#N` is the position in each file's change list (oldest = 1), so
+numbers can repeat across files and remain stable while searching.
+
+These are edit locations, not Git changes or historical file contents. Displayed
+text is the current text at each recorded location. Neovim may coalesce edits;
+this is not a keystroke log. Unloaded, wiped, unlisted and special buffers are
+excluded from the across-files picker. It neither loads closed files nor scans
+the disk. Empty change lists produce an empty picker.
+
+Use `g;` / `g,` for older/newer edit locations within a file, or `:changes` to
+inspect the native list. For navigation history rather than edits, use
+`<leader>fj` or Ctrl-o / Ctrl-i.
