@@ -359,6 +359,7 @@ nvim/
 │   ├── health_paths_spec.lua  state path types and native option decoding
 │   ├── health_reminder_spec.lua  reminder cadence, persistence, and recovery
 │   ├── tooling_spec.lua       missing runtimes, native builds, and supported installs
+│   ├── trouble_lifecycle_spec.lua  safe cursor lookup after Trouble window teardown
 │   ├── diagnostic_tail_spec.lua  bounded regular-file log reads and I/O failures
 │   ├── scoper_explorer_spec.lua  optional scope decoration and redraw lifecycle
 │   ├── explorer_directory_spec.lua  directory startup and reload behavior

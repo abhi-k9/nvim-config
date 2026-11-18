@@ -191,7 +191,7 @@ language-server binary alone does not prove it attached to this buffer.
 | Go to Declaration (Ctrl+F12 in General profile) | `gD` | Distinct results depend on the language server |
 | Go to Implementation | `gI` | Uppercase I; `gi` keeps Vim's resume-Insert behavior |
 | Go to Type Definition | `gy` | Server capability |
-| Find All References | `gr` | Trouble reference list; press again to close |
+| Find All References | `gr` | Trouble reference list, including single results; panel `q` or `:Trouble lsp_references close` closes it |
 | File/workspace symbol navigation | `<leader>fs` / `<leader>fS` | Server-provided symbols, not a filename search |
 | Quick Info | `K` | Peeks a closed fold first, then hover; it is not Peek Definition |
 | Rename symbol | `<leader>lr` | Workspace edits produced by the server |

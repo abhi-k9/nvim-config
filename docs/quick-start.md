@@ -112,6 +112,14 @@ controls (F1 for help). It can include locations outside the current project;
 entries whose buffers are no longer valid are omitted. It searches recorded
 jumps, not every cursor movement. Ctrl-o / Ctrl-i still navigate history directly.
 
+For the `gr` references panel, press `q` while focused in the panel, or run
+`:Trouble lsp_references close` from any window. This keeps the result file open.
+A single reference stays in the list; Enter opens it while keeping the list,
+and `o` opens it and closes the list. `:q` closes the **focused window**, so after
+jumping to a result it closes that editor window instead of the panel. If only
+the panel remains, use `:new` to create an editor window before closing the panel;
+use `:qa` to quit Neovim when finished (unsaved changes still prompt).
+
 ## Edit, inspect and format
 
 In Insert mode, Ctrl-n/Ctrl-p open and navigate completion; Ctrl-y accepts,
