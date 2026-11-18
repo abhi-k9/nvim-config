@@ -22,8 +22,7 @@ end
 -- Keep native jumplist positions stable even when invalid buffers are skipped
 -- or the user filters the results. Preserve native zero-based byte columns
 -- for Telescope navigation; only the displayed column is one-based.
-local function jump_history()
-  local jumps = vim.fn.getjumplist()[1]
+local function history_picker(jumps, title)
   local entries = {}
   for index = #jumps, 1, -1 do
     local jump = jumps[index]
@@ -51,7 +50,7 @@ local function jump_history()
   }
   require("telescope.pickers")
     .new(opts, {
-      prompt_title = "Jump history",
+      prompt_title = title,
       results_title = "History # (oldest = 1) | F1: keys",
       finder = require("telescope.finders").new_table({
         results = entries,
@@ -63,6 +62,20 @@ local function jump_history()
       previewer = config.qflist_previewer(opts),
     })
     :find()
+end
+
+local function jump_history()
+  history_picker(vim.fn.getjumplist()[1], "Jump history")
+end
+
+local function change_history()
+  -- Capture the source buffer before Telescope creates its prompt window.
+  local buf = vim.api.nvim_get_current_buf()
+  local changes = vim.deepcopy(vim.fn.getchangelist(buf)[1])
+  for _, change in ipairs(changes) do
+    change.bufnr = buf
+  end
+  history_picker(changes, "Change history (current file)")
 end
 
 -- Native help reads these descriptions from the actual registered mappings.
@@ -166,6 +179,7 @@ return {
       { "<leader>fk", "<cmd>Telescope keymaps<cr>",                   desc = "Keymaps" },
       { "<leader>fc", "<cmd>Telescope commands<cr>",                  desc = "Commands" },
       { "<leader>fm", "<cmd>Telescope marks<cr>",                     desc = "Marks" },
+      { "<leader>fC", change_history,                desc = "Change history (current file)" },
       { "<leader>fj", jump_history,                  desc = "Jump history" },
       { "<leader>f:", "<cmd>Telescope command_history<cr>",           desc = "Command history" },
       { "<leader>fR", "<cmd>Telescope registers<cr>",                 desc = "Registers" },
