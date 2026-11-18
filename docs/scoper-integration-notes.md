@@ -203,3 +203,21 @@ Primary interface references:
 - [clangd system headers and query-driver trust](https://clangd.llvm.org/guides/system-headers)
 - [Neovim asynchronous LSP roots](https://neovim.io/doc/user/lsp.html#lsp-root_dir())
 - [libuv filesystem-event caveats](https://docs.libuv.org/en/v1.x/fs_event.html)
+
+### Slow clangd shutdown and restart recovery
+
+Scoper waits for confirmed exit before restarting clangd, including clients
+Neovim already labels as stopping. It allows five seconds for graceful shutdown,
+then up to fifteen additional seconds for exit, without blocking the UI. It
+reattaches as soon as exit is confirmed; these are bounds, not mandatory delays.
+Scope changes are replayed with the latest configuration, and obsolete recovery
+cannot reattach buffers from a previous project. A final timeout leaves
+reattachment disabled to avoid duplicate clients; retry `:ScoperLspReload` after
+the old client exits.
+
+Configure `scoper.lsp.shutdown_timeout_ms` and `scoper.lsp.exit_timeout_ms` in
+personal host settings, or `settings.lsp` in `.scoper.json` (integer milliseconds,
+1–600000 each). See [restart recovery](../scoper.nvim/README.md) for details.
+A Windows forced-stop exit notification alone is not proof of a clangd crash.
+Neovim also logs clangd stderr at ERROR even when the embedded clangd message is
+informational (`I[...]`); investigate actual `E[...]` messages separately.

@@ -76,6 +76,23 @@ describe("declarative project configuration", function()
     assert.equals("auto", Scoper.config.picker)
   end)
 
+  it("validates and exports bounded LSP shutdown settings", function()
+    local settings = { shutdown_timeout_ms = 8000, exit_timeout_ms = 20000 }
+    assert.is_table(Project.validate({ version = 1, settings = { lsp = settings } }))
+    for _, key in ipairs({ "shutdown_timeout_ms", "exit_timeout_ms" }) do
+      for _, bad in ipairs({ 0, -1, 1.5, 600001, "5000" }) do
+        assert.has_error(function()
+          Project.validate({ version = 1, settings = { lsp = { [key] = bad } } })
+        end)
+      end
+    end
+    Scoper.setup({ lsp = settings })
+    assert.is_true(Scoper.export_project_config(false))
+    local doc = assert(Project.read(root))
+    assert.equals(8000, doc.settings.lsp.shutdown_timeout_ms)
+    assert.equals(20000, doc.settings.lsp.exit_timeout_ms)
+  end)
+
   it("rejects malformed and executable settings without replacing working configuration", function()
     write({ version = 1, settings = { picker = "telescope" } })
     Scoper.setup({})

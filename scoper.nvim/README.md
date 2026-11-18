@@ -400,6 +400,37 @@ exit-poll and duplicate-client guards; obsolete project/scope/build work cannot
 restart a newly selected context. Setup disposes owned listeners/watchers and
 restores command/root providers only while Scoper still owns them.
 
+Restart recovery waits asynchronously for confirmed client exit before reattaching.
+The defaults are `lsp.shutdown_timeout_ms=5000` (grace before requesting forced
+termination) and `lsp.exit_timeout_ms=15000` (additional exit-recovery time).
+These are maximum waits, not fixed delays: an exited client is replaced on the
+next poll. Slow shutdowns can recover automatically within the combined budget
+without a warning at the former 3.5-second deadline. A client still registered
+at the final deadline is reported and left alone; after it exits, use
+`:ScoperLspReload` to retry. Retries also wait for clients already stopping and
+do not resend stop requests. A forced-stop request does not prove process exit.
+
+Both options accept integer milliseconds from 1 to 600000 in setup options or
+`.scoper.json` under `settings.lsp`; `:ScoperConfigExport` preserves explicit
+values. In the host config, personal overrides go in `local.lua`, for example:
+
+```lua
+return {
+  scoper = {
+    lsp = { shutdown_timeout_ms = 8000, exit_timeout_ms = 20000 },
+  },
+}
+```
+
+Scope changes during recovery use the latest configuration; a project change or
+cancelled automatic integration does not reattach the old project's buffers.
+Timing uses elapsed monotonic time, so a busy event loop does not count queued
+timer callbacks as separate elapsed intervals. Forced termination can discard
+unfinished index work; increasing the graceful budget can help large projects.
+On Windows, a shell launcher may complicate child-process termination; these
+budgets do not provide process-tree killing. Prefer a directly configured clangd
+executable if a launcher is confirmed to leave a child running.
+
 Outputs are immutable content-addressed cache objects. Source changes during
 preparation are retried once, then reported. Metadata checks establish freshness,
 not protection against deliberate metadata-preserving tampering. Close editors

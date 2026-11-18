@@ -507,7 +507,7 @@
     <tr><td><code>:ScoperScopes</code></td><td>List all scopes for this project</td></tr>
     <tr><td><code>:ScoperDelete</code></td><td>Delete one or more scopes</td></tr>
     <tr><td><code>:ScoperReload[!]</code></td><td>Reload saved project state; <code>!</code> explicitly discards unsaved local changes</td></tr>
-    <tr><td><code>:ScoperLspReload</code></td><td>Reconfigure clangd for the current scope and restart it</td></tr>
+    <tr><td><code>:ScoperLspReload</code></td><td>Reconfigure clangd for the current scope and restart after confirmed exit. Slow exits recover automatically within the configured wait; retry after a final timeout. <a href="../scoper-integration-notes.md#slow-clangd-shutdown-and-restart-recovery">Shutdown settings</a>.</td></tr>
     <tr><td><code>:ScoperTogglePicker</code></td><td>Switch backend: fzf-lua ↔ telescope</td></tr>
     <tr class="divider"><td colspan="2">Picker backend</td></tr>
     <tr><td colspan="2" class="note">Defaults to fzf-lua. Set <code>vim.g.scoper_picker = "telescope"</code>

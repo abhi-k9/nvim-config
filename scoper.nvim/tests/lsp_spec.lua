@@ -642,10 +642,11 @@ describe("scoper.lsp restart", function()
     next_id = next_id + 1
     local c = { id = next_id, name = "clangd", root_dir = root, attached_buffers = bufs or {} }
     function c.is_stopped()
-      return false
+      return c.stopped_with ~= nil
     end
     function c:stop(timeout)
       self.stopped_with = timeout
+      self.stop_calls = (self.stop_calls or 0) + 1
     end
     alive[c.id] = c
     table.insert(clients, c)
@@ -670,6 +671,7 @@ describe("scoper.lsp restart", function()
       notify = vim.notify,
       reattach = lsp._reattach,
       timing = lsp._timing,
+      config = vim.deepcopy(require("scoper").config.lsp),
     }
     alive, clients, notes, reattached = {}, {}, {}, nil
     vim.lsp.get_clients = function(filter)
@@ -687,6 +689,8 @@ describe("scoper.lsp restart", function()
     lsp._reattach = function(bufs)
       reattached = bufs
     end
+    require("scoper").config.lsp.shutdown_timeout_ms = nil
+    require("scoper").config.lsp.exit_timeout_ms = nil
     lsp._timing = { poll = 5, grace = 40, kill = 40 }
     lsp._reloading, lsp._pending, lsp._applied_cmd = false, false, nil
   end)
@@ -694,6 +698,7 @@ describe("scoper.lsp restart", function()
   after_each(function()
     vim.lsp.get_clients, vim.lsp.get_client_by_id = saved.get_clients, saved.get_client_by_id
     vim.notify, lsp._reattach, lsp._timing = saved.notify, saved.reattach, saved.timing
+    require("scoper").config.lsp = saved.config
     teardown_project(p)
   end)
 
@@ -732,6 +737,77 @@ describe("scoper.lsp restart", function()
     assert.is_false(lsp._reloading)
     assert.is_nil(reattached)
     assert.equals(vim.log.levels.WARN, notes[#notes].level)
+  end)
+
+  it("recovers a delayed exit beyond the old budget without duplicate stops", function()
+    local cfg = require("scoper").config.lsp
+    cfg.shutdown_timeout_ms, cfg.exit_timeout_ms = 10, 200
+    local mine = fake_client(p.root)
+    lsp.reload_clangd()
+    assert.equals(10, mine.stopped_with)
+    vim.wait(100, function()
+      return false
+    end, 5)
+    assert.is_true(lsp._reloading)
+    assert.is_nil(reattached)
+    assert.equals(0, #notes)
+    exit(mine)
+    settle()
+    assert.is_table(reattached)
+    assert.equals(1, mine.stop_calls)
+    assert.equals(1, #notes)
+  end)
+
+  it("waits for already-stopping clients on automatic and manual retries", function()
+    local mine = fake_client(p.root)
+    lsp.reload_clangd()
+    settle() -- First bounded attempt expires with the client still registered.
+    assert.is_nil(reattached)
+    lsp.reload_clangd({ auto = true }) -- Same command must not take the no-op path.
+    assert.is_true(lsp._reloading)
+    settle()
+    assert.is_nil(reattached)
+    lsp.reload_clangd()
+    assert.is_true(lsp._reloading)
+    assert.equals(1, mine.stop_calls)
+    exit(mine)
+    settle()
+    assert.is_table(reattached)
+  end)
+
+  it("rejects invalid restart budgets before stopping a client", function()
+    local mine = fake_client(p.root)
+    require("scoper").config.lsp.shutdown_timeout_ms = -1
+    lsp.reload_clangd()
+    assert.is_false(lsp._reloading)
+    assert.is_nil(mine.stopped_with)
+    assert.equals(vim.log.levels.ERROR, notes[#notes].level)
+  end)
+
+  it("restores service after a scope change and exit during automatic recovery", function()
+    local mine = fake_client(p.root)
+    lsp.reload_clangd({ auto = true })
+    State.add_paths("src")
+    exit(mine)
+    assert.is_true(vim.wait(1000, function()
+      return reattached ~= nil
+    end, 5))
+    assert.is_false(lsp._reloading)
+  end)
+
+  it("does not restore the old project's buffers after a project change", function()
+    local mine = fake_client(p.root)
+    lsp.reload_clangd({ auto = true })
+    vim.fn.chdir(p.root .. "/lib")
+    State.load()
+    exit(mine)
+    settle()
+    -- Allow the queued reload to finish before restoring test globals.
+    vim.wait(100, function()
+      return false
+    end, 5)
+    assert.is_false(lsp._reloading)
+    assert.is_nil(reattached)
   end)
 
   it("ends the restart and clears the guard when a poll fails", function()

@@ -57,15 +57,24 @@ function M.validate(doc)
   end
   if settings.lsp ~= nil then
     local lsp = settings.lsp
-    object(
-      lsp,
-      "lsp",
-      { mode = true, startup = true, watch = true, debounce_ms = true, prepare_timeout_ms = true }
-    )
+    object(lsp, "lsp", {
+      mode = true,
+      startup = true,
+      watch = true,
+      debounce_ms = true,
+      prepare_timeout_ms = true,
+      shutdown_timeout_ms = true,
+      exit_timeout_ms = true,
+    })
     if lsp.mode ~= nil then enum(lsp.mode, { "disabled", "native", "selected", "filtered" }) end
     if lsp.startup ~= nil then enum(lsp.startup, { "fallback", "prepare" }) end
     if lsp.watch ~= nil then boolean(lsp.watch) end
-    for _, key in ipairs({ "debounce_ms", "prepare_timeout_ms" }) do
+    for _, key in ipairs({
+      "debounce_ms",
+      "prepare_timeout_ms",
+      "shutdown_timeout_ms",
+      "exit_timeout_ms",
+    }) do
       local n = lsp[key]
       if n ~= nil then
         assert(

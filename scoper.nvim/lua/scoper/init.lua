@@ -203,7 +203,15 @@ function M.export_project_config(overwrite)
     settings.compilation_database.path =
       require("scoper.path").relative(State().database(), State().root())
   end
-  for _, key in ipairs({ "mode", "startup", "watch", "debounce_ms", "prepare_timeout_ms" }) do
+  for _, key in ipairs({
+    "mode",
+    "startup",
+    "watch",
+    "debounce_ms",
+    "prepare_timeout_ms",
+    "shutdown_timeout_ms",
+    "exit_timeout_ms",
+  }) do
     settings.lsp[key] = config.lsp[key]
   end
   if settings.lsp.mode == nil and config.lsp.clangd then settings.lsp.mode = "filtered" end

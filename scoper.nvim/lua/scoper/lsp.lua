@@ -184,9 +184,9 @@ function M._apply(cmd)
 end
 
 -- Running clangd clients of this project.
-local function our_clients()
+local function our_clients(include_stopping)
   return vim.tbl_filter(function(c)
-    return not c:is_stopped() and ours(c.root_dir)
+    return (include_stopping or not c:is_stopped()) and ours(c.root_dir)
   end, vim.lsp.get_clients({ name = "clangd" }))
 end
 
@@ -269,7 +269,11 @@ end
 local function queue_reload(opts)
   -- A forced request must not be downgraded by a later automatic one.
   local auto = opts.auto and (not M._pending or M._pending.auto)
-  M._pending = { auto = auto, _generation = auto and opts._generation or nil }
+  M._pending = {
+    auto = auto,
+    _generation = auto and opts._generation or nil,
+    _resume_root = opts._resume_root or (M._pending and M._pending._resume_root),
+  }
 end
 
 function M.reload_clangd(opts)
@@ -328,10 +332,26 @@ end
 local restart
 
 -- Restart timing in ms: the poll interval; the graceful-shutdown budget,
--- after which Client:stop() kills the process; then how long the killed process
--- gets to be reaped. A forced stop may require rebuilding unfinished index work.
+-- after which Client:stop() requests termination; then the bounded exit-recovery
+-- window. A stop request is not confirmation that the process has exited.
 -- A table so lsp_spec can shorten the budgets.
-M._timing = { poll = 50, grace = 2000, kill = 1500 }
+M._timing = { poll = 50, grace = 5000, kill = 15000 }
+
+local function restart_timing()
+  local cfg = require("scoper").config.lsp or {}
+  local t = vim.tbl_extend("force", {}, M._timing)
+  for field, option in pairs({ grace = "shutdown_timeout_ms", kill = "exit_timeout_ms" }) do
+    local value = cfg[option]
+    if value ~= nil then
+      assert(
+        type(value) == "number" and value >= 1 and value <= 600000 and value % 1 == 0,
+        "Scoper lsp." .. option .. " must be 1..600000"
+      )
+      t[field] = value
+    end
+  end
+  return t
+end
 
 -- The actual reload logic: filter in the background, then restart. `done`
 -- MUST be called exactly once on every path — it clears the re-entrancy
@@ -367,18 +387,25 @@ end
 function restart(done, opts, cmd, info, changed)
   local context = Pipeline.context_key()
   local key = table.concat(cmd, "\0")
-  local clients = our_clients()
-  if opts.auto and not changed and key == M._applied_cmd and #clients > 0 then
+  local clients = our_clients(true)
+  local stopping = false
+  for _, client in ipairs(clients) do
+    stopping = stopping or client:is_stopped()
+  end
+  if opts.auto and not stopping and not changed and key == M._applied_cmd and #clients > 0 then
     done()
     return
   end
+  local t = restart_timing()
+  local root = Path.key(State.root())
   M._applied_cmd = key
   M._apply(cmd)
 
   if #clients == 0 then
     -- Nothing to restart. An automatic reload stops here, quietly: with
     -- the integration on globally, most projects have no clangd at all.
-    if not opts.auto then
+    -- A same-project recovery is the exception: we stopped its previous client.
+    if not opts.auto or opts._resume_root == root then
       M._reattach(reattach_targets({}))
       notify_result(info, 0)
     end
@@ -388,25 +415,29 @@ function restart(done, opts, cmd, info, changed)
 
   -- Only these ids are waited for: a clangd started meanwhile already has
   -- the new cmd and must be left running.
-  local t = M._timing
   local ids, stopped_bufs = {}, {}
   for _, client in ipairs(clients) do
     table.insert(ids, client.id)
     for buf in pairs(client.attached_buffers or {}) do
       stopped_bufs[buf] = true
     end
-    client:stop(t.grace)
+    -- is_stopped() also means "stopping" on Neovim 0.12. A retry must
+    -- still wait for that client, without restarting its shutdown timer.
+    if not client:is_stopped() then client:stop(t.grace) end
   end
 
   -- Returns true once the restart is over (re-attached, or given up).
-  local waited = 0
+  local started = vim.uv.hrtime()
   local function tick()
     if stale_auto(opts) then return true end
     if Pipeline.context_key() ~= context then
+      -- If the old process exits during a scope change, an automatic replay
+      -- must still restore service, but never carry attachment into a new root.
+      opts._resume_root = root
       queue_reload(opts)
       return true
     end
-    waited = waited + t.poll
+    local waited = math.floor((vim.uv.hrtime() - started) / 1e6)
     local remaining = 0
     for _, id in ipairs(ids) do
       if vim.lsp.get_client_by_id(id) then remaining = remaining + 1 end
@@ -418,8 +449,8 @@ function restart(done, opts, cmd, info, changed)
       -- project. Surface it and let the user retry once the exit finishes.
       vim.notify(
         (
-          "Scoper LSP: %d clangd client(s) still exiting after %d ms "
-          .. "(even after a forced stop) — skipped re-attach to avoid "
+          "Scoper LSP: %d clangd client(s) still exiting %d ms "
+          .. "after shutdown was requested — skipped re-attach to avoid "
           .. "duplicate clients; run :ScoperLspReload to retry"
         ):format(remaining, waited),
         vim.log.levels.WARN
