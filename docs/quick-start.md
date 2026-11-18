@@ -98,6 +98,7 @@ for `:tcd`, `:lcd`, sessions, terminals, language servers and debug launches.
 | Definition / references | `gd` / `gr` | Definition lookup / focused Trouble references panel. |
 | Symbols in this file / workspace | `<leader>fs` / `<leader>fS` | Ask the language server for symbols. |
 | Jump back / forward | Ctrl-o / Ctrl-i | Neovim's jump history. |
+| Search edits across files | `<leader>fE` | Loaded, listed file buffers across all tabs; search filenames or current line text. Current file first, newest edits first within each file; no global chronological order. Closed/unloaded files are excluded. |
 | Search edit locations | `<leader>fC` | Current file’s change list, newest first; type line text and Enter to jump. No Git required. `g;` / `g,` move through edits directly. This is location history, not historical file contents. |
 | Search jump history | `<leader>fj` | Search the current window's jumplist by filename or line text; Enter opens the selected location. |
 

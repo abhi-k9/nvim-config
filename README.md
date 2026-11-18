@@ -541,6 +541,7 @@ A few standalone motions worth knowing right away:
 - `K` — peek a closed fold, else LSP hover, else Vim's own `K` ('keywordprg')
 - `<C-\>` — toggle floating terminal
 - `<C-o>` / `<C-i>` — jumplist back / forward (browser-style stack: a new jump after `<C-o>` discards the forward entries; see `jumpoptions` in options.lua)
+- `<leader>fE` — searchable edit locations across loaded, listed file buffers in all tabs; current file first, newest first within each file (no global timestamps)
 - `<leader>fC` — searchable edit locations in the current file (no Git needed); searches current line text, not historical contents
 - `<leader>fj` — searchable jumplist for the current window; type a filename or line text, then Enter to jump
 

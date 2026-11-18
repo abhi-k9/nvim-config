@@ -22,7 +22,7 @@ end
 -- Keep native jumplist positions stable even when invalid buffers are skipped
 -- or the user filters the results. Preserve native zero-based byte columns
 -- for Telescope navigation; only the displayed column is one-based.
-local function history_picker(jumps, title)
+local function history_picker(jumps, title, results_title)
   local entries = {}
   for index = #jumps, 1, -1 do
     local jump = jumps[index]
@@ -33,7 +33,7 @@ local function history_picker(jumps, title)
       local location = ("%s:%d:%d"):format(path, jump.lnum, jump.col + 1)
       entries[#entries + 1] = {
         value = jump,
-        display = ("#%d  %s  %s"):format(index, location, text),
+        display = ("#%d  %s  %s"):format(jump.history_index or index, location, text),
         ordinal = location .. " " .. text,
         filename = filename,
         bufnr = jump.bufnr,
@@ -51,7 +51,7 @@ local function history_picker(jumps, title)
   require("telescope.pickers")
     .new(opts, {
       prompt_title = title,
-      results_title = "History # (oldest = 1) | F1: keys",
+      results_title = results_title or "History # (oldest = 1) | F1: keys",
       finder = require("telescope.finders").new_table({
         results = entries,
         entry_maker = function(entry)
@@ -76,6 +76,32 @@ local function change_history()
     change.bufnr = buf
   end
   history_picker(changes, "Change history (current file)")
+end
+
+local function all_change_history()
+  local current = vim.api.nvim_get_current_buf()
+  local buffers = vim.api.nvim_list_bufs()
+  -- The picker reverses entries: put the current file last so it appears first.
+  table.sort(buffers, function(a, b)
+    if a == current then return false end
+    if b == current then return true end
+    return a < b
+  end)
+  local changes = {}
+  for _, buf in ipairs(buffers) do
+    if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].buflisted and vim.bo[buf].buftype == "" then
+      for index, change in ipairs(vim.fn.getchangelist(buf)[1]) do
+        local entry = vim.deepcopy(change)
+        entry.bufnr, entry.history_index = buf, index
+        changes[#changes + 1] = entry
+      end
+    end
+  end
+  history_picker(
+    changes,
+    "Change history (loaded files)",
+    "Per-file history # | No global time order | F1: keys"
+  )
 end
 
 -- Native help reads these descriptions from the actual registered mappings.
@@ -179,6 +205,7 @@ return {
       { "<leader>fk", "<cmd>Telescope keymaps<cr>",                   desc = "Keymaps" },
       { "<leader>fc", "<cmd>Telescope commands<cr>",                  desc = "Commands" },
       { "<leader>fm", "<cmd>Telescope marks<cr>",                     desc = "Marks" },
+      { "<leader>fE", all_change_history,            desc = "Change history (loaded files)" },
       { "<leader>fC", change_history,                desc = "Change history (current file)" },
       { "<leader>fj", jump_history,                  desc = "Jump history" },
       { "<leader>f:", "<cmd>Telescope command_history<cr>",           desc = "Command history" },
