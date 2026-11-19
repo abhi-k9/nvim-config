@@ -52,6 +52,8 @@ end
 vim.g.config_min_nvim = MIN_NVIM
 
 local config_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h")
+-- An explicit -u selects this file without adding its directory to runtimepath.
+if vim.opt.rtp:get()[1] ~= config_root then vim.opt.rtp:prepend(config_root) end
 local settings = require("config.settings")
 settings.bootstrap(config_root)
 require("config.options")

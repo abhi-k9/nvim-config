@@ -105,6 +105,48 @@ describe("locked first-boot plugin manager", function()
     dirs = {}
   end)
 
+  it("loads core modules and plugin setup through an explicit -u checkout", function()
+    local dir = vim.fn.tempname()
+    dirs[#dirs + 1] = dir
+    local manager = dir .. "/data/nvim/lazy/lazy.nvim/lua/lazy"
+    vim.fn.mkdir(manager, "p")
+    vim.fn.writefile({
+      "return { setup = function(opts) vim.g.test_checkout_lock = opts.lockfile end }",
+    }, manager .. "/init.lua")
+    local root = vim.fn.getcwd()
+    local result = vim
+      .system({
+        vim.v.progpath,
+        "--headless",
+        "-i",
+        "NONE",
+        "--cmd",
+        "let g:config_local_file = v:false",
+        "-u",
+        root .. "/init.lua",
+        "+lua print(vim.fn.exists(':DiagnosticDump'), vim.g.test_checkout_lock)",
+        "+qa!",
+      }, {
+        cwd = dir,
+        text = true,
+        env = {
+          NVIM_APPNAME = "nvim",
+          XDG_CONFIG_HOME = dir .. "/config",
+          XDG_DATA_HOME = dir .. "/data",
+          XDG_STATE_HOME = dir .. "/state",
+          XDG_CACHE_HOME = dir .. "/cache",
+          NVIM_LOG_FILE = dir .. "/nvim.log",
+        },
+      })
+      :wait(10000)
+    assert.equals(0, result.code, result.stderr)
+    local output = (result.stdout .. result.stderr):gsub("\\", "/")
+    assert.is_truthy(
+      output:find("2 " .. root:gsub("\\", "/") .. "/lazy-lock.json", 1, true),
+      output
+    )
+  end)
+
   it("checks out the locked manager before loading it and uses the checkout lockfile", function()
     local result, config = bootstrap(vim.json.encode({ ["lazy.nvim"] = { commit = commit } }))
     assert.equals("clone", result.calls[1][2])

@@ -1,8 +1,7 @@
 -- lua/config/lazy.lua
 --
 -- Bootstraps lazy.nvim (the plugin manager) and tells it to load every spec
--- file under `lua/plugins/`. Each plugin lives in its own file there so you
--- can add/remove plugins without churning a giant monolithic spec.
+-- file under `lua/plugins/`. Those files group related integrations.
 
 -- ---------------------------------------------------------------------------
 -- Bootstrap: clone lazy.nvim into stdpath("data") on first run.
