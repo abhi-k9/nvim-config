@@ -81,8 +81,10 @@ Allowed JSON settings are:
 - `compilation_database`: `path` (string or `false`) and `candidates` (array,
   maximum 256). Existing database resolution rules still apply.
 - `lsp`: `mode` (`disabled`, `native`, `selected`, `filtered`), `startup`
-  (`fallback`, `prepare`), `watch` (boolean), `debounce_ms` and
-  `prepare_timeout_ms` (integer milliseconds, 1–600000).
+  (`fallback`, `prepare`), `watch` (boolean), and four timing settings in
+  integer milliseconds (1–600000): `debounce_ms`, `prepare_timeout_ms`,
+  `shutdown_timeout_ms` and `exit_timeout_ms`. The last two control the
+  graceful shutdown period and additional wait for clangd to exit.
 
 Executables, arbitrary clangd arguments, `query_drivers`, root resolvers and Lua
 callbacks belong in trusted local setup, and are rejected in project JSON.

@@ -1,8 +1,11 @@
 # Customize this configuration
 
-Create `local.lua` next to `init.lua`. It is ignored by Git and is optional.
-Return a Lua table; the configuration reads it before core maps, autocmds, and
-plugins are registered. Restart Neovim after changing startup policy.
+Copy `local.example.lua` to `local.lua` beside `init.lua` and return your
+settings in one Lua table. For data-only settings, copy `local.example.json` to
+`local.json` and edit its JSON object. Both personal files are optional and
+ignored by Git. Startup selects Lua first and tries JSON only when the Lua
+file is absent. An error reading or executing the selected file is reported.
+Restart Neovim after changing startup policy.
 
 ```lua
 return {
@@ -17,8 +20,7 @@ return {
 ```
 
 The file is trusted executable Lua, just like `init.lua`. Keep tokens and machine
-paths out of tracked files. Git ignores only the root `local.lua`; arbitrary
-new source files still appear in the documentation checks. To use another file,
+paths out of tracked files. To select a specific Lua or JSON file,
 set `vim.g.config_local_file` to its filename **before** loading `init.lua`.
 Set it to `false` to disable local loading. The test harness does this so a
 developer's private configuration cannot change the default regression suite.
@@ -29,7 +31,7 @@ over direct mutations, and review this file as code.
 
 ## Load order and override rules
 
-1. Capture explicitly pre-set Neovim options and load `local.lua`.
+1. Capture explicitly pre-set Neovim options and load the selected personal settings file.
 2. Apply `globals`, then shipped options, then captured options and `options`.
 3. Register core maps and autocmds using those effective settings.
 4. Import shipped plugin specs, then append `plugins` as ordinary Lazy specs.
