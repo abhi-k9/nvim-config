@@ -84,6 +84,7 @@ local function detach_set_from_windows(excluded)
       if
         not (alt and pcall(vim.api.nvim_win_set_buf, win, alt))
         and vim.api.nvim_win_is_valid(win)
+        and excluded[vim.api.nvim_win_get_buf(win)]
       then
         if vim.wo[win].winfixbuf then
           -- 'winfixbuf' refuses every buffer switch (E1513), [No Name]
@@ -118,6 +119,9 @@ end
 -- existing highlighters in other buffers are not explicitly disabled.
 -- pcall-protected so the flag is always restored.
 local function delete_buf_quietly(b, opts)
+  -- An autocmd can reopen the target in any tab after the detach snapshot.
+  -- Wiping it now would also close the newly opened window.
+  if #vim.fn.win_findbuf(b) > 0 then return false end
   local saved = vim.g.syntax_on
   vim.g.syntax_on = nil
   local ok = pcall(vim.api.nvim_buf_delete, b, opts or {})
@@ -145,6 +149,7 @@ local function detach_buffer_from_windows(bufnr)
 end
 
 function M.delete_buffer_keep_windows(bufnr, force)
+  if bufnr == 0 then bufnr = vim.api.nvim_get_current_buf() end
   if not vim.api.nvim_buf_is_valid(bufnr) then return "deleted" end
   force = force or vim.bo[bufnr].buftype == "terminal"
   if not force and vim.bo[bufnr].modified then return "skipped" end
@@ -196,7 +201,8 @@ function M.delete_buffers_keep_windows(bufs)
     local n = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(b), ":t")
     return n ~= "" and n or ("[buf %d]"):format(b)
   end
-  for _, b in ipairs(bufs) do
+  for _, target in ipairs(bufs) do
+    local b = target == 0 and vim.api.nvim_get_current_buf() or target
     if b and vim.api.nvim_buf_is_valid(b) then
       if vim.bo[b].modified then
         table.insert(res.skipped, shortname(b))

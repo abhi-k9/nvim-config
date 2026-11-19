@@ -39,6 +39,40 @@ describe("buffer deletion under window autocmds", function()
     assert.are.equal(survivor, vim.api.nvim_get_current_buf())
   end)
 
+  it("keeps a window opened on the target by a replacement hook", function()
+    local victim = vim.api.nvim_get_current_buf()
+    local survivor = vim.api.nvim_create_buf(true, false)
+    local reopened
+    vim.api.nvim_create_autocmd("BufWinEnter", {
+      group = group,
+      buffer = survivor,
+      once = true,
+      callback = function()
+        reopened = vim.api.nvim_open_win(victim, false, { split = "right" })
+      end,
+    })
+
+    assert.are.equal("failed", util.delete_buffer_keep_windows(victim))
+    assert.are.equal(victim, vim.api.nvim_win_get_buf(reopened))
+    assert.are.equal(survivor, vim.api.nvim_get_current_buf())
+  end)
+
+  it("detaches a current-buffer target in both tabs without moving focus", function()
+    local victim = vim.api.nvim_get_current_buf()
+    local first = vim.api.nvim_get_current_win()
+    vim.cmd("tab split")
+    local second = vim.api.nvim_get_current_win()
+    local survivor = vim.api.nvim_create_buf(true, false)
+
+    assert.are.same(
+      { deleted = 1, skipped = {}, failed = {} },
+      util.delete_buffers_keep_windows({ 0, victim })
+    )
+    assert.are.equal(second, vim.api.nvim_get_current_win())
+    assert.are.equal(survivor, vim.api.nvim_win_get_buf(first))
+    assert.are.equal(survivor, vim.api.nvim_win_get_buf(second))
+  end)
+
   it("treats a target removed by a replacement hook as deleted", function()
     local victim = vim.api.nvim_get_current_buf()
     local survivor = vim.api.nvim_create_buf(true, false)
