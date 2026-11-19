@@ -190,6 +190,16 @@ describe("local customization lifecycle", function()
     assert.equals("/machine/cc", settings.get("tools.executables.compiler"))
   end)
 
+  it("restores pre-set options when the local options section is malformed", function()
+    vim.o.shiftwidth = 3
+    settings.capture_options()
+    vim.o.shiftwidth = 8
+    settings.configure({ options = "invalid" })
+    assert.is_false(settings.apply_options())
+    assert.equals(3, vim.o.shiftwidth)
+    assert.equals(1, #messages)
+  end)
+
   it("reports malformed global, option and plugin sections without stopping startup", function()
     settings.configure({ globals = false, options = "bad", plugins = true })
     assert.is_false(settings.apply_globals())

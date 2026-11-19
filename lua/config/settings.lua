@@ -180,12 +180,13 @@ end
 function M.apply_options()
   local options = copy(captured)
   local overrides = M.get("options", {})
-  if type(overrides) ~= "table" then
+  local valid = type(overrides) == "table"
+  if valid then
+    for name, value in pairs(overrides) do
+      options[name] = value
+    end
+  else
     vim.notify("Local options must be a table", vim.log.levels.ERROR)
-    return false
-  end
-  for name, value in pairs(overrides) do
-    options[name] = value
   end
   for name, value in pairs(options) do
     local ok, err = pcall(function()
@@ -198,7 +199,7 @@ function M.apply_options()
       )
     end
   end
-  return true
+  return valid
 end
 
 function M.bootstrap(config_root)
