@@ -35,21 +35,26 @@ end
 
 local function absolute(path, base)
   -- Do not expand $NAME, %, # or a literal POSIX backslash in real paths.
-  if path == "~" or path:sub(1, 2) == "~/" or path:sub(1, 2) == "~\\" then
+  local windows = vim.fn.has("win32") == 1
+  if windows then path = path:gsub("\\", "/") end
+  if path == "~" or path:sub(1, 2) == "~/" then
     path = (vim.uv.os_homedir() or "~") .. path:sub(2)
   end
-  local windows = vim.fn.has("win32") == 1
   if windows and path:match("^%a:") and not path:match("^%a:[/\\]") then
     error("Use a fully qualified Windows root; drive-relative paths are ambiguous: " .. path)
   end
-  if windows and path:sub(1, 1) == "\\" and path:sub(1, 2) ~= "\\\\" then
+  if windows and path:sub(1, 1) == "/" and path:sub(1, 2) ~= "//" then
     local drive = base:match("^%a:")
     assert(drive, "Use a fully qualified Windows root when the project is on a UNC share")
     path = drive .. path
   end
   local is_absolute = path:sub(1, 1) == "/"
     or windows and (path:match("^%a:[/\\]") or path:sub(1, 2) == "\\\\")
-  if not is_absolute then path = vim.fs.joinpath(base, path) end
+  if not is_absolute then
+    -- joinpath collapses the leading double separator of a UNC base.
+    local separator = base:sub(-1) == "/" or (windows and base:sub(-1) == "\\")
+    path = base .. (separator and "" or "/") .. path
+  end
   return vim.fs.normalize(path, { expand_env = false })
 end
 

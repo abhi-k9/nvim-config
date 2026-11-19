@@ -53,6 +53,10 @@ end
 function M.normalize(path, opts)
   if not path or path == "" then return "" end
 
+  -- Neovim also expands the tilde in literal names such as "~draft".
+  if path:sub(1, 1) == "~" and #path > 1 and path:sub(2, 2) ~= "/" then
+    if not M.is_windows or path:sub(2, 2) ~= "\\" then path = "./" .. path end
+  end
   path = vim.fs.normalize(path, {
     expand_env = (opts and opts.expand_env) == true,
     win = M.is_windows,
@@ -178,7 +182,7 @@ function M.absolute(path, base, opts)
       norm = rest
     end
   end
-  return M.normalize(base .. "/" .. norm)
+  return M.normalize((base:gsub("/$", "")) .. "/" .. norm)
 end
 
 -- ---------------------------------------------------------------------------

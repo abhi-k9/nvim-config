@@ -103,6 +103,12 @@ describe("path.is_absolute", function()
 end)
 
 describe("path.absolute", function()
+  it("preserves literal leading tildes and root separators", function()
+    local base = Path.is_windows and "c:/" or "/"
+    assert.equals(base .. "~draft β", Path.absolute("~draft β", base))
+    if not Path.is_windows then assert.equals([[/~\draft]], Path.absolute([[~\draft]], base)) end
+  end)
+
   it("returns absolute paths unchanged (modulo normalization)", function()
     -- On Unix the input is already absolute; on Windows it would be
     -- considered relative — we test the platform-appropriate input.

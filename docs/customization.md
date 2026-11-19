@@ -89,11 +89,11 @@ dynamic.
 `project.root` may be a path or `function(ctx)` returning a path. The context
 contains `cwd` (global directory), `filename`, and `bufnr`. Relative paths resolve
 against the global directory. Paths preserve literal `$`, `%`, `#`, and POSIX
-backslashes; only a leading `~` is expanded.
+backslashes; a standalone `~` path component at the start selects the home directory.
 The standalone `scoper.project.root` callback instead receives the global cwd
 string, following Scoper's own API; the shared resolver adapts that fallback.
 On Windows use fully qualified drive/UNC paths. Drive-relative `C:folder` roots
-are rejected; `\folder` uses the global cwd's drive and requires an explicit
+are rejected; both `/folder` and `\folder` use the global cwd's drive and require an explicit
 fully qualified path when that cwd is on a UNC share.
 
 Commands choose their context at invocation through

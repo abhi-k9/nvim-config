@@ -162,6 +162,30 @@ describe("local customization lifecycle", function()
     assert.equals(root .. "/literal $HOME % #", settings.project_root())
   end)
 
+  it("resolves platform-specific separators from the project base", function()
+    vim.cmd.cd(root)
+    if vim.fn.has("win32") == 1 then
+      local drive = root:match("^%a:")
+      if drive then
+        assert.equals(vim.fs.normalize(drive .. "/src"), settings.resolve("/src"))
+        assert.equals(settings.resolve("/src"), settings.resolve([[\src]]))
+      end
+    else
+      assert.equals(root .. [[/~\draft]], settings.resolve([[~\draft]]))
+    end
+  end)
+
+  it("keeps the share prefix when resolving relative project roots", function()
+    local getcwd = vim.fn.getcwd
+    vim.fn.getcwd = function()
+      return "//server/share"
+    end
+    local ok, result = pcall(settings.resolve, "nested/code")
+    vim.fn.getcwd = getcwd
+    assert.is_true(ok)
+    assert.equals("//server/share/nested/code", result)
+  end)
+
   it("adapts the standalone Scoper root callback to global cwd", function()
     vim.cmd.cd(root)
     settings.configure({
