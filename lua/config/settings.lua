@@ -241,6 +241,7 @@ function M.project_root()
     selected = M.get("scoper.project.root")
     -- Scoper's standalone API accepts global_cwd, not this module's context.
     if type(selected) == "function" then selected = selected(ctx.cwd) end
+    if selected == "" then return ctx.cwd end -- Scoper treats an empty path as its default root.
   end
   return evaluate(selected, ctx, ctx.cwd)
 end

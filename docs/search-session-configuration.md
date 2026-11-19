@@ -40,13 +40,15 @@ invoked. `search.root` defaults to `"cwd"`; `find_root`, `grep_root` and
 | Value | Meaning |
 | --- | --- |
 | `"cwd"` | Active window/tab working directory, including `:lcd` and `:tcd`. |
-| `"project"` | `project.root`, or the editor's global working directory. |
+| `"project"` | Uses `project.root` when configured. Otherwise it uses `scoper.project.root`, with global cwd as the default. |
 | `"scope"` | Loaded Scoper project root, falling back to the project root. This does not apply the scope's include/exclude filter. |
 | `"file"` | Current file's parent; unnamed/URI buffers fall back to the current working directory. |
 | A path or `function(ctx)` | Explicit path/resolver; relative results resolve against the global working directory. The context contains `cwd`, `filename` and `bufnr`. |
 
 `project.root` is an explicit string or callback; the config does not guess a
-repository root by scanning arbitrary parent markers. Root resolution does not
+repository root by scanning arbitrary parent markers. If both roots are set,
+host commands requesting `"project"` use `project.root`, while Scoper uses its
+own resolver. A Scoper resolver returning an empty string selects global cwd. Root resolution does not
 change process cwd. Invoking backend commands directly, such as `:Telescope`,
 continues to use that backend's own options.
 

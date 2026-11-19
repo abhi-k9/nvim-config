@@ -177,6 +177,17 @@ describe("local customization lifecycle", function()
     assert.equals(root .. "/project", settings.project_root())
   end)
 
+  it("uses global cwd when Scoper's fallback resolver returns an empty path", function()
+    vim.cmd.cd(root)
+    vim.cmd.lcd(root .. "/other")
+    local function use_default_root()
+      return ""
+    end
+    settings.configure({ scoper = { project = { root = use_default_root } } })
+    assert.equals(root, settings.resolve("project"))
+    assert.equals(root .. "/other", settings.resolve("cwd"))
+  end)
+
   it("uses the same parent replacement semantics for leaf and dictionary reads", function()
     vim.cmd.cd(root .. "/project")
     settings.configure({
