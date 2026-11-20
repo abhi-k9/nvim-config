@@ -35,34 +35,40 @@ function M.compile(scope, cwd)
     return key:sub(#base + (base:sub(-1) == "/" and 1 or 2))
   end
 
+  local unrestricted_includes = #scope.include == 0
+  local function allowed(key, rel)
+    for _, ex in ipairs(excludes) do
+      if ex(key, rel) then return false end
+    end
+    return true
+  end
+
   return function(path)
     local abs = canonical(Path.absolute(path, cwd))
     local key = Path.fold(abs)
-    local root_dir
+    local project_rel = rel_to(key, cwd_key)
+    if unrestricted_includes then return allowed(key, project_rel or key) end
+
+    -- Inside the project every include shares the same exclusion base. Outside,
+    -- an exclusion relative to ANY admitting include wins, regardless of order.
+    local included = false
     for _, d in ipairs(dirs) do
       if Path.key_under(key, d) then
-        root_dir = d
-        break
+        if #excludes == 0 then return true end
+        if project_rel then return allowed(key, project_rel) end
+        if not allowed(key, rel_to(key, d)) then return false end
+        included = true
       end
     end
-    local included = #scope.include == 0 or root_dir ~= nil
-    if not included then
-      for _, g in ipairs(globs) do
-        if Path.match_glob(abs, g.pattern, cwd) then
-          included = true
-          if Path.key_under(key, g.root) then root_dir = g.root end
-          break
-        end
+    for _, g in ipairs(globs) do
+      if Path.match_glob(abs, g.pattern, cwd) then
+        if #excludes == 0 then return true end
+        if project_rel then return allowed(key, project_rel) end
+        if not allowed(key, rel_to(key, g.root) or key) then return false end
+        included = true
       end
     end
-    if not included then return false end
-    if #excludes > 0 then
-      local rel = rel_to(key, cwd_key) or (root_dir and rel_to(key, root_dir)) or key
-      for _, ex in ipairs(excludes) do
-        if ex(key, rel) then return false end
-      end
-    end
-    return true
+    return included
   end
 end
 
@@ -93,18 +99,27 @@ function M.excluded_directory_matcher(scope, root, enabled)
       regions[#regions + 1], seen[region] = region, true
     end
   end
-  local excludes = {}
+  local matches = M.compile({ include = {}, exclude = scope.exclude or {} }, root)
+  local descendants = {}
   for _, pattern in ipairs(scope.exclude or {}) do
-    excludes[#excludes + 1] = pattern
-    -- A terminal /** covers descendants even when it misses the directory.
-    if pattern:sub(-3) == "/**" then excludes[#excludes + 1] = pattern:sub(1, -4) end
+    if pattern:sub(-3) == "/**" then
+      if Path.is_absolute(pattern) then pattern = Path.expand_short(pattern, aliases) end
+      descendants[#descendants + 1] = Path.exclude_matcher(pattern)
+    end
   end
-  local matches = M.compile({ include = {}, exclude = excludes }, root)
   local function classify(path)
     local directory = key(path)
     -- Outside-root exclusion bases depend on which include admitted each file.
-    if not Path.key_under(directory, root_key) then return false end
+    if directory == root_key or not Path.key_under(directory, root_key) then return false end
     if not matches(path) then return true end
+    -- Match the trailing slash itself against the original /** pattern.
+    -- Trimming vendor/** to vendor would also hide nested vendor directories.
+    if #descendants > 0 then
+      local rel = Path.relative(directory, root_key)
+      for _, excludes in ipairs(descendants) do
+        if excludes(directory .. "/", rel .. "/") then return true end
+      end
+    end
     if #regions == 0 then return false end -- empty includes admit everything
     for _, region in ipairs(regions) do
       if Path.key_under(directory, region) or Path.key_under(region, directory) then

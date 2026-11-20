@@ -212,7 +212,8 @@ Excludes use gitignore-style component and glob semantics:
   including parent-directory matches. A leading `/` anchors at that root.
 - A trailing `/` is accepted; an absolute drive/path pattern matches absolute
   paths. For includes outside the project, relative excludes use the include's
-  directory or a glob's deepest literal ancestor.
+  directory or a glob's deepest literal ancestor. If outside includes overlap, an exclusion
+  relative to any include that admits the file takes precedence.
 
 Folders above the project are not matched by a relative exclude. With a project
 at `D:/build/proj`, `**/build/**` excludes `build` folders inside that project.

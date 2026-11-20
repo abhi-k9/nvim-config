@@ -192,9 +192,8 @@ function prepare(opts, selection)
   -- too so the skip path can report the same message as a real run.
   -- -------------------------------------------------------------------
   local fingerprint = vim.fn.sha256(vim.json.encode({
-    -- Empty includes now apply excludes, including for renamed databases that
-    -- older versions copied unfiltered. Do not reuse those cached outputs.
-    5,
+    -- Outside paths may be excluded relative to any overlapping include.
+    6,
     Path.key(State.root()),
     cc,
     mode,

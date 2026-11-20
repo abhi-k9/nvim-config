@@ -71,7 +71,9 @@ remain selected with a warning, so a generated directory can appear later.
 Excludes remain glob strings; invalid patterns are refused. Excludes match
 project-relative paths for includes inside the project. For an outside include,
 relative excludes use that include's directory or a glob's deepest literal
-ancestor. Symlinks retain their logical spelling; they are not canonicalized to
+ancestor. If several outside includes admit the same file, an exclusion from any
+of their bases wins. External searches apply those rules to each result and may
+scan more candidates. Symlinks retain their logical spelling; they are not canonicalized to
 their target. Backend link-following policy remains a separate choice.
 
 **Disabled scoping is unrestricted** and ignores exclusions. When enabled,

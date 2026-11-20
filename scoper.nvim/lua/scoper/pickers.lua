@@ -318,6 +318,16 @@ function M._find_path(dirs)
   return table.concat(parts, ",")
 end
 
+-- External roots can overlap the project or each other, and a glob may admit
+-- only some files below its search root. Only the exact per-row matcher knows
+-- which exclusion bases apply there. Keep early pruning for in-project searches.
+local function search_excludes(ctx, cwd)
+  for _, dir in ipairs(ctx.dirs or {}) do
+    if not Path.is_under(dir, cwd) then return {} end
+  end
+  return ctx.excludes
+end
+
 -- fzf-lua files() options for `ctx`. ripgrep lists the files when it is
 -- installed (fzf-lua would pick fd first; fd can't match excludes
 -- case-insensitively), with the search dirs appended to the command the
@@ -326,7 +336,7 @@ end
 function M._fzf_files_opts(ctx, escape)
   local cwd = ctx.cwd or State.root()
   local opts = { prompt = ("Find [%s]> "):format(ctx.name), cwd = cwd }
-  local excludes = vim.list_extend({ ".git" }, ctx.excludes)
+  local excludes = vim.list_extend({ ".git" }, search_excludes(ctx, cwd))
   local follow = follow_links() and " --follow" or ""
   if vim.fn.executable("rg") == 1 then
     local parts = { "rg --files --color=never --hidden" .. follow .. rg_case_flag() }
@@ -463,7 +473,7 @@ function M._fzf_grep_opts(ctx, query, escape)
     "--column --line-number --no-heading --color=always --smart-case --max-columns=4096"
       .. rg_case_flag(),
   }
-  for _, ex in ipairs(M._rg_globs(ctx.excludes, ctx.dirs, cwd)) do
+  for _, ex in ipairs(M._rg_globs(search_excludes(ctx, cwd), ctx.dirs, cwd)) do
     table.insert(parts, M._rg_exclude(ex, escape))
   end
   table.insert(parts, "-e")

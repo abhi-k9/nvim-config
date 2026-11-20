@@ -45,6 +45,23 @@ describe("shared scope query plans", function()
     assert.is_false(query.matches(root .. "/outside/lib/skip.c"))
   end)
 
+  it("applies exclusions from every admitting outside include in either order", function()
+    local lib = root .. "/outside/lib"
+    local project = root .. "/src"
+    for _, includes in ipairs({
+      { lib, lib .. "/generated" },
+      { lib .. "/generated", lib },
+      { lib .. "/generated", lib .. "/**/*.c" },
+    }) do
+      local definition = { include = includes, exclude = { "generated/**" } }
+      local query = Scope.query(definition, project, true)
+      local entry = { directory = lib, file = "generated/a.c" }
+      assert.is_false(query.matches(lib .. "/" .. entry.file))
+      assert.same({}, require("scoper.cdb").filter({ entry }, Scope.compile(definition, project)))
+      assert.is_true(query.matches(lib .. "/ok.c"))
+    end
+  end)
+
   it("deduplicates roots but captures the full include and exclude predicate", function()
     local definition = { include = { "src/*.c", "src/*.h" }, exclude = { "main.c" } }
     local query = Scope.query(definition, root, true)
@@ -108,6 +125,18 @@ describe("shared scope query plans", function()
 end)
 
 describe("conservative directory exclusions", function()
+  it("keeps root-relative descendant exclusions anchored", function()
+    local root = Path.normalize(vim.fn.getcwd())
+    local scope = { include = {}, exclude = { "vendor/**" } }
+    local excluded = Scope.excluded_directory_matcher(scope, root, true)
+    assert.is_true(excluded(root .. "/vendor"))
+    assert.is_false(excluded(root .. "/src/vendor"))
+    assert.is_true(Scope.compile(scope, root)("src/vendor/keep.c"))
+    scope.exclude = { "*/**" }
+    assert.is_false(Scope.excluded_directory_matcher(scope, root, true)(root))
+    assert.is_true(Scope.compile(scope, root)("keep.c"))
+  end)
+
   it("marks excluded subtrees but not mixed directories or include mismatches", function()
     local root = require("scoper.path").normalize(vim.fn.getcwd())
     local excluded = Scope.excluded_directory_matcher({
