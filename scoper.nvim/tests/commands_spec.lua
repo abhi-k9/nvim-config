@@ -95,6 +95,15 @@ describe("scoper commands", function()
     assert.same({ "my\\ dir" .. separator }, vim.fn.getcompletion([[ScoperAdd my\ d]], "cmdline"))
   end)
 
+  it("completes project files and prompt directories after a window-local cd", function()
+    vim.cmd.lcd(vim.fn.fnameescape(root .. "/src"))
+    local separator = Path.is_windows and not vim.o.shellslash and "\\" or "/"
+    assert.same({ "src" .. separator }, vim.fn.getcompletion("ScoperAdd sr", "cmdline"))
+    local completion = "customlist,v:lua.require'scoper.ui'.complete_dirs"
+    assert.same({ "src" .. separator }, vim.fn.getcompletion("sr", completion))
+    assert.same({}, vim.fn.getcompletion("**", completion))
+  end)
+
   it(":ScoperAdd warns about a directory that doesn't exist, and keeps it", function()
     vim.cmd("ScoperAdd nope")
     assert.equals(vim.log.levels.WARN, notes[#notes].level)
@@ -143,6 +152,8 @@ describe("scoper commands", function()
   it("completes :ScoperRemoveExclude by what has been typed", function()
     vim.cmd("ScoperExclude **/gen/**")
     vim.cmd("ScoperExclude build")
+    vim.cmd("ScoperExclude **/my gen/**")
+    assert.same({ "gen/**" }, vim.fn.getcompletion("ScoperRemoveExclude **/my g", "cmdline"))
     assert.are.same({ "build" }, vim.fn.getcompletion("ScoperRemoveExclude b", "cmdline"))
   end)
 

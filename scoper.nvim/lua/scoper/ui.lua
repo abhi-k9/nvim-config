@@ -14,7 +14,7 @@
 -- ui_select) just works. pick_many and pick_dirs are designed to be
 -- picker-plugin-aware: pick_many uses fzf-lua / telescope native
 -- multi-select when available and falls back to a vim.ui.select loop
--- when neither is loaded; pick_dirs uses Vim-native `completion = "dir"`
+-- when neither is loaded; pick_dirs uses guarded native directory completion
 -- which works without any picker plugin.
 
 local M = {}
@@ -237,14 +237,49 @@ function M.input(prompt, default, cb)
   end)
 end
 
+-- Native completion expands wildcards synchronously. Only enumerate literal
+-- prefixes, relative to the same project root used when committing the input.
+function M.complete_path(lead, kind)
+  local Path = require("scoper.path")
+  if Path.is_glob(lead) or lead:find("`", 1, true) then return {} end
+  local root = require("scoper.state").root()
+  local prefix
+  if Path.key(root) ~= Path.key(vim.fn.getcwd()) then
+    local expanded = Path.normalize(lead, { expand_env = true })
+    local drive = Path.is_windows and lead:match("^(%a:)")
+    if Path.is_windows and not Path.is_absolute(expanded) and (drive or lead:match("^[/\\]")) then
+      local base = Path.absolute(drive or "/", root)
+      lead = vim.fn.fnameescape(base)
+        .. (base:sub(-1) == "/" and "" or "/")
+        .. lead:sub(drive and 3 or 2)
+    elseif not Path.is_absolute(expanded) then
+      prefix = root:sub(-1) == "/" and root or root .. "/"
+      lead = vim.fn.fnameescape(prefix) .. lead
+    end
+  end
+  return vim.tbl_map(function(path)
+    if prefix then
+      local comparable = Path.is_windows and path:gsub("\\", "/") or path
+      if vim.startswith(Path.fold(comparable), Path.fold(prefix)) then
+        path = path:sub(#prefix + 1)
+      end
+    end
+    return (path:gsub("%s", "\\%0"))
+  end, vim.fn.getcompletion(lead, kind, true))
+end
+
+-- vim.ui.input accepts a Vim customlist completion name.
+function M.complete_dirs(lead)
+  return M.complete_path(lead, "dir")
+end
+
 -- ---------------------------------------------------------------------------
 -- Interactive directory picker.
 --
 -- Loops: each <CR> adds the typed path and re-prompts with the same parent
 -- pre-filled (so adding sibling directories is quick). Empty input ends.
 --
--- The `completion = "dir"` tells Vim to use directory completion on <Tab>
--- inside the input — works without any picker plugin.
+-- Directory completion works without a picker plugin.
 --
 -- The callback is called with an array of accumulated paths. If the user
 -- aborts (Esc) on the first prompt, callback is called with an empty array.
@@ -256,13 +291,13 @@ function M.pick_dirs(cb)
     vim.ui.input({
       prompt = ("Scoper: add dir [#%d, empty to finish]: "):format(#picked + 1),
       default = default or "",
-      completion = "dir",
+      completion = "customlist,v:lua.require'scoper.ui'.complete_dirs",
     }, function(input)
       if input == nil or input == "" then
         cb(picked)
         return
       end
-      -- `completion = "dir"` inserts a directory containing spaces as
+      -- Directory completion inserts a directory containing spaces as
       -- "my\ dir/"; unescape so the stored path is the real one.
       input = input:gsub("\\(%s)", "%1")
       table.insert(picked, input)

@@ -34,14 +34,7 @@ cmd("ScoperAdd", function(args)
 end, {
   nargs = "*",
   complete = function(lead)
-    -- Automatic command-line completion calls this while typing. Native file
-    -- completion expands ** recursively and blocks the editor; scope globs
-    -- are definitions, not requests to enumerate their matches.
-    if require("scoper.path").is_glob(lead) then return {} end
-    return vim.tbl_map(function(path)
-      -- Match split_args: escape whitespace, preserving Windows separators.
-      return (path:gsub("%s", "\\%0"))
-    end, vim.fn.getcompletion(lead, "file", true))
+    return require("scoper.ui").complete_path(lead, "file")
   end,
   desc = "Add paths or globs to active scope",
 })
@@ -56,7 +49,7 @@ end, {
   complete = function(lead)
     local scope = require("scoper.state").active_scope()
     local escaped = vim.tbl_map(function(p)
-      return (p:gsub(" ", "\\ "))
+      return (p:gsub("%s", "\\%0"))
     end, scope and scope.include or {})
     return starting_with(lead, escaped)
   end,
@@ -81,10 +74,21 @@ cmd("ScoperRemoveExclude", function(args)
     -- whole arg string is ONE glob, not split
   end
 end, {
-  nargs = "*",
-  complete = function(lead)
+  nargs = "?",
+  complete = function(lead, line, cursor)
     local scope = require("scoper.state").active_scope()
-    return starting_with(lead, scope and scope.exclude or {})
+    -- Vim replaces only the last word, but the stored pattern can span words.
+    -- Append a marker so parsing also preserves a trailing space.
+    local ok, parsed = pcall(vim.api.nvim_parse_cmd, line:sub(1, cursor) .. "_", {})
+    local typed = ok
+        and parsed.cmd == "ScoperRemoveExclude"
+        and parsed.args[1]
+        and parsed.args[1]:sub(1, -2)
+      or lead
+    local prefix = #typed - #lead
+    return vim.tbl_map(function(pattern)
+      return pattern:sub(prefix + 1)
+    end, starting_with(typed, scope and scope.exclude or {}))
   end,
   desc = "Remove an exclude glob from active scope (no arg → picker)",
 })

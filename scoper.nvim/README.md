@@ -85,8 +85,8 @@ three shapes:
 - **Free-form text loop** — `:ScoperAdd`. Arbitrary directories can't
   be enumerated up front, so this is iterative text input rather than
   a picker. Each `<CR>` adds the typed path and re-prompts with the
-  parent pre-filled; empty input ends. Uses Vim-native
-  `completion = "dir"` for `<Tab>` directory completion.
+  parent pre-filled; empty input ends. Tab completes literal directory prefixes
+  from the Scoper project root. Glob input skips filesystem completion.
 - **Single-pick** — `:ScoperUse` (single-select picker over scope
   names; exactly one scope is active at a time) and `:ScoperNew`
   (free-form text input for the new scope's name).
