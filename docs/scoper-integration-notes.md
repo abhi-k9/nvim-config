@@ -121,7 +121,8 @@ visible. This does not add a persistent discovery cache.
 
 clangd accepts a directory containing `compile_commands.json`. If a selected
 source has another filename, Scoper publishes a full immutable copy named
-`compile_commands.json` in its cache; its entries stay unchanged. Filtering preserves each kept
+`compile_commands.json` in its cache. For a renamed source, full and filtered copies have separate cache
+keys, so toggling Scoper can reuse the appropriate result. Filtering preserves each kept
 entry's original arguments, command, directory and other fields, including
 relative-file semantics. An include containing only headers can produce zero
 translation units; status reports the kept/total counts. Scoper invents no
@@ -164,7 +165,8 @@ output, the buffer stays unattached and reports the reason; retry with
 `:ScoperLspReload` after correcting it. This strict policy never falls back to
 expensive synchronous filtering on worker startup failure. Ordinary compatibility
 reloads can instead filter in the main editor after a worker failure and warn
-once; that fallback can pause the UI on a large database. A timed-out worker may still
+once; that fallback can pause the UI on a large database. The editor checks the
+worker reply and the published file’s generation before passing its path to clangd. A timed-out worker may still
 finish its immutable cache object for a later retry. Native/manual client start
 APIs that bypass `vim.lsp.enable()` are outside this startup gate's contract.
 

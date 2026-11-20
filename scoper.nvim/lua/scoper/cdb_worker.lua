@@ -6,8 +6,13 @@
 -- messages). Not meant to be required.
 
 local here = debug.getinfo(1, "S").source:sub(2)
-local lua_dir = vim.fs.dirname(vim.fs.dirname(vim.fs.normalize(here)))
-package.path = lua_dir .. "/?.lua;" .. lua_dir .. "/?/init.lua;" .. package.path
+local directory = vim.fs.dirname(here)
+-- Resolve sibling modules literally. package.path treats ";" and "?" in the
+-- installation directory as search syntax, even when the script argv is exact.
+table.insert(package.loaders, 2, function(module)
+  local name = module:match("^scoper%.([%w_]+)$")
+  if name then return assert(loadfile(directory .. "/" .. name .. ".lua")) end
+end)
 
 local job = vim.json.decode(table.concat(vim.fn.readfile(arg[1]), "\n"))
 local result = require("scoper.cdb").run(job)

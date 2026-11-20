@@ -194,6 +194,7 @@ function M.run(job)
 
   return {
     dir = result_dir,
+    out_stamp = out_stamp,
     reason = job.kind == "copy" and "selected" or "filtered",
     source = job.cc,
     kept = #kept,

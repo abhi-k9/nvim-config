@@ -246,6 +246,21 @@ describe("scoper.lsp filtered compile_commands", function()
     end
   )
 
+  it("keeps full and filtered copies of a renamed database separate across toggles", function()
+    local named = p.root .. "/build/commands.json"
+    assert(vim.uv.fs_copyfile(p.cc, named))
+    State.set_database(named)
+    local filtered = assert(lsp.write_filtered_compile_commands())
+    assert.equals(1, #read_json(filtered .. "/compile_commands.json"))
+    State.set_enabled(false)
+    assert.is_nil(lsp.write_filtered_compile_commands({ stale_ok = true }))
+    local full = assert(lsp.write_filtered_compile_commands())
+    assert.equals(2, #read_json(full .. "/compile_commands.json"))
+    State.set_enabled(true)
+    assert.equals(filtered, lsp.write_filtered_compile_commands({ stale_ok = true }))
+    assert.equals(2, #read_json(full .. "/compile_commands.json"))
+  end)
+
   it("reuses the previous result while nothing changed", function()
     lsp.write_filtered_compile_commands()
     local _, info, changed = lsp.write_filtered_compile_commands()
@@ -401,6 +416,34 @@ describe("scoper.lsp filtered compile_commands", function()
     assert.equals(2, #read_json(result .. "/compile_commands.json"))
   end)
 
+  it("rejects incomplete worker replies and outputs removed before delivery", function()
+    local original = vim.system
+    local ok, err = pcall(function()
+      for _, incomplete in ipairs({ true, false }) do
+        vim.system = function(cmd, _, callback)
+          local reply = {}
+          if not incomplete then
+            reply = require("scoper.cdb").run(read_json(cmd[#cmd - 1]))
+            assert(vim.uv.fs_unlink(reply.dir .. "/compile_commands.json"))
+          end
+          vim.fn.writefile({ vim.json.encode(reply) }, cmd[#cmd])
+          callback({ code = 0 })
+        end
+        local received
+        lsp._filter_async(function(dir, info)
+          received = { dir = dir, info = info }
+        end, { no_sync = true })
+        assert.is_true(vim.wait(1000, function()
+          return received ~= nil
+        end))
+        assert.is_nil(received.dir)
+        assert.matches("background preparation failed", received.info)
+      end
+    end)
+    vim.system = original
+    assert.is_true(ok, err)
+  end)
+
   it("bounds retries when a source keeps changing during background delivery", function()
     local original, calls, delivered, result = vim.system, 0, 0, nil
     vim.system = function(cmd, _, callback)
@@ -478,7 +521,10 @@ describe("scoper.lsp filtered compile_commands", function()
     assert.is_truthy(info:find("1/2 entries kept", 1, true))
     assert.is_true(changed)
     assert.equals(1, #read_json(dir .. "/compile_commands.json"))
-    assert.are.same({}, vim.fn.glob(dir .. "/.scoper-job-*", true, true))
+    assert.are.same(
+      {},
+      vim.fn.glob(vim.fs.dirname(vim.fs.dirname(dir)) .. "/.scoper-job-*", true, true)
+    )
     local _, info2, changed2 = lsp.write_filtered_compile_commands()
     assert.is_truthy(info2:find("(cached)", 1, true))
     assert.is_false(changed2)

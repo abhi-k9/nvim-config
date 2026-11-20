@@ -161,7 +161,8 @@ function prepare(opts, selection)
     and (#scope.include > 0 or #scope.exclude > 0)
   -- clangd accepts a directory, not an arbitrary filename. Publish a full,
   -- immutable copy when the selected source has a different basename.
-  local copy = cc and vim.fs.basename(cc) ~= "compile_commands.json" and not scoped
+  local renamed = cc and vim.fs.basename(cc) ~= "compile_commands.json"
+  local copy = renamed and not scoped
   if mode == "selected" and not copy then
     return { info = selection.reason, reason = cc and "selected" or "unavailable", source = cc },
       nil,
@@ -199,6 +200,8 @@ function prepare(opts, selection)
     mode,
     scope.include,
     scope.exclude,
+    -- Renamed sources can require either operation in the same integration mode.
+    renamed and (copy and "copy" or "filter") or nil,
   }))
   local out_dir = cache_dir(fingerprint)
   local meta_path = out_dir .. "/.scoper-meta.json"
@@ -385,8 +388,20 @@ local function run_in_background(job, cb, opts)
     { text = true, timeout = runtime._worker_timeout },
     function(proc)
       vim.schedule(function()
-        local res = proc.code == 0 and read_json(result_path)
-        if res then
+        if proc.code == 0 and (proc.signal or 0) == 0 then
+          local res = read_json(result_path)
+          if not res or type(res.info) ~= "string" then return run_here("invalid worker result") end
+          if res.dir ~= nil then
+            -- A cache cleanup or concurrent repair can replace the object
+            -- between worker verification and delivery on the main loop.
+            if
+              type(res.dir) ~= "string"
+              or res.context ~= job.context
+              or not Cdb.same_stamp(res.out_stamp, Cdb.stamp(res.dir .. "/compile_commands.json"))
+            then
+              return run_here("worker output unavailable or changed")
+            end
+          end
           cleanup("ok")
           return cb(res)
         end
