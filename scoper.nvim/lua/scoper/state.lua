@@ -192,8 +192,8 @@ function M.reload(opts)
   return M.load(opts)
 end
 
-function M.initialize()
-  local next_root = M.resolve_root()
+function M.initialize(next_root)
+  next_root = next_root or M.resolve_root()
   local next_store = Store.new(next_root, fresh_state)
   if store and store.path() == next_store.path() then return M.last_result() end
   if store and dirty then

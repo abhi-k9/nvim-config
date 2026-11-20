@@ -42,7 +42,9 @@ applying exclusions. JSON requires double quotes and does not support comments.
 | `:ScoperReload` | Reload the separate saved personal state, as before. |
 
 Settings load at setup, when the configured root changes, and on explicit config
-reload. Editing the file does not trigger a watcher. Ordinary Scoper commands
+reload. An explicit reload resolves the root once for both the JSON file and
+personal state, including when a custom resolver changes without a directory
+change. Editing the file does not trigger a watcher. Ordinary Scoper commands
 still save only personal state under `stdpath("data")/scoper/`; they never rewrite
 `.scoper.json`.
 
@@ -100,7 +102,7 @@ copying a project's settings into the next root's configuration.
 ## Failure handling
 
 Files are limited to 1 MiB and must be regular files, not symlinks. Unknown
-fields, invalid types/globs and unsupported versions reject the whole document.
+fields, arrays in place of objects (including empty arrays), invalid types/globs and unsupported versions reject the whole document.
 Reads compare file identity, size and modification metadata before and after
 reading. If a concurrent edit or replacement is detected, reload is rejected;
 finish saving the file and run `:ScoperConfigReload` again.

@@ -98,14 +98,14 @@ end
 local base_options = {}
 local project_documents = {}
 
-local function setup(opts, document)
+local function setup(opts, root, document)
   assert(opts == nil or type(opts) == "table", "Scoper setup options must be a table")
-  base_options = vim.deepcopy(opts or {})
-  local base = merge(vim.deepcopy(defaults), base_options)
-  State().configure_project(base.project and base.project.root)
-  local root = State().resolve_root()
+  local base = merge(vim.deepcopy(defaults), opts or {})
   local Project = require("scoper.project_config")
   Project.validate({ version = 1, settings = base.project_config.overrides })
+  State().configure_project(base.project and base.project.root)
+  root = root or State().resolve_root()
+  base_options = vim.deepcopy(opts or {})
   local key = require("scoper.path").key(root)
   local err
   if base.project_config.enabled == false then
@@ -117,7 +117,9 @@ local function setup(opts, document)
       document = project_documents[key] or {}
     end
   end
-  if not err then project_documents[key] = vim.deepcopy(document) end
+  if not err and base.project_config.enabled ~= false then
+    project_documents[key] = next(document) and vim.deepcopy(document) or nil
+  end
   M.project_config_status = { path = Project.path(root), error = err }
   M.config = merge(merge(base, document.settings or {}), base.project_config.overrides or {})
   State().default_excludes = vim.deepcopy(M.config.default_excludes or {})
@@ -130,8 +132,7 @@ local function setup(opts, document)
       previous_lsp.detach_auto()
     end
   end
-  State().configure_project(M.config.project and M.config.project.root)
-  State().initialize()
+  State().initialize(root)
   if M.config.lsp and (M.config.lsp.clangd or M.config.lsp.mode) then
     local ok, lsp_err = pcall(function()
       if LSP().configure then
@@ -150,7 +151,8 @@ local function setup(opts, document)
     pattern = "global",
     callback = function()
       local Path = require("scoper.path")
-      if Path.key(State().resolve_root()) ~= Path.key(State().root()) then M.setup(base_options) end
+      local resolved = State().resolve_root()
+      if Path.key(resolved) ~= Path.key(State().root()) then setup(base_options, resolved) end
     end,
   })
   return M.status_snapshot()
@@ -164,9 +166,14 @@ function M.reload_project_config(apply_scopes)
   if (M.config.project_config or {}).enabled == false then
     return false, "project configuration is disabled"
   end
-  local document, err = require("scoper.project_config").read(State().root())
-  if not document then return false, err end
-  setup(base_options, document)
+  local Project = require("scoper.project_config")
+  local root = State().resolve_root()
+  local document, err = Project.read(root)
+  if not document then
+    M.project_config_status = { path = Project.path(root), error = err }
+    return false, err
+  end
+  setup(base_options, root, document)
   if apply_scopes then
     local result = State().apply_project_defaults()
     if not result.applied or not result.persisted then

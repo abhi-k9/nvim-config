@@ -4,12 +4,6 @@ local Path = require("scoper.path")
 local M = {}
 local LIMIT = 1024 * 1024
 
-local function object(value, name, fields)
-  assert(type(value) == "table", name .. " must be an object")
-  for key in pairs(value) do
-    assert(fields[key], name .. ": unsupported field " .. tostring(key))
-  end
-end
 local function text(value)
   assert(
     type(value) == "string" and value ~= "" and not value:find("%z"),
@@ -31,14 +25,25 @@ local function boolean(value)
   assert(type(value) == "boolean", "expected boolean")
 end
 
-function M.validate(doc)
+function M.validate(doc, json_shapes)
+  -- Trusted Lua options use {} for an empty dictionary. Decoded JSON
+  -- preserves the distinction between an empty object and an empty array.
+  local function object(value, name, fields)
+    assert(
+      type(value) == "table" and (not json_shapes or not vim.islist(value)),
+      name .. " must be an object"
+    )
+    for key in pairs(value) do
+      assert(fields[key], name .. ": unsupported field " .. tostring(key))
+    end
+  end
   object(
     doc,
     "project config",
     { version = true, settings = true, scopes = true, active = true, enabled = true }
   )
   assert(doc.version == 1, "unsupported project config version")
-  local settings = doc.settings == nil and {} or doc.settings
+  local settings = doc.settings == nil and vim.empty_dict() or doc.settings
   object(
     settings,
     "settings",
@@ -105,7 +110,7 @@ function M.validate(doc)
 end
 
 function M.path(root)
-  return Path.normalize(root .. "/.scoper.json")
+  return Path.absolute(".scoper.json", root)
 end
 
 -- Compare the object and generation, ignoring access-time changes caused by
@@ -146,7 +151,8 @@ function M.read(root)
       "project config changed while reading; reload to retry"
     )
     assert(#contents <= LIMIT, ".scoper.json exceeds 1 MiB")
-    return M.validate(vim.json.decode(contents))
+    assert(#contents == opened.size, "incomplete project config read")
+    return M.validate(vim.json.decode(contents), true)
   end)
   if not ok then return nil, tostring(doc) end
   return doc
@@ -169,7 +175,7 @@ local function pretty(value, depth)
 end
 
 function M.export(root, doc, overwrite)
-  local ok, err = pcall(M.validate, doc)
+  local ok, err = pcall(M.validate, doc, true)
   if not ok then return false, tostring(err) end
   local encoded = pretty(doc, 0) .. "\n"
   if #encoded > LIMIT then return false, "export exceeds 1 MiB" end

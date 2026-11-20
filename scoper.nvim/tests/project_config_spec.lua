@@ -68,6 +68,34 @@ describe("declarative project configuration", function()
     assert.equals("telescope", Scoper.config.picker)
   end)
 
+  it("reloads and imports only the currently resolved project's document", function()
+    write({ version = 1, settings = { picker = "fzf" }, enabled = true })
+    vim.fn.writefile(
+      { '{"version":1,"settings":{"picker":"telescope"},"enabled":false}' },
+      Project.path(other)
+    )
+    local selected = root
+    Scoper.setup({ project = {
+      root = function()
+        return selected
+      end,
+    } })
+    selected = other
+    assert.is_true(Scoper.reload_project_config(true))
+    assert.equals(other, State.root())
+    assert.equals("telescope", Scoper.config.picker)
+    assert.is_false(State.is_enabled())
+  end)
+
+  it("keeps the last valid document across a temporary opt-out", function()
+    write({ version = 1, settings = { picker = "telescope" } })
+    Scoper.setup({})
+    Scoper.setup({ project_config = { enabled = false } })
+    vim.fn.writefile({ "{" }, Project.path(root))
+    Scoper.setup({})
+    assert.equals("telescope", Scoper.config.picker)
+  end)
+
   it("gives explicit personal overrides priority and supports opting out", function()
     write({ version = 1, settings = { picker = "telescope" } })
     Scoper.setup({ project_config = { overrides = { picker = "fzf" } } })
@@ -111,6 +139,26 @@ describe("declarative project configuration", function()
     assert.is_false(Scoper.reload_project_config())
     Scoper.setup({})
     assert.equals("telescope", Scoper.config.picker)
+  end)
+
+  it("distinguishes JSON objects from empty arrays on reload", function()
+    write({ version = 1 })
+    Scoper.setup({})
+    for _, json in ipairs({
+      '{"version":1,"settings":[]}',
+      '{"version":1,"settings":{"compilation_database":[]}}',
+      '{"version":1,"scopes":{"default":[]}}',
+    }) do
+      vim.fn.writefile({ json }, Project.path(root))
+      assert.is_false(Scoper.reload_project_config())
+      assert.is_string(Scoper.project_config_status.error)
+    end
+    vim.fn.writefile(
+      { '{"version":1,"settings":{"lsp":{},"default_excludes":[]}}' },
+      Project.path(root)
+    )
+    assert.is_true(Scoper.reload_project_config())
+    assert.is_nil(Scoper.project_config_status.error)
   end)
 
   it("exports readable config exclusively and only overwrites explicitly", function()
