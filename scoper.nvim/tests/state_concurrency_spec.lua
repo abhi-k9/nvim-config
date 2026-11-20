@@ -91,6 +91,22 @@ describe("Scoper cooperating state writers", function()
     assert.same({ "**/build/**" }, persisted().scopes.default.exclude)
   end)
 
+  it("keeps the toggle's read baseline when another editor toggles before publication", function()
+    State.set_enabled(false)
+    local other = instance()
+    local enabled = State.is_enabled
+    State.is_enabled = function()
+      local observed = enabled()
+      other.toggle()
+      return observed
+    end
+    local result = State.toggle()
+    State.is_enabled = enabled
+    assert.is_false(result.persisted)
+    assert.equals("conflict", result.reason)
+    assert.is_true(persisted().enabled)
+  end)
+
   local function child(mode, ready, start, entry)
     local process = vim.system({
       vim.v.progpath,

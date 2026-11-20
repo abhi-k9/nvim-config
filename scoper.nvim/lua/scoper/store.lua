@@ -180,7 +180,7 @@ function M.new(root, fresh_state)
       )
       return nil
     end
-    if not lines or #lines == 0 then return fresh_state() end
+    if not lines then return fresh_state() end
 
     local ok, parsed = pcall(vim.json.decode, table.concat(lines, "\n"))
     if not ok or type(parsed) ~= "table" or vim.islist(parsed) then
@@ -195,12 +195,13 @@ function M.new(root, fresh_state)
         read_error, read_reason = "corrupt state could not be backed up", "io_error"
       end
       notify(
-        ("Scoper: corrupt state file, using defaults. %s"):format(
-          copied and ("The old file is kept as " .. backup)
+        ("Scoper: corrupt state file. %s"):format(
+          copied and ("Using defaults; the old file is kept as " .. backup)
             or ("Could not back up " .. path .. "; saves are blocked until a successful reload")
         ),
         vim.log.levels.WARN
       )
+      if not copied then return nil end
       return fresh_state()
     end
 

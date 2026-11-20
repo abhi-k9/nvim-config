@@ -163,10 +163,18 @@ end
 
 function M.load(opts)
   opts = opts or {}
-  root = opts.root and Path.absolute(opts.root, Path.cwd()) or M.resolve_root()
-  store = Store.new(root, fresh_state)
-  unsaved[store.path()] = nil
+  local next_root = opts.root and Path.absolute(opts.root, Path.cwd()) or M.resolve_root()
+  local next_store = Store.new(next_root, fresh_state)
+  local same_store = store and store.path() == next_store.path()
+  root, store = next_root, next_store
   local loaded = read_state()
+  if not loaded and same_store then
+    -- Even a forced reload needs a usable replacement. Retain edits and
+    -- the new store's save block until the on-disk error is resolved.
+    result = { applied = false, persisted = false, reason = store.reason(), error = store.error() }
+    return M.last_result()
+  end
+  unsaved[store.path()] = nil
   M.state = loaded or fresh_state()
   dirty = false
   result = {
@@ -530,18 +538,22 @@ function M.set_active(name)
   return true, nil, M.last_result()
 end
 
-function M.set_enabled(on)
-  sync()
+local function set_enabled(on)
   M.state.enabled = on == true
   M.save()
   fire_change("enabled", { "enabled" })
   return M.last_result()
 end
 
+function M.set_enabled(on)
+  sync()
+  return set_enabled(on)
+end
+
 function M.toggle()
   -- Read another instance's saved value before computing its inverse.
   sync()
-  return M.set_enabled(not M.is_enabled())
+  return set_enabled(not M.is_enabled())
 end
 
 -- ---------------------------------------------------------------------------

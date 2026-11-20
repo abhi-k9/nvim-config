@@ -162,13 +162,13 @@ The `store.lua` module owns the schema, legacy migration, corruption backups,
 writer lock, content comparison and atomic publication. `state.lua` owns active
 selection, revisions and notifications. A saved state includes
 `schema_version = 1`. Files without a version migrate on their next successful
-save. An unsupported schema is never overwritten; Scoper uses session defaults
-and reports `unsupported_schema` until an explicit reload can read supported
+save. An unsupported schema is never overwritten; Scoper keeps the current project state on a failed reload, uses defaults
+on first load, and reports `unsupported_schema` until an explicit reload can read supported
 data. Keep the original file or upgrade Scoper instead of deleting unfamiliar
 fields to force a save.
 
 The state root must be a JSON object. Arrays (including `[]`), scalars and
-malformed JSON follow the corruption-recovery path: preserve a uniquely named
+empty files and malformed JSON follow the corruption-recovery path: preserve a uniquely named
 `.corrupt-*` backup before using defaults. If that backup cannot be created,
 saves stay blocked until a successful explicit reload. An empty object `{}` is
 valid and receives the normal defaults; unknown object fields remain intact.

@@ -305,7 +305,8 @@ State behavior:
   on disk before atomic publication. A stale save preserves the other editor's
   file and your local edits. `:ScoperReload` refuses to discard them; copy or
   reconcile them, then explicitly use `:ScoperReload!` to replace local state.
-  Ordinary I/O failures can be retried with `require("scoper.state").save()`.
+  If reload cannot read a replacement or back up corrupt data, it keeps your
+  current edits, even with `!`. Ordinary I/O failures can be retried with `require("scoper.state").save()`.
   Switching projects retains unsaved state in this editor and restores it on
   return. Quitting still loses unsaved state. Dead-owner locks are
   recovered; live or unrecognized locks are retained with an error.
