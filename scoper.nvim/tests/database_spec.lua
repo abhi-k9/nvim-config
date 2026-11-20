@@ -59,6 +59,31 @@ describe("compilation database selection", function()
     assert.equals(path, result.path)
     assert.equals("work", context.scope)
   end)
+  it("discovers linked build directories and deduplicates aliases", function()
+    local file = put(external .. "/compile_commands.json")
+    if not vim.uv.fs_symlink(external, root .. "/cmake-build-a", { dir = true }) then
+      pending("directory symlinks unavailable")
+      return
+    end
+    assert(vim.uv.fs_symlink(external, root .. "/cmake-build-b", { dir = true }))
+    local result = Database.resolve(root, {}, {})
+    assert.equals(1, #result.matches)
+    assert.equals(Path.key(vim.uv.fs_realpath(file)), Path.key(vim.uv.fs_realpath(result.path)))
+  end)
+
+  it("reports enumeration failures without selecting from a partial search", function()
+    put(root .. "/compile_commands.json")
+    local read = vim.uv.fs_readdir
+    vim.uv.fs_readdir = function()
+      return nil, "read failed"
+    end
+    local ok, result = pcall(Database.resolve, root, {}, {})
+    vim.uv.fs_readdir = read
+    assert.is_true(ok)
+    assert.is_nil(result.path)
+    assert.matches("read failed", result.reason)
+  end)
+
   it("bounds explicit candidate work", function()
     local candidates = {}
     for i = 1, 257 do

@@ -29,6 +29,12 @@ local function base_clangd_cmd()
   vim.list_extend(cmd, cfg.clangd_args or {})
   vim.list_extend(cmd, cfg.extra_args or {})
   if cfg.query_drivers and #cfg.query_drivers > 0 then
+    for _, driver in ipairs(cfg.query_drivers) do
+      assert(
+        type(driver) == "string" and not driver:find(",", 1, true),
+        "query_drivers entries must be individual globs without commas"
+      )
+    end
     cmd[#cmd + 1] = "--query-driver=" .. table.concat(cfg.query_drivers, ",")
   end
   vim.list_extend(cmd, M._extra_args or {})
@@ -46,10 +52,10 @@ local function cmd_from(filtered_dir, info, changed, stale, selection)
   -- (including compiler trust) remain intact.
   local i = 2
   while i <= #cmd do
-    if cmd[i] == "--compile-commands-dir" then
+    if cmd[i]:match("^%-%-?compile%-commands%-dir$") then
       table.remove(cmd, i)
       table.remove(cmd, i)
-    elseif cmd[i]:match("^%-%-compile%-commands%-dir=") then
+    elseif cmd[i]:match("^%-%-?compile%-commands%-dir=") then
       table.remove(cmd, i)
     else
       i = i + 1
@@ -121,7 +127,16 @@ end
 -- configuration raises an error; returning a command does not install clangd.
 -- ---------------------------------------------------------------------------
 function M.clangd_cmd(extra_args)
-  if extra_args ~= nil then M._extra_args = extra_args end
+  if extra_args ~= nil then
+    assert(
+      type(extra_args) == "table" and vim.islist(extra_args),
+      "extra_args must be an argv list"
+    )
+    for _, arg in ipairs(extra_args) do
+      assert(type(arg) == "string" and not arg:find("%z"), "extra_args must contain argv strings")
+    end
+    M._extra_args = vim.deepcopy(extra_args)
+  end
   local cmd, info, changed = build_cmd()
   return cmd, info, changed
 end

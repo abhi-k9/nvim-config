@@ -43,7 +43,7 @@ its project resolver with Scoper when no Scoper-specific root is supplied.
 | `"disabled"` | Releases owned configuration; manual reload does nothing. | Off |
 | `"native"` | Leaves existing clangd configuration and its native database discovery untouched. | Off |
 | `"selected"` | Points clangd at the selected complete database; search scope has no effect. | On |
-| `"filtered"` | Uses an immutable filtered copy while scope is enabled and includes are nonempty; otherwise uses the selected full database. | On |
+| `"filtered"` | Uses an immutable filtered copy while scope is enabled and has includes or exclusions; otherwise uses the selected full database. | On |
 
 With no explicit mode, legacy `lsp.clangd=true` means automatic filtered
 integration. `lsp.clangd=false` keeps automatic integration off, while explicit
@@ -60,8 +60,9 @@ index may still be catching up after expanding from a small scope. This differs
 from configuring `lsp.mode = "disabled"`, which releases Scoper's integration.
 
 `lsp.clangd_args`, `extra_args` and `query_drivers` append to an inherited or
-explicit argv. Selecting a database replaces an existing
-`--compile-commands-dir=...` flag; unrelated flags stay intact. `cmd_env`,
+explicit argv. In managed modes the executable must accept clangd options directly. Selecting a database replaces an existing
+compilation-directory flag with one or two leading dashes and a joined or separate
+value. `cmd_env`,
 `cmd_cwd`, detached behavior and other server configuration remain intact. A
 custom function-valued `cmd` can remain entirely under user ownership through
 native/disabled mode; selected/filtered integration requires explicit argv.
@@ -76,7 +77,8 @@ other `.clangd` configuration, including added compiler flags, still applies.
 `query_drivers` is an execution whitelist: clangd may execute matching compilers
 to discover system headers. The host no longer grants inferred prefix globs or
 hard-coded MSYS paths. List trusted exact paths, or intentionally chosen globs.
-Compilers do not need this permission merely to appear in a database.
+Use one glob per list entry. A comma inside an entry is rejected because clangd
+interprets it as another whitelist entry.
 
 ## Choose the source database
 
@@ -101,7 +103,8 @@ missing explicit file is reported without silently falling back to another
 configuration. There is no automatic recursive scan. Built-in candidates are
 `compile_commands.json`, `build/compile_commands.json`,
 `out/compile_commands.json`, and sorted immediate `cmake-build-*` directories.
-Discovery checks at most 4,096 immediate entries and 256 candidates, including
+Directory links matching that name are eligible, and aliases of the same database
+count once. Discovery reads in batches and stops at 4,096 entries or 256 candidates, including
 the three fixed locations. Exceeding either automatic limit returns no selection
 and a reason asking for an explicit path; it does not truncate the list and
 silently choose a build. An explicit path bypasses scanning. A configured list

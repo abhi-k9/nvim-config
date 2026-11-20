@@ -551,8 +551,23 @@ describe("scoper.lsp.clangd_cmd", function()
     assert.is_truthy(info:find("built-in discovery", 1, true))
   end)
 
+  it("rejects a driver path that clangd would split into two trust patterns", function()
+    local config = require("scoper").config.lsp
+    local previous = config.query_drivers
+    config.query_drivers = { "/tools/build,debug/compiler" }
+    local ok, err = pcall(lsp.clangd_cmd)
+    config.query_drivers = previous
+    assert.is_false(ok)
+    assert.matches("without commas", err)
+  end)
+
   it("keeps extra args for later reloads until new ones are passed", function()
-    lsp.clangd_cmd({ "--query-driver=/usr/bin/gcc" })
+    local args = { "--query-driver=/usr/bin/gcc" }
+    lsp.clangd_cmd(args)
+    args[1] = "--log=error"
+    assert.has_error(function()
+      lsp.clangd_cmd({ 42 })
+    end)
     assert.is_true(vim.tbl_contains(lsp.clangd_cmd(), "--query-driver=/usr/bin/gcc"))
     lsp.clangd_cmd({})
     assert.is_false(vim.tbl_contains(lsp.clangd_cmd(), "--query-driver=/usr/bin/gcc"))

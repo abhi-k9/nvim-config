@@ -489,14 +489,18 @@ describe("Scoper compilation integration policy", function()
             "/old",
             "--log=error",
             "--compile-commands-dir=/other",
+            "-compile-commands-dir=/stale",
+            "-compile-commands-dir",
+            "/another",
           },
         },
       })
       local flags = vim.tbl_filter(function(arg)
-        return arg:match("^%-%-compile%-commands%-dir")
+        return arg:match("^%-%-?compile%-commands%-dir")
       end, LSP._cmd)
       assert.are.same({ "--compile-commands-dir=" .. root }, flags)
       assert.is_false(vim.tbl_contains(LSP._cmd, "/old"))
+      assert.is_false(vim.tbl_contains(LSP._cmd, "/another"))
       assert.is_true(vim.tbl_contains(LSP._cmd, "--log=error"))
     end
   )

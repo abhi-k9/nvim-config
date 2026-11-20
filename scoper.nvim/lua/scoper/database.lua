@@ -6,7 +6,7 @@ local function file_path(path, root)
   assert(type(path) == "string" and path ~= "", "database path must be a nonempty string")
   local full = Path.absolute(path, root)
   local st = vim.uv.fs_stat(full)
-  if st and st.type == "directory" then full = full .. "/compile_commands.json" end
+  if st and st.type == "directory" then full = Path.absolute("compile_commands.json", full) end
   return Path.normalize(full)
 end
 
@@ -33,23 +33,34 @@ function M.resolve(root, opts, context, legacy)
   if candidates == nil then
     candidates =
       { "compile_commands.json", "build/compile_commands.json", "out/compile_commands.json" }
-    local extra, scan = {}, vim.uv.fs_scandir(root)
-    if scan then
-      local scanned = 0
+    -- fs_scandir materializes the whole directory before its first result.
+    -- Read bounded batches so the entry limit also bounds enumeration work.
+    local dir, err = vim.uv.fs_opendir(root, nil, 64)
+    local extra, scanned = {}, 0
+    if dir then
       while true do
-        local name, kind = vim.uv.fs_scandir_next(scan)
-        if not name then break end
-        scanned = scanned + 1
-        if kind == "directory" and name:match("^cmake%-build%-") then
-          extra[#extra + 1] = name .. "/compile_commands.json"
+        local entries
+        entries, err = vim.uv.fs_readdir(dir)
+        if not entries then break end
+        scanned = scanned + #entries
+        if scanned > 4096 then break end
+        for _, entry in ipairs(entries) do
+          if entry.name:match("^cmake%-build%-") then
+            if entry.type == "directory" or Path.is_dir(Path.absolute(entry.name, root)) then
+              extra[#extra + 1] = entry.name .. "/compile_commands.json"
+            end
+          end
         end
-        if scanned > 4096 or #candidates + #extra > 256 then
-          return {
-            candidates = {},
-            reason = "database discovery limit reached; select an explicit path",
-          }
-        end
+        if #candidates + #extra > 256 then break end
       end
+      vim.uv.fs_closedir(dir)
+    end
+    if err then return { candidates = {}, reason = "database discovery failed: " .. err } end
+    if scanned > 4096 or #candidates + #extra > 256 then
+      return {
+        candidates = {},
+        reason = "database discovery limit reached; select an explicit path",
+      }
     end
     table.sort(extra)
     vim.list_extend(candidates, extra)
