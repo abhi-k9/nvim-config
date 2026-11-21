@@ -1,7 +1,7 @@
 # Customize this configuration
 
-Copy `local.example.lua` to `local.lua` beside `init.lua` and return your
-settings in one Lua table. For data-only settings, copy `local.example.json` to
+Copy [`local.lua.example`](templates/nvim/local.lua.example) to `local.lua` beside `init.lua` and return your
+settings in one Lua table. For data-only settings, copy [`local.json.example`](templates/nvim/local.json.example) to
 `local.json` and edit its JSON object. Both personal files are optional and
 ignored by Git. Startup selects Lua first and tries JSON only when the Lua
 file is absent. An error reading or executing the selected file is reported.

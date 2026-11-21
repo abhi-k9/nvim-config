@@ -431,7 +431,8 @@ nvim/
 │   │   ├── state-files.md            Undo history, ShaDa, sessions, logs: where, trim, reset
 │   │   ├── install-update-uninstall.md  Extract, try side by side, update, roll back, remove
 │   │   └── offline-install.md        Installing on a machine without internet (offline seed)
-│   └── templates/            Files you COPY into a project (not the nvim config)
+│   └── templates/            Examples to copy into projects or your Neovim config
+│       ├── nvim/             Personal Lua and JSON settings templates
 │       ├── cpp/                       → your C++ project root
 │       │   ├── .clang-format          ready-to-copy formatter style
 │       │   ├── .clang-tidy            ready-to-copy linter config
@@ -459,8 +460,6 @@ nvim/
 │   ├── offline-seed.py           pack / install plugins + Mason tools + parsers for an offline machine
 │   └── offline-seed-check.lua    what this install would still download (used by offline-seed.py)
 ├── CHANGES.md                changelog (recent entries, newest first)
-├── local.example.lua         optional personal Lua settings template
-├── local.example.json        optional personal JSON settings template
 ├── lazy-lock.json            plugin commit pins (`:Lazy restore` / `:Lazy update`)
 ├── scoper.nvim/              Bundled local plugin (loaded via `dir=`)
 │   └── tests/                scoper's own unit tests
@@ -1203,11 +1202,11 @@ nvim
 
 ### Local settings templates and scope markers
 
-Copy `local.example.lua` to `local.lua` beside `init.lua`, customize the returned
+Copy `docs/templates/nvim/local.lua.example` to `local.lua` beside `init.lua`, customize the returned
 table, and restart Neovim. If you already have `local.lua`, merge the settings
 you want into it rather than overwriting your existing configuration.
 
-Copy `local.example.json` to `local.json` in the config root for optional personal
+Copy `docs/templates/nvim/local.json.example` to `local.json` in the config root for optional personal
 settings. Both `local.json` and `local.lua` are ignored by Git. If both exist,
 `local.lua` takes precedence; they are not merged. JSON supports data settings
 only (no functions or comments). Restart after editing local settings.
