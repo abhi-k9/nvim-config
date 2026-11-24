@@ -128,6 +128,37 @@ describe("Trouble references reopening", function()
     assert.equals(buf, vim.api.nvim_win_get_buf(editor))
   end)
 
+  it("returns from panel help and restores the editor statusline after recovery", function()
+    vim.cmd("wincmd T")
+    editor = vim.api.nvim_get_current_win()
+    require("lazy").load({ plugins = { "lualine.nvim" } })
+    panel = require("trouble").open({ mode = "lsp_references", auto_refresh = false })
+    assert.is_true(vim.wait(2000, function()
+      return panel:is_open() and vim.api.nvim_get_current_win() == panel.win.win
+    end))
+    local function status()
+      return vim.api.nvim_eval_statusline(require("lualine").statusline(), {}).str
+    end
+    vim.api.nvim_win_close(editor, true)
+    assert.is_truthy(status():find("Lsp References", 1, true))
+    local function press(keys)
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(keys, true, false, true), "xt", false)
+    end
+    press("<F1>")
+    assert.is_true(vim.wait(1000, function()
+      return vim.api.nvim_win_get_config(0).relative ~= ""
+    end))
+    press("q")
+    assert.equals(panel.win.win, vim.api.nvim_get_current_win())
+    vim.cmd("new")
+    editor = vim.api.nvim_get_current_win()
+    vim.api.nvim_buf_set_name(0, vim.fn.tempname() .. "/recovered.txt")
+    require("trouble").close("lsp_references")
+    assert.equals(editor, vim.api.nvim_get_current_win())
+    assert.is_falsy(panel:is_open())
+    assert.is_truthy(status():find("recovered.txt", 1, true))
+  end)
+
   it("keeps one reference visible and reopens after its source window closes", function()
     local Trouble = require("trouble")
     panel = Trouble.open({ mode = "lsp_references", new = true })

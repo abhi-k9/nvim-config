@@ -123,7 +123,8 @@ To close the `gr` references panel, press `q` while focused in the panel, or run
 A single reference stays in the list; Enter opens it while keeping the list,
 and `o` opens it and closes the list. `:q` closes the **focused window**, so after
 jumping to a result it closes that editor window instead of the panel. If only
-the panel remains, use `:new` to create an editor window before closing the panel;
+the panel remains, the statusline reads `Lsp References`. F1 opens panel help,
+and `q` there returns focus to the list. Use `:new` to create an editor window before closing the panel;
 use `:qa` to quit Neovim when finished (unsaved changes still prompt).
 
 ## Edit, inspect and format
