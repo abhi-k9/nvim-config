@@ -81,6 +81,32 @@ describe("persistent breakpoint lifecycle", function()
     restart()
     assert.equals(0, #points(buf))
   end)
+  it("migrates legacy fields on a mapped edit and keeps the original file", function()
+    local buf = buffer("legacy.cpp")
+    local name = vim.api.nvim_buf_get_name(buf)
+    local dir = root .. "/store"
+    vim.fn.mkdir(dir, "p")
+    local cwd_key = vim.fn.getcwd():gsub(vim.fn.has("win32") == 1 and "[:/\\]" or "/", "_")
+    local legacy = dir .. "/" .. cwd_key .. ".json"
+    local raw = vim.json.encode({
+      [name] = { { line = 1, condition = "x", hitCondition = "5", logMessage = "{x}" } },
+    })
+    vim.fn.writefile({ raw }, legacy)
+    restart()
+    vim.api.nvim_win_set_cursor(0, { 2, 0 })
+    for _, key in ipairs(dofile(cwd .. "/lua/plugins/dap.lua")[1].keys) do
+      if key[1] == "<F9>" then key[2]() end
+    end
+    local stored = Store.new(dir, root).load()
+    assert.same(
+      { { line = 1, condition = "x", hitCondition = "5", logMessage = "{x}" }, { line = 2 } },
+      stored[name]
+    )
+    assert.same({ raw }, vim.fn.readfile(legacy))
+    restart()
+    assert.equals(2, #points(buf))
+  end)
+
   it("restores files loaded after setup without duplicating session restoration", function()
     local path = root .. "/late.cpp"
     local disk = Store.new(root .. "/store", root)

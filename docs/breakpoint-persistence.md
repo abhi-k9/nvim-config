@@ -121,6 +121,12 @@ Later changes/writes/exit retry transient failures. Dirty state is never silentl
 reloaded or blindly merged with another editor's clear. Manual retry:
 `:lua require("persistent-breakpoints.api").store_breakpoints()`.
 
+If a clear fails, live breakpoints stay active. Retry the clear after resolving the
+storage error. Project names containing literal environment references such as
+`$PROJECT` now get their own store. If an older version expanded the name,
+inspect the old project's snapshot before moving any breakpoints. Its store may
+also contain breakpoints from the directory with the expanded name.
+
 Before closing with unsaved changes, export them and copy the printed temporary
 file to durable storage:
 
