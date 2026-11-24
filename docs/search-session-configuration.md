@@ -88,8 +88,9 @@ Search/replace has a deliberate API boundary. The pinned grug-far version
 normalizes even absolute path prefills relative to whichever window is current
 and starts deferred work against the current directory. A different resolved
 `replace_root` is therefore refused with a message. Change directory explicitly
-before opening the replacement UI. Current-file replacement keeps its existing
-saved-file and literal-path checks. Common search visibility fields do not
+before opening the replacement UI. `<leader>sf` requires a saved file. It refuses
+filenames containing newlines, trailing whitespace, or a literal `$NAME` because
+Grug-Far can reinterpret those paths and target a different file. Common search visibility fields do not
 silently rewrite replacement flags; configure grug-far's normal options instead.
 
 ## Changing directories after startup

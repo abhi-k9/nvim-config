@@ -59,6 +59,20 @@ describe("current-file search scope", function()
     assert.are.same({ file }, require("grug-far.utils").splitPaths(captured.prefills.paths))
   end)
 
+  it("refuses trailing whitespace that the backend resolves to a different file", function()
+    if vim.fn.has("win32") == 1 then
+      pending("requires POSIX filenames")
+      return
+    end
+    local file = root .. "/target.txt"
+    vim.fn.writefile({ "other file" }, file)
+    vim.fn.writefile({ "intended file" }, file .. "\t")
+    vim.api.nvim_buf_set_name(0, file .. "\t")
+    assert.same({ file }, require("grug-far.utils").splitPaths(file .. "\t"))
+    callback()
+    assert.is_nil(captured)
+  end)
+
   it("refuses an unnamed buffer instead of prefilling the whole project", function()
     callback()
     assert.is_nil(captured)

@@ -52,11 +52,10 @@ return {
           vim.notify("Current-file search requires a saved file buffer", vim.log.levels.WARN)
           return
         end
-        -- A newline becomes a path separator in grug-far's input. Refuse
-        -- names that cannot be represented without widening the search.
-        if path:find("[\r\n]") then
+        -- The Paths input splits newlines and trims its trailing whitespace.
+        if path:find("[\r\n]") or path:find("%s$") then
           vim.notify(
-            "Current-file search cannot represent newlines in a file name",
+            "Current-file search cannot preserve a filename with newlines or trailing whitespace",
             vim.log.levels.WARN
           )
           return
