@@ -64,8 +64,14 @@ function M.setup(provider)
       end
       if not select_fzf then return previous(items, opts, once) end
     end
-    local ok, err = pcall(select_fzf, items, opts, once)
+    -- A failed picker can still have a scheduled selection or cancellation.
+    -- Once fallback starts, only its callback may complete this request.
+    local picker_active = true
+    local ok, err = pcall(select_fzf, items, opts, function(item, index)
+      if picker_active then return once(item, index) end
+    end)
     if not ok then
+      picker_active = false
       if delivered then error(err) end
       vim.notify("fzf selector failed: " .. tostring(err), vim.log.levels.WARN)
       return previous(items, opts, once)

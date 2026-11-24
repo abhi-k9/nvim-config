@@ -180,6 +180,28 @@ describe("UI selection ownership", function()
     assert.equals(1, deliveries)
   end)
 
+  it("lets a pending fallback own the choice even if the failed picker calls back first", function()
+    local abandoned, choose, choices = nil, nil, {}
+    vim.ui.select = function(_, _, callback)
+      choose = callback
+    end
+    -- Simulate an asynchronous prior provider under the real registration contract.
+    fallback = vim.ui.select
+    behavior = function(_, _, cb)
+      abandoned = cb
+      error("picker failed")
+    end
+    Selector.setup()
+    vim.ui.select({ "one", "two" }, {}, function(item)
+      choices[#choices + 1] = item or "cancelled"
+    end)
+    abandoned(nil, nil)
+    assert.same({}, choices)
+    choose("two", 2)
+    abandoned("one", 1)
+    assert.same({ "two" }, choices)
+  end)
+
   it("sizes short menus separately from code actions and prevents resume", function()
     Selector.setup()
     vim.ui.select({ "one" }, {}, function() end)

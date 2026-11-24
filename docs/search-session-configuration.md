@@ -254,7 +254,8 @@ Selection menus cannot be resumed: their callbacks belong to the original
 request. Ordinary fzf pickers retain their existing resume behavior.
 
 The provider preserves formatted items, original indices, cancellation, and
-single callback delivery. Code-action presentation differs from Telescope's
+single callback delivery. If fzf fails after scheduling a callback, only the
+fallback menu can accept or cancel that request. Code-action presentation differs from Telescope's
 client/title columns; previews depend on the caller and fzf-lua support.
 
 
