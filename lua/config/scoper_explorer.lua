@@ -3,6 +3,7 @@
 local M = {}
 local enabled, override
 local filter_enabled, filter_override
+local setup_id = 0
 local renderer_owner, render_original, render_wrapper
 
 local function refresh()
@@ -99,10 +100,17 @@ local function path_key(path)
   return windows and key:lower() or key
 end
 
-local function related(tree, root)
-  if type(tree) ~= "string" then return false end
-  local path, base = path_key(tree), path_key(root)
-  return path == base or path:sub(1, #base + 1) == base .. "/"
+-- All rows in a render share a tree path. Cache only the last comparison so
+-- rerooting a tree takes effect immediately and the cache stays bounded.
+local function related_tree_key(scope, tree)
+  if type(tree) ~= "string" then return nil end
+  if scope.tree ~= tree then
+    scope.root_key = scope.root_key or path_key(scope.root)
+    local path, base = path_key(tree), scope.root_key
+    local related = path == base or path:sub(1, #base + 1) == base .. "/"
+    scope.tree, scope.tree_key = tree, related and path or nil
+  end
+  return scope.tree_key
 end
 
 -- Only prune proven exclusions. Keep the tree root and uncertain directories so
@@ -138,14 +146,15 @@ local function install_filter()
   local renderer = package.loaded["neo-tree.ui.renderer"]
   if type(renderer) ~= "table" or type(renderer.show_nodes) ~= "function" then return end
   renderer_owner, render_original = renderer, renderer.show_nodes
-  local original = render_original
+  local original, id = render_original, setup_id
   -- Neo-tree has no configurable predicate. Keep this single exported-function
   -- integration isolated and covered against the pinned renderer's item API.
   render_wrapper = function(items, state, parent, callback)
-    if filter_enabled and items and state.name == "filesystem" then
+    if id == setup_id and filter_enabled and items and state.name == "filesystem" then
       local scope = capture()
-      if scope.root and related(state.path, scope.root) then
-        local ok, filtered = pcall(filter_items, items, scope, path_key(state.path))
+      local tree_key = scope.root and related_tree_key(scope, state.path)
+      if tree_key then
+        local ok, filtered = pcall(filter_items, items, scope, tree_key)
         if ok then items = filtered end -- Fail open if an optional predicate fails.
       end
     end
@@ -155,12 +164,13 @@ local function install_filter()
 end
 
 function M.decorate(original, options)
+  local id = setup_id
   return function(config, node, state)
     local result = original(config, node, state)
     if type(result) ~= "table" or type(result.text) ~= "string" then return result end
-    if enabled == false then return result end
+    if id ~= setup_id or enabled == false then return result end
     local scope = capture()
-    if not scope.root or not related(state.path, scope.root) then return result end
+    if not scope.root or not related_tree_key(scope, state.path) then return result end
     if node.type == "directory" and node:get_depth() == 1 and options.show_scope ~= false then
       result = vim.tbl_extend("force", {}, result)
       result.text = result.text .. " [scope: " .. tostring(scope.scope or "active") .. "]"
@@ -182,6 +192,8 @@ function M.decorate(original, options)
 end
 
 function M.setup(opts, options)
+  -- Other customizations can retain our hooks even after replacing them.
+  setup_id = setup_id + 1
   cancel()
   if renderer_owner and renderer_owner.show_nodes == render_wrapper then
     renderer_owner.show_nodes = render_original

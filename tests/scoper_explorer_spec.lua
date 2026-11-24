@@ -342,6 +342,41 @@ describe("optional Scoper explorer decoration", function()
     assert.same(items(), filtered())
   end)
 
+  it("retires hooks retained by third-party wrappers", function()
+    Adapter.configure(opts, true, true)
+    local name, show = opts.filesystem.components.name, renderer.show_nodes
+    opts.filesystem.components.name = function(...)
+      return name(...)
+    end
+    renderer.show_nodes = function(...)
+      return show(...)
+    end
+    Adapter.setup(opts, false)
+    assert.same(items(), filtered())
+    assert.equals(decorations, render("file", root .. "/main.h"))
+    Adapter.configure(opts, true, true)
+    assert.equals("- name", render("file", root .. "/main.h").text)
+    assert.equals(3, #filtered()[1].children)
+  end)
+
+  it("reuses the root comparison across rows until the tree is rerooted", function()
+    local normalize, calls = vim.fs.normalize, 0
+    vim.fs.normalize = function(...)
+      calls = calls + 1
+      return normalize(...)
+    end
+    local ok, err = pcall(function()
+      render("file", root .. "/a.h")
+      local first = calls
+      render("file", root .. "/b.h")
+      assert.equals(first, calls)
+      assert.equals(decorations, render("file", root .. "-other/a.h", root .. "-other"))
+      assert.is_true(calls > first)
+    end)
+    vim.fs.normalize = normalize
+    assert.is_true(ok, err)
+  end)
+
   it("does not stack renderer wrappers and restores the original on teardown", function()
     Adapter.setup(opts, false)
     local original_renderer = renderer.show_nodes
