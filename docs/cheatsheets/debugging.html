@@ -85,7 +85,7 @@
     <tr><td><kbd class="mauve">&lt;leader&gt;dl</kbd></td><td>Run last config</td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dR</kbd></td><td>Restart session <span class="note">(VS Ctrl+Shift+F5)</span></td></tr>
     <tr><td><kbd class="mauve">&lt;leader&gt;dt</kbd></td><td>Terminate <span class="note">UI closes when no other session needs it, unless auto-close is off — <kbd class="mauve">&lt;leader&gt;dU</kbd></span></td></tr>
-    <tr><td colspan="2" class="note">A failed launch/attach closes the UI again when no other session needs it.
+    <tr><td colspan="2" class="note">A failed launch or attach leaves the current panels alone.
       Saving the session mid-debug keeps the program running; quitting closes adapter sessions, with debuggee cleanup depending on adapter/attach behavior.
       Python fallback honors <code>debug.python</code> first, otherwise uses <code>$VIRTUAL_ENV</code>, then <code>$CONDA_PREFIX</code>, then
       <code>./.venv</code> / <code>./venv</code>, then <code>python</code> (Windows) or <code>python3</code> (elsewhere) on PATH.</td></tr>

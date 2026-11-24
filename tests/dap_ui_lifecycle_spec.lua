@@ -134,14 +134,33 @@ describe("DAP UI session ownership", function()
     assert.equals(0, closed)
   end)
 
-  it("does not hide another session after a failed launch or attach", function()
-    local active, failed = {}, {}
-    roots = { active }
-    dap.listeners.after.launch.dapui_config(failed, { message = "launch failed" })
-    dap.listeners.after.attach.dapui_config(failed, { message = "attach failed" })
+  it("leaves manually opened panels alone on failed launch and attach replies", function()
+    for _, request in ipairs({ "launch", "attach" }) do
+      local failed, err = { on_close = {} }, { message = "failed" }
+      dap.listeners.before[request].dapui_config(failed, err)
+      local after = dap.listeners.after[request].dapui_config
+      if after then after(failed, err) end
+      dap.listeners.before.event_terminated.dapui_config(failed)
+    end
+    assert.equals(0, opened)
     assert.equals(0, closed)
-    roots = {}
-    dap.listeners.after.launch.dapui_config(failed, { message = "launch failed" })
+  end)
+
+  it("closes once across exit, termination, transport close and terminate completion", function()
+    local session = { on_close = {} }
+    current, roots = session, { session }
+    dap.listeners.before.launch.dapui_config(session)
+    terminate_key()
+    dap.listeners.before.event_exited.dapui_config(session)
+    assert.equals(1, closed)
+    package.loaded.dapui.open() -- User reopened the panels to inspect output.
+    dap.listeners.before.event_terminated.dapui_config(session)
+    session.closed, current, roots = true, nil, {}
+    session.on_close.dapui_config()
+    completion()
+    vim.wait(20, function()
+      return false
+    end, 1)
     assert.equals(1, closed)
   end)
 

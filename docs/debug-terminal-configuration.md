@@ -67,6 +67,10 @@ menu. No global terminal-input help binding intercepts program input. See the
 | `debug.auto_open_ui` | `true`. Setting it to `false` suppresses automatic opening; manual UI commands still work. |
 | `debug.auto_close_ui` | `true`, unless `vim.g.dap_autoclose_ui` was already set. Closing still respects other live debug sessions. |
 
+A failed launch or attach leaves your current panels alone. After the last
+session exits, you can reopen the panels with `<leader>du` to inspect output.
+Later disconnect notifications from that session leave them open.
+
 Pre-set pause/auto-close globals win so existing configuration keeps working.
 Set the corresponding settings before DAP loads. Changing the global later also
 changes the live toggle. Repeated `require("config.dap").setup()` preserves user
