@@ -189,7 +189,13 @@ function M._apply(cmd)
     group = group,
     pattern = vim.tbl_keys(C_FAMILY),
     callback = function()
-      if vim.fn.executable(M._cmd[1]) ~= 1 then return end
+      -- A later config override owns the command, even if our executable
+      -- only becomes available after that override.
+      if not vim.deep_equal((vim.lsp.config.clangd or {}).cmd, cmd) then
+        vim.api.nvim_clear_autocmds({ group = group })
+        return
+      end
+      if vim.fn.executable(cmd[1]) ~= 1 then return end
       vim.lsp.config("clangd", { cmd = spawn })
       M._owned_cmd = spawn
       -- one autocmd per pattern: returning true would delete only this one

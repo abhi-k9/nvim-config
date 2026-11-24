@@ -182,6 +182,20 @@ describe("Scoper compilation integration policy", function()
     mode("disabled")
     assert.are.same(replacement, vim.lsp.config.clangd.cmd)
   end)
+  it("keeps a replacement command when clangd becomes available later", function()
+    vim.fn.executable = function()
+      return 0
+    end
+    mode("selected")
+    local replacement = { "user-clangd", "--log=verbose" }
+    vim.lsp.config("clangd", { cmd = replacement })
+    vim.fn.executable = function()
+      return 1
+    end
+    vim.api.nvim_exec_autocmds("FileType", { group = "scoper_clangd_cmd", pattern = "cpp" })
+    assert.same(replacement, vim.lsp.config.clangd.cmd)
+  end)
+
   it("retries a failed subscription on focus and ignores callbacks from its predecessor", function()
     local create = vim.uv.new_fs_event
     local watchers = {}
