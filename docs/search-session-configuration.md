@@ -211,7 +211,10 @@ than one exists. Switching back preserves the remembered filesystem root and
 window placement; it does not reveal an unrelated current file or change the
 global working directory. With no visible tree, the mapping opens buffers view.
 There is no separate config-owned source flag, project-root resolver or Scoper
-dependency. Missing Neo-tree modules or command failures produce a warning.
+dependency. If entering the tree redirects focus or replaces its buffer, the
+switch is cancelled. Inside the tree, `Y` copies the selected node’s filesystem
+path. Group headers and unnamed buffers leave the clipboard untouched.
+Missing Neo-tree modules or command failures produce a warning.
 
 F1 in Normal mode elsewhere uses the existing which-key local-mapping reference;
 native buffer-local F1 mappings take precedence. No new Insert/terminal-mode

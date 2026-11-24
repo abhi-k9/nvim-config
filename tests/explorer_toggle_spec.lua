@@ -127,6 +127,63 @@ describe("explorer buffers/files toggle", function()
     assert.equals("current", calls[1].position)
   end)
 
+  it("cancels a current-position switch if WinEnter repurposes the tree window", function()
+    local win = tree("buffers", "current")
+    local buf = vim.api.nvim_create_buf(true, false)
+    buffers[#buffers + 1] = buf
+    vim.api.nvim_create_autocmd("WinEnter", {
+      once = true,
+      callback = function()
+        vim.api.nvim_win_set_buf(win, buf)
+        states[win] = nil
+      end,
+    })
+    mapping()
+    assert.equals(buf, vim.api.nvim_win_get_buf(win))
+    assert.equals(0, #calls)
+  end)
+
+  it("copies a node's filesystem path and ignores rows without one", function()
+    local copied = {}
+    local setreg = vim.fn.setreg
+    vim.fn.setreg = function(_, value)
+      copied[#copied + 1] = value
+    end
+    local ok, err = pcall(function()
+      local path = vim.fn.getcwd()
+      for _, node in ipairs({
+        {
+          path = path,
+          get_id = function()
+            return "term://identifier"
+          end,
+        },
+        {
+          get_id = function()
+            return "Terminals"
+          end,
+        },
+        {
+          path = "[No Name]",
+          get_id = function()
+            return "42"
+          end,
+        },
+      }) do
+        spec.opts.window.mappings.Y({
+          tree = {
+            get_node = function()
+              return node
+            end,
+          },
+        })
+      end
+      assert.same({ path }, copied)
+    end)
+    vim.fn.setreg = setreg
+    assert.is_true(ok, tostring(err))
+  end)
+
   it("keeps a floating tree floating", function()
     tree("buffers", "float")
     mapping()

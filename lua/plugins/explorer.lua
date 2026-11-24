@@ -27,14 +27,18 @@
 -- neo-tree's `y` (copy_to_clipboard), which stages a FILE-copy in
 -- neo-tree's OWN in-memory clipboard for a later `p` and never touches
 -- the OS clipboard or any register. Bound to <C-S-c> and Y in
--- window.mappings below. (state.tree:get_node() is the node under the
--- cursor; for the filesystem source its id is the absolute path.)
+-- window.mappings below. Neo-tree stores the filesystem path separately
+-- from its source-specific node ID.
 local icons = require("config.settings").get("ui.icons", true)
 
 local function copy_node_path(state)
   local node = state.tree:get_node()
   if not node then return end
-  local path = node:get_id()
+  local path = node.path
+  if type(path) ~= "string" or vim.fn.isabsolutepath(path) == 0 then
+    vim.notify("This explorer row has no filesystem path", vim.log.levels.INFO)
+    return
+  end
   vim.fn.setreg("+", path)
   vim.notify("Copied path: " .. path, vim.log.levels.INFO)
 end
@@ -82,7 +86,14 @@ local function toggle_buffers_view()
     -- Focusing first also prevents position=current from replacing the editor;
     -- Neo-tree can reuse an existing source window without focusing it itself.
     if state and state.winid ~= vim.api.nvim_get_current_win() then
-      vim.api.nvim_set_current_win(state.winid)
+      local win = state.winid
+      local buf = vim.api.nvim_win_get_buf(win)
+      vim.api.nvim_set_current_win(win)
+      -- WinEnter hooks can redirect focus or replace the tree with a file.
+      if vim.api.nvim_get_current_win() ~= win or vim.api.nvim_win_get_buf(win) ~= buf then
+        vim.notify("Explorer switch cancelled because the tree window changed", vim.log.levels.INFO)
+        return
+      end
     end
     command.execute(args)
   end)
