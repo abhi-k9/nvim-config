@@ -10,6 +10,13 @@ local function literal(value, fallback)
 end
 
 function M.adapter_status(dap, name)
+  if
+    type(name) == "function"
+    or type(name) == "thread"
+    or type(name) == "string" and name:match("%${[^}]+}")
+  then
+    return "adapter type resolved at launch", false
+  end
   local registry = type(dap.adapters) == "table" and dap.adapters or {}
   local adapter = type(name) == "string" and rawget(registry, name) or nil
   if type(adapter) == "function" then return "dynamic adapter", false end
@@ -73,6 +80,8 @@ end
 local function unchanged(context, check_focus)
   return vim.api.nvim_win_is_valid(context.win)
     and vim.api.nvim_win_get_buf(context.win) == context.buf
+    and vim.api.nvim_buf_get_name(context.buf) == context.filename
+    and (vim.b[context.buf]["dap-srcft"] or vim.bo[context.buf].filetype) == context.filetype
     and vim.fn.getcwd(
       context.win,
       vim.api.nvim_tabpage_get_number(vim.api.nvim_win_get_tabpage(context.win))
@@ -145,6 +154,7 @@ local function with_configs(callback)
     filetype = filetype,
     win = win,
     buf = buf,
+    filename = vim.api.nvim_buf_get_name(buf),
     cwd = vim.fn.getcwd(),
     global_cwd = vim.fn.getcwd(-1, -1),
   }
@@ -191,7 +201,7 @@ function M.choose()
         end
         if not unchanged(context) then
           vim.notify(
-            "Launch cancelled: the source buffer or working directory changed. Choose a launch again.",
+            "Launch cancelled: the source buffer, filename, filetype or working directory changed. Choose a launch again.",
             vim.log.levels.INFO
           )
           return

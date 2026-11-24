@@ -133,8 +133,9 @@ configuration's name, adapter/request, program, cwd and adapter command status.
 See `:help dap-providers` and `:help dap-adapter` for the native extension points.
 Even a single configuration is offered for confirmation. `<leader>da` /
 `:DapLaunch` explicitly opens this chooser, including during a live session.
-Canceling it starts nothing. Switching the source buffer/directory while discovery
-or selection is pending cancels that attempt; retry from the intended code window.
+Canceling it starts nothing. Changing the source buffer, its filename or effective debug filetype, or the working
+directory while discovery or selection is pending cancels that attempt. Retry from
+the intended code window.
 Accepting a choice returns to that source window before checking a relative
 adapter command or invoking native DAP. A picker with its own local cwd therefore
 cannot redirect executable lookup. Entering the source window is checked again
@@ -150,7 +151,7 @@ work, as they do for native configuration discovery.
 
 **Command found** means only that a statically declared adapter command is
 executable. It does not establish debugger/runtime compatibility, target existence,
-symbols or successful connection. Dynamic commands/registrations and remote
+symbols or successful connection. Computed adapter types, dynamic commands/registrations and remote
 adapters remain delegated to DAP. Custom adapter cwd/environment overrides are
 marked **custom launch context** and left to DAP/libuv; Neovim's own PATH cannot
 verify those lookups. Callable configurations can resolve their adapter at launch.

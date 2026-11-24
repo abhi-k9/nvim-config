@@ -185,6 +185,35 @@ describe("debug launch discovery", function()
     assert.is_nil(chosen)
     vim.api.nvim_buf_delete(other, { force = true })
   end)
+  it("cancels a pending choice after a rename or filetype change in the same buffer", function()
+    module.choose()
+    vim.api.nvim_buf_set_name(buf, root .. "/renamed.cpp")
+    dap.choose(items[1])
+    assert.is_nil(chosen)
+    module.choose()
+    vim.bo[buf].filetype = "c"
+    dap.choose(items[1])
+    assert.is_nil(chosen)
+  end)
+
+  it("leaves computed adapter types to native DAP expansion", function()
+    for _, kind in ipairs({
+      function()
+        error("must not evaluate before launch")
+      end,
+      "${env:DEBUG_ADAPTER}",
+    }) do
+      local config = { name = "Computed", type = kind, request = "launch" }
+      dap.providers.configs.example = function()
+        return { config }
+      end
+      module.choose()
+      assert.is_false(items[1].unavailable)
+      dap.choose(items[1])
+      assert.equals(config, chosen.config)
+    end
+  end)
+
   it("isolates malformed/failing providers and keeps provider order stable", function()
     local order = {}
     local config = { name = "Valid", type = "native", request = "launch" }

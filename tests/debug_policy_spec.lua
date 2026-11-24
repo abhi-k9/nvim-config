@@ -139,6 +139,22 @@ describe("debugger customization lifecycle", function()
     assert.equals(root, dap.configurations.cpp[1].cwd())
   end)
 
+  it("applies host launch overrides before binding workspace paths and preserves argv", function()
+    local platforms = { linux = "linux", windows = "win32", osx = "mac" }
+    local config = { name = "Platform", type = "cppdbg", request = "launch", args = { "base" } }
+    local expected
+    for key, feature in pairs(platforms) do
+      config[key] = { args = { key, "${workspaceFolder}/path with spaces", "a&b", "" } }
+      if vim.fn.has(feature) == 1 then expected = key end
+    end
+    if not expected then return end
+    vim.fn.writefile({ vim.json.encode({ configurations = { config } }) }, base .. "/launch.json")
+    Settings.configure({ debug = { root = base, launch_file = "launch.json" } })
+    module.setup()
+    local launch = dap.providers.configs["dap.launch.json"]()[1]
+    assert.same({ expected, base .. "/path with spaces", "a&b", "" }, launch.args)
+  end)
+
   it("rejects malformed root and launch resolver values with specific errors", function()
     Settings.configure({ debug = {
       root = function()
