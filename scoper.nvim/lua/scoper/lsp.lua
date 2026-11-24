@@ -561,7 +561,6 @@ function M.attach_auto()
     end, (require("scoper").config.lsp or {}).debounce_ms or 500)
     M._timer = timer
   end
-  M._debounce = debounce
 
   local function check_source(force, initial)
     local selection = Pipeline.resolve()
@@ -583,8 +582,16 @@ function M.attach_auto()
             vim.fs.dirname(path),
             {},
             vim.schedule_wrap(function(err, filename)
-              if err or generation ~= M._auto_generation then return end
-              if not filename or filename == vim.fs.basename(path) then check_source(false) end
+              if generation ~= M._auto_generation or M._watcher ~= watcher then return end
+              if err then
+                watcher:stop()
+                watcher:close()
+                M._watcher = nil -- FocusGained retries the subscription.
+                return
+              end
+              if not filename or Path.fold(filename) == Path.fold(vim.fs.basename(path)) then
+                check_source(false)
+              end
             end)
           )
           if ok then
@@ -598,7 +605,6 @@ function M.attach_auto()
     M._watch_stamp = stamp
     if not initial and (force or changed) then debounce() end
   end
-  M.check_source = check_source
   -- Bind without scheduling a redundant initial reload.
   check_source(false, true)
   vim.api.nvim_create_autocmd("User", {
@@ -633,6 +639,7 @@ local function install_prepare_gate()
   local generation = M._auto_generation
   local function gate(buf, on_dir)
     local function resolved(root)
+      if generation ~= M._auto_generation or not vim.api.nvim_buf_is_valid(buf) then return end
       if not ours(root) or not Path.is_under(vim.api.nvim_buf_get_name(buf), State.root()) then
         return on_dir(root)
       end
@@ -641,7 +648,7 @@ local function install_prepare_gate()
       local timer = vim.defer_fn(function()
         if finished then return end
         finished = true
-        if generation ~= M._auto_generation then return end
+        if generation ~= M._auto_generation or not vim.api.nvim_buf_is_valid(buf) then return end
         M._startup =
           { state = "timed_out", reason = "preparation timed out; run :ScoperLspReload to retry" }
         vim.notify("Scoper LSP: " .. M._startup.reason, vim.log.levels.WARN)
@@ -668,14 +675,14 @@ local function install_prepare_gate()
         M.prepare(function(dir, info, changed, _, obsolete)
           if finished then return end
           if generation ~= M._auto_generation then return complete() end
-          if obsolete or context ~= Pipeline.context_key() then
+          local current_context, selection = Pipeline.context_key()
+          if obsolete or context ~= current_context then
             -- Retry the current selection without resetting the original
             -- timeout budget. Old work can never strand the waiting buffer.
             return vim.schedule(attempt)
           end
           complete()
           if not vim.api.nvim_buf_is_valid(buf) then return end
-          local selection = Pipeline.resolve()
           local snapshot = State.snapshot()
           local restricted = Pipeline.mode() == "filtered"
             and snapshot.enabled
@@ -689,9 +696,9 @@ local function install_prepare_gate()
             vim.notify("Scoper LSP: database startup unavailable: " .. info, vim.log.levels.WARN)
             return
           end
-          local cmd = cmd_from(dir, info, changed)
+          local cmd = cmd_from(dir, info, changed, false, selection)
           M._apply(cmd)
-          M._applied_cmd = table.concat(cmd, "\0")
+          if #our_clients() == 0 then M._applied_cmd = table.concat(cmd, "\0") end
           M._startup = { state = "ready" }
           on_dir(root)
         end)

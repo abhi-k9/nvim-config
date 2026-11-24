@@ -182,6 +182,43 @@ describe("Scoper compilation integration policy", function()
     mode("disabled")
     assert.are.same(replacement, vim.lsp.config.clangd.cmd)
   end)
+  it("retries a failed subscription on focus and ignores callbacks from its predecessor", function()
+    local create = vim.uv.new_fs_event
+    local watchers = {}
+    vim.uv.new_fs_event = function()
+      local watcher = create()
+      local handle = {
+        start = function(_, _, _, cb)
+          watchers[#watchers + 1] = cb
+          return 0
+        end,
+        stop = function() end,
+        close = function()
+          watcher:close()
+        end,
+        is_closing = function()
+          return watcher:is_closing()
+        end,
+      }
+      return handle
+    end
+    local ok, err = pcall(function()
+      mode("selected")
+      watchers[1]("watch failed")
+      assert.is_true(vim.wait(500, function()
+        return LSP._watcher == nil
+      end))
+      vim.api.nvim_exec_autocmds("FocusGained", {})
+      assert.equals(2, #watchers)
+      local replacement = LSP._watcher
+      watchers[1]("late error")
+      vim.wait(10)
+      assert.equals(replacement, LSP._watcher)
+    end)
+    vim.uv.new_fs_event = create
+    assert.is_true(ok, err)
+  end)
+
   it("refreshes source-only changes through the focus fallback and disposes its watcher", function()
     mode("selected", { lsp = { debounce_ms = 1 } })
     local watcher = LSP._watcher
@@ -242,6 +279,52 @@ describe("Scoper compilation integration policy", function()
       end
     end
   )
+
+  it("ignores deferred root resolution after buffer deletion or disposal", function()
+    local resolve
+    vim.lsp.config("clangd", {
+      root_dir = function(_, cb)
+        resolve = cb
+      end,
+    })
+    mode("selected", { lsp = { startup = "prepare" } })
+    local gate = vim.lsp.config.clangd.root_dir
+    local attached = 0
+    for _, dispose in ipairs({ false, true }) do
+      local buf = vim.api.nvim_create_buf(false, true)
+      gate(buf, function()
+        attached = attached + 1
+      end)
+      if dispose then
+        LSP.dispose()
+      else
+        vim.api.nvim_buf_delete(buf, { force = true })
+      end
+      resolve(root)
+      if dispose then vim.api.nvim_buf_delete(buf, { force = true }) end
+    end
+    assert.equals(0, attached)
+  end)
+
+  it("stages a prepared command without marking running clients as restarted", function()
+    mode("selected", { lsp = { startup = "prepare" } })
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_name(buf, root .. "/src/a.c")
+    vim.lsp.get_clients = function()
+      return {
+        {
+          root_dir = root,
+          is_stopped = function()
+            return false
+          end,
+        },
+      }
+    end
+    LSP._applied_cmd = "previous command"
+    vim.lsp.config.clangd.root_dir(buf, function() end)
+    vim.api.nvim_buf_delete(buf, { force = true })
+    assert.equals("previous command", LSP._applied_cmd)
+  end)
 
   it("does not attach to an unfiltered database when exclude-only preparation fails", function()
     State.clear_active()

@@ -158,7 +158,8 @@ lsp = { mode = "filtered", startup = "prepare", prepare_timeout_ms = 5000 }
 This gates `vim.lsp.enable()` through its asynchronous root callback while
 preparing the filtered database. The same `startup="prepare"` policy is supported
 in selected mode and waits for a required full copy, or immediately accepts a
-canonical selected database. Concurrent buffers share preparation. Scope/build
+canonical selected database. Concurrent buffers share preparation. A delayed root callback is ignored if the
+buffer has been deleted or the integration has been reconfigured. Scope/build
 changes retry preparation within the original timeout budget. The editor
 stays responsive. If preparation fails, times out, or has no usable filtered
 output, the buffer stays unattached and reports the reason; retry with
