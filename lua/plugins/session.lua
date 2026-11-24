@@ -301,18 +301,9 @@ return {
     -- from the restored global. Without this, every tab would show every
     -- buffer again until the next manual tab switch.
     --
-    -- Then reconcile. scope.nvim persists a per-tab list of buffer NAMES and,
-    -- on restore, unlists every buffer before re-listing only the ones in that
-    -- saved list. On some quits the most-recently-opened buffer doesn't make it
-    -- into scope's cache in time (a race in scope's own capture — sporadic by
-    -- nature), yet mksession still restores the file as the window's buffer. The
-    -- result is a buffer that's loaded but left `buflisted = false`, so it never
-    -- appears in bufferline — "I opened it, it's gone from the tabs". The
-    -- function below is a safety net: any restored, real-file buffer that scope
-    -- accounts for in NO tab gets adopted into the CURRENT tab (listed + added
-    -- to scope's cache) so it shows up again. Buffers legitimately scoped to
-    -- another tab are in that tab's cache, so they're recognised as accounted
-    -- and correctly left hidden — this only rescues the ones scope actually lost.
+    -- A file missing from every saved scope can still be open in a restored
+    -- window. Recover its membership from the layout. Files with no window
+    -- fall back to the current tab so they remain reachable in Bufferline.
     post_restore_cmds = {
       function()
         scope_restore_failed = require("config.session").restore_scopes() == false
@@ -337,7 +328,16 @@ return {
           end
         end
         local cur = vim.api.nvim_get_current_tabpage()
-        if type(core.cache[cur]) ~= "table" then core.cache[cur] = {} end
+        local displayed = {}
+        for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
+          for _, win in ipairs(vim.api.nvim_tabpage_list_wins(tab)) do
+            local buf = vim.api.nvim_win_get_buf(win)
+            if not accounted[buf] then
+              displayed[buf] = displayed[buf] or {}
+              displayed[buf][tab] = true
+            end
+          end
+        end
         for _, b in ipairs(vim.api.nvim_list_bufs()) do
           -- Only genuine, named file buffers scope has lost track of. buftype
           -- == "" excludes terminals, help, quickfix, neo-tree, dap panels, etc.
@@ -348,8 +348,12 @@ return {
             and require("config.util").is_file_buffer(b)
             and not RESCUE_SKIP_FT[vim.bo[b].filetype]
           then
-            vim.bo[b].buflisted = true
-            table.insert(core.cache[cur], b)
+            local owners = displayed[b] or { [cur] = true }
+            for tab in pairs(owners) do
+              if type(core.cache[tab]) ~= "table" then core.cache[tab] = {} end
+              table.insert(core.cache[tab], b)
+            end
+            vim.bo[b].buflisted = owners[cur] == true
           end
         end
       end,
