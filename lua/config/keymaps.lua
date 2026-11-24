@@ -250,33 +250,8 @@ map("n", "<leader>wo", "<cmd>only<cr>",   { desc = "Close other windows" })
 -- ---------------------------------------------------------------------------
 -- Window zoom toggle (<leader>wm — "maximize")
 -- ---------------------------------------------------------------------------
--- Temporarily make the focused window fill the screen, then restore the
--- saved sizes on a second press if the split layout is unchanged. Useful for
--- "I want to see neo-tree at
--- full height for a moment" / "let me get more vertical space on this
--- buffer."
---
--- DESIGN: save current window sizes via `winrestcmd()`, then maximize via
--- `wincmd _ | wincmd |`. On the second press, replay the saved sizes.
---
--- Why not open the buffer in a new tab? That fails for neo-tree, which
--- forces `winfixwidth = true` and a 32-column width that snaps back even
--- alone in a tab, and closing such a tab could leave Neovim without a
--- valid current tab. Resizing in place avoids both: we explicitly clear
--- winfixwidth/winfixheight on the zoomed window for the duration, then
--- restore them.
---
--- Edge cases handled:
---   * Only one window open — notify and no-op.
---   * Zoomed window is closed before un-zoom — pcall the resize replay so
---     we don't error; the saved winfix options are skipped via win_is_valid.
---   * State variable is cleared FIRST on un-zoom so a partial failure
---     doesn't strand us in "zoomed" forever.
---   * The ordered layout changed while zoomed (splits opened, closed or
---     exchanged):
---     winrestcmd() replays sizes by window NUMBER, so it would hand the old
---     sizes to the wrong windows. In that case equalize (`wincmd =`)
---     instead of replaying a stale snapshot.
+-- Resize in place so fixed-width panels such as Neo-tree can be zoomed.
+-- Each tab keeps its own split sizes until the next toggle.
 local function zoom_layout_key()
   -- winrestcmd addresses window numbers, so order and split orientation
   -- matter even when the set of window IDs has not changed. winlayout()
@@ -293,9 +268,15 @@ local function toggle_window_zoom()
     else
       vim.cmd("wincmd =")
     end
-    if vim.api.nvim_win_is_valid(state.win) then
-      vim.wo[state.win].winfixwidth = state.fixwidth
-      vim.wo[state.win].winfixheight = state.fixheight
+    -- Only put back flags this toggle cleared on the original split/buffer.
+    -- A panel or user may have established a new sizing policy meanwhile.
+    if
+      vim.api.nvim_win_is_valid(state.win)
+      and vim.api.nvim_win_get_tabpage(state.win) == vim.api.nvim_get_current_tabpage()
+      and vim.api.nvim_win_get_buf(state.win) == state.buf
+    then
+      if state.fixwidth then vim.wo[state.win].winfixwidth = true end
+      if state.fixheight then vim.wo[state.win].winfixheight = true end
     end
     return
   end
@@ -307,6 +288,7 @@ local function toggle_window_zoom()
   vim.t.zoom_state = {
     restore_cmd = vim.fn.winrestcmd(),
     layout = zoom_layout_key(),
+    buf = vim.api.nvim_win_get_buf(win),
     win = win,
     fixwidth = vim.wo[win].winfixwidth,
     fixheight = vim.wo[win].winfixheight,

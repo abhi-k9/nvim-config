@@ -227,7 +227,7 @@
     <tr><td colspan="2" class="note">Right-click a bufferline tab for context-menu actions (copy path, pin, close others, etc.).</td></tr>
     <tr class="divider"><td colspan="2">Temporarily full-screen a window</td></tr>
     <tr><td><kbd class="rosewater">&lt;leader&gt;wm</kbd></td><td>Maximize the focused split. Second press restores its prior sizes if the split layout still matches.</td></tr>
-    <tr><td colspan="2" class="note">Zoom temporarily clears the focused window's fixed-size flags. If splits were opened, closed or exchanged while zoomed, restoration equalizes the current layout instead of replaying sizes onto different windows. Fixed-size flags are restored for a surviving zoomed window.</td></tr>
+    <tr><td colspan="2" class="note">Zoom temporarily clears the focused window's fixed-size flags. If splits were opened, closed or exchanged while zoomed, restoration equalizes the current layout instead of replaying sizes onto different windows. Unzoom restores previously enabled flags only while the original window still displays the same buffer. Flags enabled during zoom stay enabled.</td></tr>
     <tr class="divider"><td colspan="2">Sessions per directory</td></tr>
     <tr><td colspan="2" class="note">Open <code>nvim</code> (no file arguments) from a project dir → auto-restores last layout.<br>
       By default, saved when Neovim exits. <code>nvim foo.c</code> skips automatic restore and saves only once 2+ listed named file buffers or 2+ tabs exist.

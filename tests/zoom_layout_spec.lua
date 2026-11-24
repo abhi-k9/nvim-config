@@ -35,6 +35,35 @@ describe("zoom restoration tracks the ordered window layout", function()
     vim.wo.winfixwidth = false
   end)
 
+  it("keeps the sizing policy of a replacement buffer in the zoomed split", function()
+    vim.wo.winfixwidth = true
+    toggle()
+    vim.api.nvim_win_set_buf(0, vim.api.nvim_create_buf(false, true))
+    vim.wo.winfixwidth = false
+    vim.wo.winfixheight = true
+    toggle()
+    assert.is_false(vim.wo.winfixwidth)
+    assert.is_true(vim.wo.winfixheight)
+  end)
+
+  it("preserves a fixed height enabled while zoomed", function()
+    vim.wo.winfixheight = false
+    toggle()
+    vim.wo.winfixheight = true
+    toggle()
+    assert.is_true(vim.wo.winfixheight)
+  end)
+
+  it("equalizes surviving splits after the zoomed window closes", function()
+    toggle()
+    vim.api.nvim_win_close(vim.api.nvim_get_current_win(), true)
+    toggle()
+    assert.is_nil(vim.t.zoom_state)
+    local wins = vim.api.nvim_tabpage_list_wins(0)
+    local difference = vim.api.nvim_win_get_width(wins[1]) - vim.api.nvim_win_get_width(wins[2])
+    assert.is_true(math.abs(difference) <= 1)
+  end)
+
   it("equalizes after windows are exchanged instead of replaying stale window numbers", function()
     toggle()
     vim.cmd("wincmd x")
