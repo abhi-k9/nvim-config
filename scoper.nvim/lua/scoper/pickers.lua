@@ -591,7 +591,7 @@ function M.replace(prefills)
   local ctx = get_context()
   if not ctx then return end
 
-  if (ctx.dirs and #ctx.dirs > 0) or #ctx.excludes > 0 then
+  if ctx.restricted then
     vim.notify(
       "Scoper: scoped replace is unavailable: grug-far cannot preserve the project directory "
         .. "for deferred searches and writes after window changes. Use :ScoperGrep to inspect "
