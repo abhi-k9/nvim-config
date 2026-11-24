@@ -92,6 +92,42 @@ describe("Trouble references reopening", function()
     if vim.api.nvim_win_is_valid(editor) then vim.api.nvim_win_close(editor, true) end
     if vim.api.nvim_buf_is_valid(buf) then vim.api.nvim_buf_delete(buf, { force = true }) end
   end)
+  it("keeps a reopened list and jump target when an older refresh finishes late", function()
+    local Trouble, Item = require("trouble"), require("trouble.item")
+    local replies = {}
+    source.get.references = function(cb)
+      replies[#replies + 1] = cb
+    end
+    local function reply(request, row)
+      assert.is_true(vim.wait(1000, function()
+        return replies[request] ~= nil
+      end))
+      replies[request]({ Item.new({ source = "lsp.references", buf = buf, pos = { row, 0 } }) })
+    end
+    local function open(row, request)
+      panel = Trouble.open({ mode = "lsp_references", auto_refresh = false })
+      reply(request, row)
+      assert.is_true(vim.wait(2000, function()
+        return panel:is_open() and vim.api.nvim_get_current_win() == panel.win.win
+      end))
+    end
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "old", "new" })
+    open(1, 1)
+    Trouble.refresh("lsp_references")
+    Trouble.close("lsp_references")
+    local closed = panel
+    open(2, 3)
+    reply(2, 1)
+    assert.is_falsy(closed:is_open())
+    assert.equals(2, panel:flatten()[1].pos[1])
+    panel:jump(panel:flatten()[1])
+    assert.equals(editor, vim.api.nvim_get_current_win())
+    assert.same({ 2, 0 }, vim.api.nvim_win_get_cursor(editor))
+    Trouble.close("lsp_references")
+    assert.is_falsy(panel:is_open())
+    assert.equals(buf, vim.api.nvim_win_get_buf(editor))
+  end)
+
   it("keeps one reference visible and reopens after its source window closes", function()
     local Trouble = require("trouble")
     panel = Trouble.open({ mode = "lsp_references", new = true })

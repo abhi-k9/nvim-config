@@ -114,7 +114,11 @@ controls (F1 for help). It can include locations outside the current project;
 entries whose buffers are no longer valid are omitted. It searches recorded
 jumps, not every cursor movement. Ctrl-o / Ctrl-i still navigate history directly.
 
-For the `gr` references panel, press `q` while focused in the panel, or run
+If the language server is slow to return references, let the first `gr` request
+finish. Closing or toggling while that request is pending can still leave a panel
+open when the results arrive.
+
+To close the `gr` references panel, press `q` while focused in the panel, or run
 `:Trouble lsp_references close` from any window. This keeps the result file open.
 A single reference stays in the list; Enter opens it while keeping the list,
 and `o` opens it and closes the list. `:q` closes the **focused window**, so after
