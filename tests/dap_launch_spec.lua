@@ -121,6 +121,17 @@ describe("debug launch discovery", function()
     assert.equals(2, calls)
     assert.is_nil(items)
   end)
+  it("rejects an unregistered adapter and accepts it after registration", function()
+    dap.adapters.native = nil
+    module.choose()
+    assert.equals("adapter not configured", items[1].adapter)
+    dap.choose(items[1])
+    assert.is_nil(chosen)
+    dap.adapters.native = { type = "server", port = 1234 }
+    dap.choose(items[1])
+    assert.is_not_nil(chosen)
+  end)
+
   it("reports missing commands and rechecks if an adapter becomes available", function()
     local found = 0
     vim.fn.executable = function()

@@ -26,6 +26,24 @@ local function other_live_session(dap, ending)
   return false
 end
 
+-- Lazy loads the UI before its own key callbacks. A debugger lifecycle
+-- callback can also run with the UI disabled or only partially initialized.
+local function ui_action(name)
+  local ui = package.loaded.dapui
+  if type(ui) ~= "table" or type(ui[name]) ~= "function" then
+    vim.notify(
+      "DAP UI " .. name .. " unavailable. Check nvim-dap-ui in :Lazy.",
+      vim.log.levels.WARN
+    )
+    return false
+  end
+  local ok, err = pcall(ui[name])
+  if not ok then
+    vim.notify("DAP UI " .. name .. " failed: " .. tostring(err), vim.log.levels.WARN)
+  end
+  return ok
+end
+
 -- Exit, termination and transport callbacks can all describe the same end.
 -- A later callback must leave panels the user has since reopened alone.
 local cleanup_done = setmetatable({}, { __mode = "k" })
@@ -33,10 +51,7 @@ local function close_ui_if_idle(dap, ending)
   if cleanup_done[ending] or vim.g.dap_autoclose_ui == false or other_live_session(dap, ending) then
     return
   end
-  local ok = pcall(function()
-    require("dapui").close()
-  end)
-  if ok and ending then cleanup_done[ending] = true end
+  if package.loaded.dapui and ui_action("close") and ending then cleanup_done[ending] = true end
 end
 
 local Settings = require("config.settings")
@@ -286,8 +301,8 @@ return {
     },
     keys = {
       -- stylua: ignore start
-      { "<leader>du", function() require("dapui").toggle() end,             desc = "Toggle DAP UI" },
-      { "<leader>de", function() require("dapui").eval() end, mode = { "n", "x" }, desc = "Eval expression" },
+      { "<leader>du", function() ui_action("toggle") end,             desc = "Toggle DAP UI" },
+      { "<leader>de", function() ui_action("eval") end, mode = { "n", "x" }, desc = "Eval expression" },
       -- stylua: ignore end
       -- Toggle whether the UI auto-closes when the debuggee exits (the
       -- vim.g.dap_autoclose_ui option documented in config below). Mirrors the
@@ -344,7 +359,7 @@ return {
             close_ui_if_idle(dap, session)
           end)
         end
-        if Settings.get("debug.auto_open_ui", true) ~= false then dapui.open() end
+        if Settings.get("debug.auto_open_ui", true) ~= false then ui_action("open") end
       end
       dap.listeners.before.attach.dapui_config = open_ui
       dap.listeners.before.launch.dapui_config = open_ui

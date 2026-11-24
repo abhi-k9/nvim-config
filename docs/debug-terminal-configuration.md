@@ -69,7 +69,9 @@ menu. No global terminal-input help binding intercepts program input. See the
 
 A failed launch or attach leaves your current panels alone. After the last
 session exits, you can reopen the panels with `<leader>du` to inspect output.
-Later disconnect notifications from that session leave them open.
+Later disconnect notifications from that session leave them open. Terminate also
+works with the panel plugin disabled. If opening the panels fails, the launch
+response still reaches nvim-dap. Use `:messages` for the panel error.
 
 Pre-set pause/auto-close globals win so existing configuration keeps working.
 Set the corresponding settings before DAP loads. Changing the global later also

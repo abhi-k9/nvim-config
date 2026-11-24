@@ -1,9 +1,14 @@
 describe("DAP UI session ownership", function()
+  local notify, notes
   local Settings = require("config.settings")
   local saved_dap, saved_ui, saved_preference, spec, dap, roots, current, opened, closed, completion
 
   before_each(function()
     saved_dap, saved_ui = package.loaded.dap, package.loaded.dapui
+    notify, notes = vim.notify, {}
+    vim.notify = function(message)
+      notes[#notes + 1] = message
+    end
     saved_preference = vim.g.dap_autoclose_ui
     Settings.reset()
     roots, current, opened, closed, completion = {}, nil, 0, 0, nil
@@ -40,6 +45,7 @@ describe("DAP UI session ownership", function()
   after_each(function()
     package.loaded.dap, package.loaded.dapui = saved_dap, saved_ui
     vim.g.dap_autoclose_ui = saved_preference
+    vim.notify = notify
     Settings.reset()
   end)
 
@@ -58,6 +64,38 @@ describe("DAP UI session ownership", function()
     Settings.configure({ debug = { auto_open_ui = true } })
     dap.listeners.before.launch.dapui_config({ on_close = {} })
     assert.equals(1, opened)
+  end)
+
+  it("keeps a panel error out of the DAP launch response handler", function()
+    package.loaded.dapui.open = function()
+      error("panel layout unavailable")
+    end
+    local session = { on_close = {} }
+    dap.listeners.before.launch.dapui_config(session)
+    assert.is_function(session.on_close.dapui_config)
+    assert.is_truthy(notes[1]:find("panel layout unavailable", 1, true))
+  end)
+
+  it("keeps terminate independent of optional UI loading", function()
+    local preload, loads = package.preload.dapui, 0
+    package.loaded.dapui = nil
+    package.preload.dapui = function()
+      loads = loads + 1
+      error("missing UI")
+    end
+    local ok, err = pcall(terminate_key)
+    package.preload.dapui = preload
+    assert.is_true(ok, tostring(err))
+    assert.equals(0, loads)
+  end)
+
+  it("explains missing UI actions when invoked from a mapping", function()
+    package.loaded.dapui = {}
+    for _, key in ipairs(spec[3].keys) do
+      if key[1] == "<leader>du" or key[1] == "<leader>de" then key[2]() end
+    end
+    assert.equals(2, #notes)
+    assert.is_truthy(notes[1]:find(":Lazy", 1, true))
   end)
 
   it("seeds auto-close policy without overwriting an existing preference", function()
