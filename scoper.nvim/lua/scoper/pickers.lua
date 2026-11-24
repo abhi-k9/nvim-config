@@ -164,7 +164,9 @@ local has = Util.has
 local function cwd_relative(dirs, cwd)
   if not dirs then return nil end
   return vim.tbl_map(function(d)
-    return Path.relative(d, cwd)
+    local path = Path.relative(d, cwd)
+    -- Telescope appends these operands directly to the finder argv.
+    return path:sub(1, 1) == "-" and "./" .. path or path
   end, dirs)
 end
 

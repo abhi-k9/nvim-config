@@ -468,6 +468,18 @@ describe("scoper.pickers with telescope", function()
     return got.grep.entry_maker(path .. ":1:1:needle")
   end
 
+  it("passes dash-leading Telescope search roots as path operands", function()
+    vim.fn.mkdir(p.root .. "/-U", "p")
+    vim.fn.writefile({ "needle" }, p.root .. "/-U/in.c")
+    State.clear_active()
+    State.add_paths("-U")
+    State.set_enabled(true)
+    pickers.find()
+    pickers.grep("needle")
+    assert.same({ "./-U" }, got.find.search_dirs)
+    assert.same(got.find.search_dirs, got.grep.search_dirs)
+  end)
+
   it("drops .git and excluded entries while retaining valid file entries", function()
     State.set_enabled(true)
     pickers.find()
