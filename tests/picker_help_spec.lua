@@ -74,6 +74,18 @@ describe("live picker help", function()
     prompt, picker = nil, nil
   end)
 
+  it("opens the listed-buffer picker if the scope extension is unavailable", function()
+    local telescope = require("telescope")
+    local load = telescope.load_extension
+    telescope.load_extension = function()
+      error("scope unavailable")
+    end
+    local ok, err = pcall(open, true)
+    telescope.load_extension = load
+    assert.is_true(ok, tostring(err))
+    assert.is_truthy(table.concat(messages, "\n"):find("listed buffers", 1, true))
+  end)
+
   it("shows real named buffer actions without changing literal query text or focus", function()
     open()
     picker:set_prompt("literal_?g?")

@@ -197,7 +197,8 @@ by other tabs; successful closes preserve editor windows and refresh the list.
 `<leader>fB` explicitly shares these actions and hints with Scope's all-tabs
 picker while retaining its cross-tab Enter behavior and Ctrl-w action. This
 extension is a separate picker and does not automatically inherit ordinary
-Telescope buffers-picker configuration.
+Telescope buffers-picker configuration. If the Scope extension is unavailable,
+`<leader>fB` opens Telescope’s listed-buffer picker and reports the fallback.
 
 fzf-lua already provides native F1 help; its Ctrl-x buffer-close action now has a
 readable description there. Native help is generated on demand from registered

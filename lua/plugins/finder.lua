@@ -186,11 +186,15 @@ return {
           if require("config.settings").get("sessions.global_buffers", false) then
             require("telescope.builtin").buffers()
           else
-            require("telescope").load_extension("scope")
+            local ok, scope = pcall(require("telescope").load_extension, "scope")
+            if not ok or type(scope) ~= "table" or type(scope.buffers) ~= "function" then
+              vim.notify("Scope picker unavailable. Showing listed buffers.", vim.log.levels.WARN)
+              return require("telescope.builtin").buffers()
+            end
             -- The extension is a separate picker: explicitly share buffer
             -- actions/hints without replacing its cross-tab open behavior.
             local buffers = require("telescope.config").pickers.buffers or {}
-            require("telescope").extensions.scope.buffers({
+            scope.buffers({
               attach_mappings = buffers.attach_mappings,
               results_title = buffers.results_title,
             })
