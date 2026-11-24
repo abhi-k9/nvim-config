@@ -277,8 +277,10 @@ end
 -- silent when no clangd of this project runs. :ScoperLspReload always
 -- restarts and reports.
 -- ---------------------------------------------------------------------------
-local function stale_auto(opts)
-  return opts.auto and opts._generation ~= (M._auto_generation or 0)
+local managed_generation = 0
+local function stale_reload(opts)
+  return opts._managed_generation ~= managed_generation
+    or opts.auto and opts._generation ~= (M._auto_generation or 0)
 end
 
 local function queue_reload(opts)
@@ -286,6 +288,7 @@ local function queue_reload(opts)
   local auto = opts.auto and (not M._pending or M._pending.auto)
   M._pending = {
     auto = auto,
+    _managed_generation = opts._managed_generation,
     _generation = auto and opts._generation or nil,
     _resume_root = opts._resume_root or (M._pending and M._pending._resume_root),
   }
@@ -294,10 +297,9 @@ end
 function M.reload_clangd(opts)
   if Pipeline.mode() == "disabled" or Pipeline.mode() == "native" then return end
   opts = vim.tbl_extend("force", {}, opts or {})
-  if opts.auto then
-    opts._generation = opts._generation or (M._auto_generation or 0)
-    if stale_auto(opts) then return end
-  end
+  opts._managed_generation = opts._managed_generation or managed_generation
+  if opts.auto then opts._generation = opts._generation or (M._auto_generation or 0) end
+  if stale_reload(opts) then return end
   -- Re-entrancy guard + pending flag. The reload below is ASYNCHRONOUS
   -- (a libuv timer polls for the old clients to exit instead of
   -- blocking), so a ScoperChanged debounce can absolutely fire while a
@@ -377,7 +379,7 @@ function M._start_reload(done, opts)
   local root = Path.key(State.root())
   local context = Pipeline.context_key()
   M._filter_async(function(dir, info, changed, _, obsolete)
-    if stale_auto(opts) then
+    if stale_reload(opts) then
       done()
       return
     end
@@ -444,7 +446,7 @@ function restart(done, opts, cmd, info, changed)
   -- Returns true once the restart is over (re-attached, or given up).
   local started = vim.uv.hrtime()
   local function tick()
-    if stale_auto(opts) then return true end
+    if stale_reload(opts) then return true end
     local waited = math.floor((vim.uv.hrtime() - started) / 1e6)
     local remaining = 0
     for _, id in ipairs(ids) do
@@ -730,6 +732,9 @@ function M.configure()
     "invalid Scoper lsp.mode"
   )
   if mode == "disabled" or mode == "native" then
+    -- Explicit opt-out also cancels manual work, including scheduled replays.
+    managed_generation = managed_generation + 1
+    M._pending = false
     M._startup = { state = mode }
     return
   end

@@ -48,7 +48,9 @@ its project resolver with Scoper when no Scoper-specific root is supplied.
 With no explicit mode, legacy `lsp.clangd=true` means automatic filtered
 integration. `lsp.clangd=false` keeps automatic integration off, while explicit
 `:ScoperLspReload` and `clangd_cmd()` remain available for compatibility. This
-legacy manual behavior differs from the explicit `"disabled"` mode.
+legacy manual behavior differs from the explicit `"disabled"` mode. Switching to
+`"disabled"` or `"native"` cancels outstanding managed reloads, including manual
+requests, even if integration is enabled again before preparation finishes.
 
 `:ScoperToggle` OFF disables **scope filtering**, not clangd. In the shipped
 automatic filtered integration, clangd switches to the complete selected

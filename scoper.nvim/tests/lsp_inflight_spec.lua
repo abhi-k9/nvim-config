@@ -63,6 +63,18 @@ describe("Scoper automatic reload cancellation", function()
     assert.is_false(LSP._reloading)
   end)
 
+  it("cancels manual work across an explicit opt-out and re-enable", function()
+    for _, mode in ipairs({ "disabled", "native" }) do
+      local index = #pending + 1
+      LSP.reload_clangd()
+      Scoper.setup({ lsp = { mode = mode } })
+      Scoper.setup({ lsp = { clangd = true } })
+      complete(index)
+      assert.equals(0, #applied)
+      assert.is_false(LSP._reloading)
+    end
+  end)
+
   it("continues an explicitly requested manual reload", function()
     LSP.reload_clangd()
     disable()
