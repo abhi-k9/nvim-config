@@ -55,6 +55,22 @@ describe("Scoper automatic reload cancellation", function()
     pending[index]("/tmp/filtered-" .. index, "filtered", true)
   end
 
+  it("releases the reload guard when late context validation fails", function()
+    LSP.reload_clangd()
+    local pipeline = require("scoper.pipeline")
+    local context_key = pipeline.context_key
+    pipeline.context_key = function()
+      error("context unavailable")
+    end
+    local ok, err = pcall(complete, 1)
+    pipeline.context_key = context_key
+    assert.is_true(ok, tostring(err))
+    assert.is_false(LSP._reloading)
+    LSP.reload_clangd()
+    complete(2)
+    assert.equals(1, reattached)
+  end)
+
   it("does not apply an automatic filter result after integration is disabled", function()
     LSP.reload_clangd({ auto = true })
     disable()

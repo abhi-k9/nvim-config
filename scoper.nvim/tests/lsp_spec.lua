@@ -844,6 +844,22 @@ describe("scoper.lsp restart", function()
     assert.is_table(reattached)
   end)
 
+  it("retries automatically when the previous shutdown request failed", function()
+    local mine = fake_client(p.root)
+    local stop = mine.stop
+    mine.stop = function()
+      error("shutdown failed")
+    end
+    lsp.reload_clangd()
+    assert.equals(vim.log.levels.ERROR, notes[#notes].level)
+    mine.stop = stop
+    lsp.reload_clangd({ auto = true })
+    exit(mine)
+    settle()
+    assert.equals(1, mine.stop_calls)
+    assert.is_table(reattached)
+  end)
+
   it("rejects invalid restart budgets before stopping a client", function()
     local mine = fake_client(p.root)
     require("scoper").config.lsp.shutdown_timeout_ms = -1

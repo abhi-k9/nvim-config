@@ -385,20 +385,18 @@ function M._start_reload(done, opts)
   local root = Path.key(State.root())
   local context = Pipeline.context_key()
   M._filter_async(function(dir, info, changed, _, obsolete)
-    if stale_reload(opts) then
-      done()
-      return
-    end
-    if Path.key(State.root()) ~= root or obsolete or Pipeline.context_key() ~= context then
-      queue_reload(opts)
-      done()
-      return
-    end
     local ok, err = pcall(function()
+      if stale_reload(opts) then return done() end
+      if Path.key(State.root()) ~= root or obsolete or Pipeline.context_key() ~= context then
+        queue_reload(opts)
+        return done()
+      end
       restart(done, opts, cmd_from(dir, info, changed))
     end)
     if not ok then
-      M._pending = false
+      -- A failed apply or stop may have left clients on the old command.
+      -- The next automatic request must retry even if the database is unchanged.
+      M._applied_cmd, M._pending = nil, false
       done()
       vim.notify("Scoper LSP: reload failed: " .. tostring(err), vim.log.levels.ERROR)
     end
