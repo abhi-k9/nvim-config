@@ -806,9 +806,17 @@ describe("scoper.lsp restart", function()
     local mine = fake_client(p.root)
     lsp.reload_clangd()
     assert.equals(10, mine.stopped_with)
+    local pipeline = require("scoper.pipeline")
+    local resolve, calls = pipeline.resolve, 0
+    pipeline.resolve = function(...)
+      calls = calls + 1
+      return resolve(...)
+    end
     vim.wait(100, function()
       return false
     end, 5)
+    pipeline.resolve = resolve
+    assert.equals(0, calls)
     assert.is_true(lsp._reloading)
     assert.is_nil(reattached)
     assert.equals(0, #notes)

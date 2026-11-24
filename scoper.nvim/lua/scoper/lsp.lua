@@ -445,6 +445,16 @@ function restart(done, opts, cmd, info, changed)
   local started = vim.uv.hrtime()
   local function tick()
     if stale_auto(opts) then return true end
+    local waited = math.floor((vim.uv.hrtime() - started) / 1e6)
+    local remaining = 0
+    for _, id in ipairs(ids) do
+      if vim.lsp.get_client_by_id(id) then remaining = remaining + 1 end
+    end
+    -- Database discovery may enumerate thousands of entries. While the old
+    -- process is still registered, polling its ID needs no database lookup.
+    if remaining > 0 and waited < t.grace + t.kill and Path.key(State.root()) == root then
+      return false
+    end
     if Pipeline.context_key() ~= context then
       -- If the old process exits during a scope change, an automatic replay
       -- must still restore service, but never carry attachment into a new root.
@@ -452,12 +462,6 @@ function restart(done, opts, cmd, info, changed)
       queue_reload(opts)
       return true
     end
-    local waited = math.floor((vim.uv.hrtime() - started) / 1e6)
-    local remaining = 0
-    for _, id in ipairs(ids) do
-      if vim.lsp.get_client_by_id(id) then remaining = remaining + 1 end
-    end
-    if remaining > 0 and waited < t.grace + t.kill then return false end
     if remaining > 0 then
       -- Deliberately do NOT re-fire FileType here: starting a fresh clangd
       -- while the old one is alive yields two clients indexing the same
