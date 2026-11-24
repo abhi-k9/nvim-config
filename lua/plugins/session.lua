@@ -80,6 +80,15 @@ local scope_restore_failed = false
 -- Filetypes the post-restore rescue pass never re-lists (see post_restore).
 local RESCUE_SKIP_FT = { gitcommit = true, gitrebase = true, gittag = true }
 
+local dap_filetypes = {
+  dapui_watches = true,
+  dapui_stacks = true,
+  dapui_breakpoints = true,
+  dapui_scopes = true,
+  dapui_console = true,
+  ["dap-repl"] = true,
+}
+
 return {
   "rmagatti/auto-session",
   lazy = false, -- must hook into VimEnter early
@@ -148,6 +157,8 @@ return {
     suppressed_dirs = suppressed_dirs,
     pre_restore_cmds = {
       function(session_name)
+        -- A session without scope metadata must not inherit the previous map.
+        vim.g.ScopeState = nil
         return not require("config.session").suppressed(session_name)
       end,
     },
@@ -216,7 +227,9 @@ return {
           -- Only runtime buffers may be closed/wiped as debugger state.
           if not vim.api.nvim_buf_is_valid(buf) or vim.bo[buf].buftype == "" then return false end
           local name = vim.api.nvim_buf_get_name(buf)
-          return name:match("%[dap%-") or name:match("%[dap_")
+          return dap_filetypes[vim.bo[buf].filetype]
+            or name:match("%[dap%-")
+            or name:match("%[dap_")
         end
         -- Close DAP UI panels (watches, stacks, breakpoints, scopes, console).
         if ok_ui then pcall(dapui.close) end
@@ -252,22 +265,6 @@ return {
       end,
     },
 
-    -- After auto-session restores, re-apply scope.nvim's per-tab buffer map
-    -- from the restored global. Without this, every tab would show every
-    -- buffer again until the next manual tab switch.
-    --
-    -- Then reconcile. scope.nvim persists a per-tab list of buffer NAMES and,
-    -- on restore, unlists every buffer before re-listing only the ones in that
-    -- saved list. On some quits the most-recently-opened buffer doesn't make it
-    -- into scope's cache in time (a race in scope's own capture — sporadic by
-    -- nature), yet mksession still restores the file as the window's buffer. The
-    -- result is a buffer that's loaded but left `buflisted = false`, so it never
-    -- appears in bufferline — "I opened it, it's gone from the tabs". The
-    -- function below is a safety net: any restored, real-file buffer that scope
-    -- accounts for in NO tab gets adopted into the CURRENT tab (listed + added
-    -- to scope's cache) so it shows up again. Buffers legitimately scoped to
-    -- another tab are in that tab's cache, so they're recognised as accounted
-    -- and correctly left hidden — this only rescues the ones scope actually lost.
     post_save_cmds = {
       function()
         local saved = reopen_dapui_after_save
@@ -300,6 +297,22 @@ return {
         end
       end,
     },
+    -- After auto-session restores, re-apply scope.nvim's per-tab buffer map
+    -- from the restored global. Without this, every tab would show every
+    -- buffer again until the next manual tab switch.
+    --
+    -- Then reconcile. scope.nvim persists a per-tab list of buffer NAMES and,
+    -- on restore, unlists every buffer before re-listing only the ones in that
+    -- saved list. On some quits the most-recently-opened buffer doesn't make it
+    -- into scope's cache in time (a race in scope's own capture — sporadic by
+    -- nature), yet mksession still restores the file as the window's buffer. The
+    -- result is a buffer that's loaded but left `buflisted = false`, so it never
+    -- appears in bufferline — "I opened it, it's gone from the tabs". The
+    -- function below is a safety net: any restored, real-file buffer that scope
+    -- accounts for in NO tab gets adopted into the CURRENT tab (listed + added
+    -- to scope's cache) so it shows up again. Buffers legitimately scoped to
+    -- another tab are in that tab's cache, so they're recognised as accounted
+    -- and correctly left hidden — this only rescues the ones scope actually lost.
     post_restore_cmds = {
       function()
         scope_restore_failed = require("config.session").restore_scopes() == false
@@ -356,17 +369,8 @@ return {
       end,
     },
 
-    -- The backend closes these filetypes BEFORE pre_save_cmds, also covering
-    -- debugger panels that are not currently tracked by dapui's layout state.
-    -- "checkhealth" is auto-session's own default for this list.
-    close_filetypes_on_save = {
-      "checkhealth",
-      "dapui_watches",
-      "dapui_stacks",
-      "dapui_breakpoints",
-      "dapui_scopes",
-      "dapui_console",
-      "dap-repl",
-    },
+    -- Backend cleanup precedes pre_save_cmds. Leave debugger windows in place
+    -- until the save hook records which layouts to reopen in which tabs.
+    close_filetypes_on_save = { "checkhealth" },
   },
 }

@@ -64,7 +64,10 @@ function M.save_scopes()
   for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
     local names = {}
     for _, buf in ipairs(type(core.cache[tab]) == "table" and core.cache[tab] or {}) do
-      if vim.api.nvim_buf_is_valid(buf) then names[#names + 1] = vim.api.nvim_buf_get_name(buf) end
+      -- Only ordinary files can be recreated by name in another editor.
+      if require("config.util").is_file_buffer(buf) then
+        names[#names + 1] = vim.api.nvim_buf_get_name(buf)
+      end
     end
     cache[#cache + 1] = names
   end
@@ -100,7 +103,7 @@ function M.restore_scopes()
     for index, tab in ipairs(tabs) do
       local buffers, seen = {}, {}
       for _, name in ipairs(saved.cache[index] or {}) do
-        if name ~= "" then
+        if name ~= "" and not name:match("^term://") then
           local buf = by_name[name] or vim.fn.bufadd(name)
           assert(buf > 0 and vim.api.nvim_buf_is_valid(buf), "could not add saved buffer")
           by_name[name] = buf

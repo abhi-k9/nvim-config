@@ -451,7 +451,8 @@ The local session bridge saves per-tab buffer names in visual tab order and
 restores hidden buffers through Neovim's literal `bufadd()` API. Spaces, `%`,
 `#`, `$` and Ex separators in filenames remain literal where the OS permits
 those characters. It keeps
-the existing `ScopeState` JSON shape; no session migration is required.
+the existing `ScopeState` JSON shape. The per-tab map saves only named file
+buffers and skips terminal URIs from older maps on restore; no session migration is required.
 This adapter is local to the configuration; it does not patch scope.nvim or
 change that plugin's own manually invoked commands.
 

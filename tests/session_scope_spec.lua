@@ -39,6 +39,22 @@ describe("session scope ordering", function()
     assert.are.equal(vim.api.nvim_buf_get_name(first_buf), saved.cache[2][1])
   end)
 
+  it("omits runtime buffers from the saved tab map without unlisting them", function()
+    local buf = vim.api.nvim_create_buf(true, true)
+    vim.api.nvim_buf_set_name(buf, "session-runtime-panel")
+    save_scopes()
+    assert.is_nil(vim.g.ScopeState:find("session-runtime-panel", 1, true))
+    assert.is_true(vim.bo[buf].buflisted)
+  end)
+
+  it("does not import an earlier session's map when the incoming session has none", function()
+    local old = vim.fn.tempname() .. "-previous.txt"
+    vim.g.ScopeState = vim.json.encode({ cache = { { old } } })
+    spec.opts.pre_restore_cmds[1]("incoming")
+    spec.opts.post_restore_cmds[1]()
+    assert.equals(-1, vim.fn.bufnr(old))
+  end)
+
   it("restores moved tabs without assigning their buffers to another tab", function()
     save_scopes()
     spec.opts.post_restore_cmds[1]()
