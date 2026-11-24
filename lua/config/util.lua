@@ -72,7 +72,7 @@ end
 -- replacement outside the set. Shared by the single- and bulk-delete
 -- paths below.
 local function detach_set_from_windows(excluded)
-  local cache = {}
+  local cache, empty_by_tab = {}, {}
   for _, win in ipairs(vim.api.nvim_list_wins()) do
     -- A replacement's BufWinEnter hooks may close other windows in this
     -- snapshot. Revalidate before inspecting each one and after a switch.
@@ -91,12 +91,23 @@ local function detach_set_from_windows(excluded)
           -- included, so the window closes with its buffer.
           pcall(vim.api.nvim_win_close, win, false)
         else
-          -- No listed buffer survives: park the window on a fresh
-          -- [No Name] buffer, mirroring what Vim does when you :bd the
-          -- last buffer. nvim_win_call keeps focus where it was.
-          pcall(vim.api.nvim_win_call, win, function()
-            vim.cmd("enew")
-          end)
+          -- :enew can reuse an empty unnamed victim. Create a distinct
+          -- replacement and share it among affected splits in the same tab.
+          local tab = vim.api.nvim_win_get_tabpage(win)
+          local empty = empty_by_tab[tab]
+          if not empty or not vim.api.nvim_buf_is_valid(empty) then
+            local ok, buf = pcall(vim.api.nvim_create_buf, true, false)
+            empty = ok and buf or nil
+            empty_by_tab[tab] = empty
+          end
+          -- BufNew/BufAdd hooks can close or repurpose the original window.
+          if
+            empty
+            and vim.api.nvim_win_is_valid(win)
+            and excluded[vim.api.nvim_win_get_buf(win)]
+          then
+            pcall(vim.api.nvim_win_set_buf, win, empty)
+          end
         end
       end
     end
