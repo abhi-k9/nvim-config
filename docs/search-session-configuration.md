@@ -502,7 +502,9 @@ explain the matching boundaries described above.
 Use `<leader>fC` (capital C) for the current file's change list, or
 `<leader>fE` (capital E) across loaded, listed file buffers in all tabs.
 Search filenames or current line text, then press Enter to jump to the stored
-line and byte column. Long results wrap; F1 opens picker help.
+line and byte column. The jump and change pickers skip stale lines in loaded
+buffers. If a selected buffer or line disappears while searching, the picker
+stays open so you can choose another location. Long results wrap. F1 opens help.
 Lowercase `<leader>fc` remains the commands picker.
 
 The across-files picker puts the current file first. Changes are newest-first

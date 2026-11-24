@@ -26,7 +26,15 @@ local function history_picker(jumps, title, results_title)
   local entries = {}
   for index = #jumps, 1, -1 do
     local jump = jumps[index]
-    if vim.api.nvim_buf_is_valid(jump.bufnr) then
+    if
+      jump.bufnr > 0
+      and vim.api.nvim_buf_is_valid(jump.bufnr)
+      and jump.lnum > 0
+      and (
+        not vim.api.nvim_buf_is_loaded(jump.bufnr)
+        or jump.lnum <= vim.api.nvim_buf_line_count(jump.bufnr)
+      )
+    then
       local filename = vim.api.nvim_buf_get_name(jump.bufnr)
       local text = vim.api.nvim_buf_get_lines(jump.bufnr, jump.lnum - 1, jump.lnum, false)[1] or ""
       local path = filename ~= "" and vim.fn.fnamemodify(filename, ":.") or "[No Name]"
@@ -52,6 +60,25 @@ local function history_picker(jumps, title, results_title)
     .new(opts, {
       prompt_title = title,
       results_title = results_title or "History # (oldest = 1) | F1: keys",
+      attach_mappings = function()
+        require("telescope.actions.set").edit:replace_if(function()
+          local entry = require("telescope.actions.state").get_selected_entry()
+          if not entry then return false end
+          local buf = entry.bufnr
+          if not vim.api.nvim_buf_is_valid(buf) then return true end
+          -- Jumplists can refer to unloaded files. Load only the chosen
+          -- target, so a shortened file is checked before the picker closes.
+          if not vim.api.nvim_buf_is_loaded(buf) then
+            if vim.fn.filereadable(vim.api.nvim_buf_get_name(buf)) == 0 then return true end
+            local ok = pcall(vim.fn.bufload, buf)
+            if not ok or not vim.api.nvim_buf_is_loaded(buf) then return true end
+          end
+          return entry.lnum > vim.api.nvim_buf_line_count(buf)
+        end, function()
+          vim.notify("History location is no longer available", vim.log.levels.INFO)
+        end)
+        return true
+      end,
       finder = require("telescope.finders").new_table({
         results = entries,
         entry_maker = function(entry)
