@@ -49,6 +49,16 @@ describe("DAP UI session ownership", function()
     Settings.reset()
   end)
 
+  local function drain_cleanup()
+    local drained = false
+    vim.schedule(function()
+      drained = true
+    end)
+    assert.is_true(vim.wait(1000, function()
+      return drained
+    end, 1))
+  end
+
   local function terminate_key()
     for _, key in ipairs(spec[1].keys) do
       if key[1] == "<leader>dt" then return key[2]() end
@@ -121,8 +131,8 @@ describe("DAP UI session ownership", function()
 
   it("preserves parent and child controls when only one child ends", function()
     local child = {}
-    local parent = { children = { child } }
-    roots = { parent }
+    local parent = { children = { [19] = child } }
+    roots = { [7] = parent }
     dap.listeners.before.event_terminated.dapui_config(child)
     assert.equals(0, closed)
     dap.listeners.before.event_terminated.dapui_config(parent)
@@ -147,9 +157,7 @@ describe("DAP UI session ownership", function()
     dap.listeners.before.attach.dapui_config(failed)
     failed.closed = true
     failed.on_close.dapui_config()
-    vim.wait(20, function()
-      return false
-    end, 1)
+    drain_cleanup()
     assert.equals(0, closed)
   end)
 
@@ -159,16 +167,12 @@ describe("DAP UI session ownership", function()
     failed.closed = true
     failed.on_close.dapui_config()
     roots = { {} }
-    vim.wait(20, function()
-      return false
-    end, 1)
+    drain_cleanup()
     assert.equals(0, closed)
     roots = {}
     failed.on_close.dapui_config()
     vim.g.dap_autoclose_ui = false
-    vim.wait(20, function()
-      return false
-    end, 1)
+    drain_cleanup()
     assert.equals(0, closed)
   end)
 
@@ -196,9 +200,7 @@ describe("DAP UI session ownership", function()
     session.closed, current, roots = true, nil, {}
     session.on_close.dapui_config()
     completion()
-    vim.wait(20, function()
-      return false
-    end, 1)
+    drain_cleanup()
     assert.equals(1, closed)
   end)
 
