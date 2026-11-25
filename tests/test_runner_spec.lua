@@ -5,6 +5,7 @@ describe("headless test runner failures", function()
   before_each(function()
     dir = vim.fn.tempname()
     vim.fn.mkdir(dir .. "/tests", "p")
+    vim.fn.writefile({}, dir .. "/tests/example_spec.lua")
   end)
   after_each(function()
     vim.fn.delete(dir, "rf")
@@ -31,12 +32,38 @@ describe("headless test runner failures", function()
     assert.matches("injected harness failure", result.stderr)
   end)
 
+  it("rejects missing targets and directories without specs", function()
+    vim.fn.mkdir(dir .. "/empty", "p")
+    for _, target in ipairs({ "missing", "empty" }) do
+      local result = run({}, target)
+      assert.equals(1, result.code)
+      assert.is_truthy(result.stderr:find(target, 1, true))
+    end
+  end)
+
+  it("runs a selected file with the child initializer and propagates failure", function()
+    local target = "tests/selected % spec_spec.lua"
+    vim.fn.writefile({}, dir .. "/" .. target)
+    local result = run({
+      'package.preload["plenary.busted"] = function() return { run = function(path)',
+      'assert(vim.fs.basename(path) == "selected % spec_spec.lua")',
+      'io.stderr:write("selected fixture failed\\n")',
+      'vim.cmd("cquit 1")',
+      "end } end",
+    }, target)
+    assert.equals(1, result.code)
+    assert.matches("selected fixture failed", result.stderr)
+  end)
+
   it("forwards a test directory as data and selects the cwd's initializer", function()
+    vim.fn.mkdir(dir .. "/specs with spaces", "p")
+    vim.fn.writefile({}, dir .. "/specs with spaces/example_spec.lua")
     local result = run({
       'package.preload["plenary.test_harness"] = function() return { test_directory = function(target, opts)',
       'assert(target == "specs with spaces")',
       'assert(opts.minimal_init == "tests/minimal_init.lua")',
       "assert(opts.sequential == true)",
+      'assert(vim.fs.normalize(vim.fn.stdpath("data")):find("/config-tests/data/", 1, true))',
       'io.stdout:write("correct runner target\\n")',
       "end } end",
     }, "specs with spaces")

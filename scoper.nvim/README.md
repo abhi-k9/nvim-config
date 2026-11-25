@@ -602,7 +602,7 @@ CI (the host config's `test-scoper` job) runs them on Ubuntu and
 Windows.
 
 ```bash
-make test      # plenary specs (clones plenary into stdpath('cache')/test-deps on first run)
+make test      # plenary specs (uses its own Plenary clone under stdpath('cache')/config-tests)
 make lint      # luacheck lua/ plugin/ tests/
 make format    # stylua in place (aligned blocks are fenced with
                #   -- stylua: ignore start / -- stylua: ignore end)

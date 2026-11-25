@@ -2,7 +2,7 @@
 --
 -- Headless init used by `make test`. Adds two things to the runtimepath:
 -- this plugin (so `require("scoper.*")` resolves), and plenary.nvim, cloned
--- into stdpath("cache")/test-deps on first run (`make clean` deletes it).
+-- into the runner’s dedicated cache on first run (`make clean` deletes it).
 --
 -- We DO NOT load the user's full Neovim config — tests should run against
 -- a clean environment so a bug in someone's keymap doesn't fail

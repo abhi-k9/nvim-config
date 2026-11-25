@@ -38,4 +38,4 @@ check: lint fmt-check
 # messages). The path never leaves nvim, so output can't corrupt it.
 clean:
 	$(NVIM) --clean --headless \
-		-c "lua vim.fn.delete(vim.fn.stdpath('cache') .. '/test-deps', 'rf')" -c qa
+		-c "lua vim.fn.delete(vim.fn.stdpath('cache') .. '/config-tests/cache/nvim/test-deps', 'rf')" -c qa

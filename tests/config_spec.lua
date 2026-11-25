@@ -33,7 +33,12 @@ describe("nvim config", function()
 
     it("matches resolved Git plugins and explicit revisions to the lockfile", function()
       local config = require("lazy.core.config")
-      local lock = vim.json.decode(table.concat(vim.fn.readfile(config.options.lockfile), "\n"))
+      local copy = vim.fs.normalize(config.options.lockfile)
+      assert.equals(vim.fs.normalize(vim.fn.stdpath("config") .. "/lazy-lock.json"), copy)
+      local source = vim.fs.normalize(vim.fn.getcwd() .. "/lazy-lock.json")
+      assert.is_not.equal(source, copy)
+      -- A cold install may rewrite its private copy. Validate the shipped pins.
+      local lock = vim.json.decode(table.concat(vim.fn.readfile(source), "\n"))
       for name, plugin in pairs(config.plugins) do
         if not plugin._.is_local then
           local entry = lock[name]

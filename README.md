@@ -883,9 +883,15 @@ covered.
 
 The Lua tooling (luacheck, stylua) is covered in the Prerequisites
 section above. Plenary.nvim — the busted-style runner the tests use —
-is fetched automatically on first `make test`, into
-`stdpath("cache")/test-deps/plenary.nvim` (kept off your normal package
-path). Subsequent runs reuse the clone.
+is fetched on the first run. The runner keeps its own plugin, tool and
+Plenary caches under `stdpath("cache")/config-tests/`. Both suites use
+temporary config and state directories. The host suite copies the current
+checkout’s runtime files and lockfile there, so a cold install can update
+its copy safely. Run the documented test command from the checkout root.
+For a focused run, append a spec path to the Neovim command below, for
+example `tests/config_spec.lua`. An absent target or a directory without
+specs exits with an error. To rebuild dependencies after changing pins locally, remove the dedicated
+`config-tests` directory after all test runs have exited.
 
 Without make (e.g. Windows), run the underlying commands from the repo
 root. In a POSIX shell, cmd.exe or PowerShell 7+:

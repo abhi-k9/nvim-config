@@ -185,13 +185,11 @@ jobs:
       - name: Cache Neovim plugins
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          path: |
-            ~/.local/share/nvim
-            ~/.cache/nvim
+          path: ~/.cache/nvim/config-tests
           # Exact matches only: Lazy setup does not restore already-installed
           # plugins to lockfile revisions. A fallback can load an old upstream
-          # checkout after switching to a fork. v2 retires those stale caches.
-          key: nvim-data-v2-${{ runner.os }}-${{ matrix.nvim }}-${{ hashFiles('lua/plugins/**/*.lua', 'lazy-lock.json') }}
+          # checkout after switching to a fork. The cache contains test dependencies only.
+          key: nvim-test-data-v3-${{ runner.os }}-${{ matrix.nvim }}-${{ hashFiles('lua/plugins/**/*.lua', 'lazy-lock.json') }}
 
       - name: Test config (smoke, leader maps, behaviour specs)
         timeout-minutes: 10

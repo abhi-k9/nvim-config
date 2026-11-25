@@ -6,13 +6,10 @@
 -- test is to assert that loading the real config doesn't error. We just
 -- need plenary on rtp first so its busted runner is available.
 
--- Make `require("config.*")` resolve regardless of where this checkout
--- lives. When the config sits at ~/.config/nvim, Neovim puts it on rtp
--- automatically (stdpath("config") is always added, even with -u), which
--- masks a missing entry: from any other checkout or in CI the config
--- fails with `module 'config.options' not found`. (scoper.nvim's
--- minimal_init does the same.)
-vim.opt.rtp:prepend(vim.fn.getcwd())
+-- The runner copied the current checkout into a disposable config directory.
+local config = vim.fn.stdpath("config")
+assert(config == vim.env.NVIM_TEST_CONFIG, "use scoper.nvim/tests/run.lua")
+vim.opt.rtp:prepend(config)
 -- Never import a developer's private machine configuration into the default suite.
 vim.g.config_local_file = false
 
@@ -89,7 +86,7 @@ end
 -- specs. Re-enable it just for lazy; everything lazy loads is sourced by
 -- lazy itself.
 vim.go.loadplugins = true
-dofile(vim.fn.getcwd() .. "/init.lua")
+dofile(config .. "/init.lua")
 
 -- Keep the real plugin configuration, without provisioning tools from each
 -- spec process when VimEnter fires. Explicit installer tests use controlled APIs.
