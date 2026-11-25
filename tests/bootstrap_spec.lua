@@ -163,6 +163,12 @@ describe("locked first-boot plugin manager", function()
     assert.is_false(result.directory_exists)
   end)
 
+  it("refuses an existing lockfile without its manager pin", function()
+    local result = bootstrap("{}")
+    assert.equals(0, #result.calls)
+    assert.is_false(result.directory_exists)
+  end)
+
   it("refuses non-SHA revisions in the manager pin", function()
     local result = bootstrap(vim.json.encode({ ["lazy.nvim"] = { commit = "--help" } }))
     assert.equals(0, #result.calls)

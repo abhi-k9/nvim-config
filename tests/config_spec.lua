@@ -31,6 +31,27 @@ describe("nvim config", function()
       assert.is_not_nil(package.loaded["lazy"])
     end)
 
+    it("matches resolved Git plugins and explicit revisions to the lockfile", function()
+      local config = require("lazy.core.config")
+      local lock = vim.json.decode(table.concat(vim.fn.readfile(config.options.lockfile), "\n"))
+      for name, plugin in pairs(config.plugins) do
+        if not plugin._.is_local then
+          local entry = lock[name]
+          assert.is_table(entry, name)
+          assert.is_string(entry.branch, name)
+          assert.is_truthy(entry.branch ~= "" and entry.commit:match("^%x+$"), name)
+          assert.equals(40, #entry.commit, name)
+          if plugin.commit then assert.equals(plugin.commit, entry.commit, name) end
+          if plugin.branch then assert.equals(plugin.branch, entry.branch, name) end
+          lock[name] = nil
+        end
+      end
+      -- Lazy retains pins for conditionally disabled plugins on limited hosts.
+      for name in pairs(lock) do
+        assert.is_truthy(config.spec.disabled[name] or config.spec.ignore_installed[name], name)
+      end
+    end)
+
     it("loaded the bundled local plugin from this checkout", function()
       assert.equals(2, vim.fn.exists(":ScoperStatus"), "bundled scoper.nvim did not load")
     end)

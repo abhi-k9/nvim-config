@@ -37,7 +37,16 @@ if not vim.uv.fs_stat(lazypath) then
   -- out its locked commit before requiring it, so first boot cannot run a
   -- newer manager and then overwrite the pinned entry during installation.
   local commit
-  if vim.fn.filereadable(lockfile) == 1 then
+  local stat, stat_error, code = vim.uv.fs_stat(lockfile)
+  if not stat and code ~= "ENOENT" then
+    bootstrap_failed("Cannot inspect plugin lockfile: " .. tostring(stat_error))
+    return
+  end
+  if stat then
+    if stat.type ~= "file" then
+      bootstrap_failed("Expected a regular plugin lockfile: " .. lockfile)
+      return
+    end
     local ok, lock = pcall(function()
       return vim.json.decode(table.concat(vim.fn.readfile(lockfile), "\n"))
     end)
@@ -46,12 +55,10 @@ if not vim.uv.fs_stat(lazypath) then
       return
     end
     local manager = lock["lazy.nvim"]
-    if manager ~= nil then
-      commit = type(manager) == "table" and manager.commit or nil
-      if type(commit) ~= "string" or #commit ~= 40 or not commit:match("^%x+$") then
-        bootstrap_failed("Invalid lazy.nvim commit in " .. lockfile)
-        return
-      end
+    commit = type(manager) == "table" and manager.commit or nil
+    if type(commit) ~= "string" or #commit ~= 40 or not commit:match("^%x+$") then
+      bootstrap_failed("Missing or invalid lazy.nvim commit in " .. lockfile)
+      return
     end
   end
   local lazyrepo = "https://github.com/folke/lazy.nvim.git"
