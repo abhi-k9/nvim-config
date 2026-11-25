@@ -94,6 +94,12 @@ local function path_for(path)
     return nil, "Use a fully qualified Windows image path; drive-relative paths are ambiguous."
   end
   if path:match("^~[/\\]") then path = (vim.uv.os_homedir() or "~") .. path:sub(2) end
+  -- nvim_win_call switches the editor window without changing the process cwd.
+  local windows_path = vim.fn.has("win32") == 1 and (path:sub(1, 1) == "\\" or path:match("^%a:"))
+  if path:sub(1, 1) ~= "/" and not windows_path then
+    local cwd = vim.fs.normalize(vim.fn.getcwd(0, 0), { expand_env = false })
+    path = cwd:gsub("/$", "") .. "/" .. path
+  end
   path = vim.fs.normalize(vim.fs.abspath(path), { expand_env = false })
   if not vim.tbl_contains(formats, vim.fn.fnamemodify(path, ":e"):lower()) then
     return nil, "Choose a raster image (PNG, JPEG, GIF, WebP, BMP, TIFF, AVIF, HEIC or ICO)."

@@ -155,7 +155,7 @@ local function with_configs(callback)
     win = win,
     buf = buf,
     filename = vim.api.nvim_buf_get_name(buf),
-    cwd = vim.fn.getcwd(),
+    cwd = vim.fn.getcwd(0, 0),
     global_cwd = vim.fn.getcwd(-1, -1),
   }
   local available, async = pcall(require, "dap.async")
