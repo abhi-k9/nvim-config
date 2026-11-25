@@ -7,7 +7,7 @@
 -- Load-order rule: init.lua loads these before lazy.nvim sources
 -- filetype.lua, so their BufRead* handlers run BEFORE filetype detection.
 -- A handler that needs the filetype must call vim.filetype.match() or
--- defer to a buffer-local FileType autocmd (see bigfile.lua, editing.lua).
+-- handle the FileType event (see bigfile.lua, editing.lua).
 
 require("config.autocmds.editing")
 require("config.autocmds.bigfile")

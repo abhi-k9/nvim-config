@@ -27,8 +27,8 @@ do
   -- file — just to stat one path. vim.lsp.log pulls in only
   -- vim.lsp.protocol, not the client.
   local log = require("vim.lsp.log").get_filename()
-  local st = vim.uv.fs_stat(log)
-  if st and st.size and st.size > limit then
+  local st = vim.uv.fs_lstat(log)
+  if st and st.type == "file" and st.size > limit then
     -- libuv's rename replaces an existing lsp.log.old (MoveFileEx with
     -- REPLACE_EXISTING on Windows), so no unlink first: if the rename then
     -- fails, the previous generation is still there.
