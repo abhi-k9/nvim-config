@@ -288,10 +288,12 @@ function M.open(path, force_external)
   local detected = guarded("terminal detection failed", function()
     if not api.supports_terminal() then return fail("terminal does not support Kitty graphics") end
     -- Private, fresh names preserve literal paths and invalidate renderer caches.
-    snapshot = vim.fn.tempname() .. "." .. vim.fn.fnamemodify(file, ":e"):lower()
-    if vim.fs.normalize(snapshot) ~= snapshot then
+    local temp = vim.fs.normalize(vim.fn.tempname(), { expand_env = false })
+    local destination = temp .. "." .. vim.fn.fnamemodify(file, ":e"):lower()
+    if vim.fs.normalize(destination) ~= destination then
       return fail("the renderer cannot preserve this temporary directory name")
     end
+    snapshot = destination
     copying = true
     local submitted, queued, copy_error = pcall(
       vim.uv.fs_copyfile,

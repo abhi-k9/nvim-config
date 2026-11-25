@@ -11,6 +11,8 @@ describe("optional local-image previews", function()
       has = vim.fn.has,
       uis = vim.api.nvim_list_uis,
       image = package.loaded["snacks.image"],
+      tempname = vim.fn.tempname,
+      normalize = vim.fs.normalize,
       copyfile = vim.uv.fs_copyfile,
     }
     win = vim.api.nvim_get_current_win()
@@ -73,6 +75,7 @@ describe("optional local-image previews", function()
     package.loaded["snacks.image"] = api
   end)
   after_each(function()
+    vim.fn.tempname, vim.fs.normalize = saved.tempname, saved.normalize
     settings.reset()
     -- Cancel any deliberately stalled request before restoring its dependencies.
     module.open(root .. "/missing.png")
@@ -193,6 +196,24 @@ describe("optional local-image previews", function()
     assert.is_truthy(notes[#notes]:find("bad image data", 1, true))
     assert.is_nil(api.placed)
     assert.equals(0, #launches)
+  end)
+  it("accepts Windows temp names with native separators", function()
+    local native = [[C:\Temp Dir\nvim-test]]
+    vim.fn.tempname = function()
+      return native
+    end
+    vim.fs.normalize = function(path, opts)
+      if path:match("^C:") then opts = vim.tbl_extend("force", opts or {}, { win = true }) end
+      return saved.normalize(path, opts)
+    end
+    local destination
+    vim.uv.fs_copyfile = function(_, dest)
+      destination = dest
+      return true
+    end
+    settings.configure({ images = { enabled = true } })
+    module.open(file)
+    assert.equals("C:/Temp Dir/nvim-test.png", destination)
   end)
   it("uses fresh private snapshots for literal selectors and changed file contents", function()
     settings.configure({ images = { enabled = true } })
