@@ -9,6 +9,41 @@
 -- signature popups, and cmdline completion. If you ever want to swap it
 -- out, the spec for nvim-cmp is similar in shape but verbose.
 
+local function cmdline_sources()
+  local mode = vim.fn.getcmdtype()
+  if mode == "/" or mode == "?" then return { "buffer" } end
+  if mode == ":" or mode == "@" then
+    if
+      vim.fn.getcmdcompltype() ~= "shellcmd" and not vim.fn.getcmdline():match("^%s*[%%%d,%.%$;]*!")
+    then
+      return { "cmdline" }
+    end
+  end
+  return {}
+end
+
+local function cmdline_tab(backward)
+  return function(cmp)
+    -- Blink claims a manual show immediately, even when there are no sources.
+    -- Let the mapping reach native wildmenu before asking Blink to show.
+    if #cmdline_sources() == 0 then
+      local mode = vim.fn.getcmdtype()
+      if mode ~= ":" and mode ~= "@" then return end
+      -- A mapped Tab inserts a literal tab. CTRL-Z invokes wildmode from a mapping.
+      local key = backward and vim.fn.wildmenumode() == 1 and "<C-p>" or "<C-z>"
+      vim.api.nvim_feedkeys(vim.keycode(key), "in", false)
+      return true
+    end
+    if
+      cmp.show_and_insert_or_accept_single(backward and { initial_selected_item_idx = -1 } or nil)
+    then
+      return true
+    end
+    if backward then return cmp.select_prev() end
+    return cmp.select_next()
+  end
+end
+
 return {
   {
     "saghen/blink.cmp",
@@ -97,6 +132,7 @@ return {
       },
 
       completion = {
+        list = { selection = { auto_insert = false } }, -- preview until explicitly accepted
         documentation = {
           auto_show = true,
           auto_show_delay_ms = 200,
@@ -142,42 +178,11 @@ return {
       -- right after ":!". Native wildmenu (<Tab>) still completes shell
       -- commands on demand if you ever want it.
       cmdline = {
-        sources = function()
-          local ctype = vim.fn.getcmdtype()
-          if ctype == "/" or ctype == "?" then return { "buffer" } end
-          if ctype == ":" or ctype == "@" then
-            -- getcmdcompltype() returns "shellcmd" for every form — :!, :%!,
-            -- :3,7!, :'<,'>!, :'a,'b!, :/re/!, :sil ! — including a bare
-            -- "!". The pattern is only a cheap second guard for the simple
-            -- numeric-range forms.
-            if
-              vim.fn.getcmdcompltype() == "shellcmd"
-              or vim.fn.getcmdline():match("^%s*[%%%d,%.%$;]*!")
-            then
-              return {}
-            end
-            return { "cmdline" }
-          end
-          return {}
-        end,
-
-        -- blink's default cmdline <Tab>/<S-Tab> have no 'fallback', so with
-        -- our empty sources for shell commands they would just swallow the
-        -- key. Adding 'fallback' lets <Tab> pass through to Neovim's native
-        -- wildmenu there — so you CAN still Tab-complete an executable inside
-        -- :! on demand (that's the slow $PATH scan, but only when you ask for
-        -- it). For normal commands blink still handles <Tab> first; fallback
-        -- is only reached when blink has nothing to offer.
+        sources = cmdline_sources,
         keymap = {
           preset = "cmdline",
-          ["<Tab>"] = { "show_and_insert_or_accept_single", "select_next", "fallback" },
-          ["<S-Tab>"] = {
-            function(cmp)
-              return cmp.show_and_insert_or_accept_single({ initial_selected_item_idx = -1 })
-            end,
-            "select_prev",
-            "fallback",
-          },
+          ["<Tab>"] = { cmdline_tab(false), "fallback" },
+          ["<S-Tab>"] = { cmdline_tab(true), "fallback" },
         },
       },
 

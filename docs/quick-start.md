@@ -131,7 +131,8 @@ use `:qa` to quit Neovim when finished (unsaved changes still prompt).
 
 In Insert mode, Ctrl-n/Ctrl-p open and navigate completion; Ctrl-y accepts,
 Ctrl-e dismisses. Enter inserts a newline rather than accepting a candidate;
-Tab handles snippet jumps/fallback indentation. Selection is not acceptance.
+Tab jumps to the next snippet placeholder or indents. Moving through completion
+candidates previews them inline and leaves your typed text intact until Ctrl-y.
 
 | Task | Keys | Notes |
 | --- | --- | --- |

@@ -382,6 +382,7 @@ nvim/
 │   ├── lsp_lifecycle_spec.lua  LSP attachment and per-buffer capabilities
 │   ├── hooks_spec.lua         staged-path and Git failure handling
 │   ├── behavior_spec.lua
+│   ├── completion_spec.lua
 │   ├── search_scope_spec.lua  current-file replacement confinement
 │   ├── local_plugin_spec.lua  checkout-relative bundled plugin loading
 │   ├── treesitter_install_spec.lua  failed parser installation cooldown
