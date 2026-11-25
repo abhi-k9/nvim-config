@@ -157,7 +157,7 @@
     <tr><td><span class="step">2</span><kbd class="red">&lt;leader&gt;gd</kbd></td><td>diffview opens; conflicted files listed</td></tr>
     <tr><td><span class="step">3</span></td><td>Open a conflicted file → OURS | THEIRS side by side, above the result you edit (no BASE pane)</td></tr>
     <tr><td><span class="step">4</span></td><td>Walk conflict regions with <kbd class="red">]x</kbd>/<kbd class="red">[x</kbd></td></tr>
-    <tr><td><span class="step">5</span></td><td>Pick a side per region with diffview's defaults: <kbd class="red">&lt;leader&gt;co</kbd> ours · <kbd class="red">&lt;leader&gt;ct</kbd> theirs · <kbd class="red">&lt;leader&gt;cb</kbd> base · <kbd class="red">&lt;leader&gt;ca</kbd> all · <kbd class="red">dx</kbd> none <span class="note">capital letters (<kbd>&lt;leader&gt;cO</kbd> … <kbd>dX</kbd>) do the whole file; <kbd>&lt;leader&gt;cso</kbd>/<kbd>cst</kbd>/<kbd>csb</kbd> replace the whole result with one side</span></td></tr>
+    <tr><td><span class="step">5</span></td><td>Pick a side per region with diffview's defaults: <kbd class="red">&lt;leader&gt;co</kbd> ours · <kbd class="red">&lt;leader&gt;ct</kbd> theirs · <kbd class="red">&lt;leader&gt;cb</kbd> base · <kbd class="red">&lt;leader&gt;ca</kbd> all · <kbd class="red">dx</kbd> none <span class="note">capital letters (<kbd>&lt;leader&gt;cO</kbd> … <kbd>dX</kbd>) do the whole file; <kbd>&lt;leader&gt;cso</kbd>/<kbd>&lt;leader&gt;cst</kbd>/<kbd>&lt;leader&gt;csb</kbd> replace the whole result with one side</span></td></tr>
     <tr><td><span class="step">6</span></td><td>Save the file. Then either <code>git add</code> in a terminal or use lazygit (<kbd class="red">&lt;leader&gt;tg</kbd>) to mark resolved &amp; commit.</td></tr>
   </table>
 </div>
@@ -384,7 +384,7 @@
     <tr class="divider"><td colspan="2">Update to a new zip (sessions, undo, scopes are kept)</td></tr>
     <tr><td><span class="step">1</span></td><td>Quit every nvim; rename the config folder to <code>nvim.bak</code></td></tr>
     <tr><td><span class="step">2</span></td><td>Install the new config as above; carry over your ignored <code>local.lua</code> and review other edits (<code>git diff --no-index nvim.bak nvim</code>)</td></tr>
-    <tr><td><span class="step">3</span><code>:Lazy restore</code></td><td>Plugins to the new lockfile's tested commits, then <code>:Lazy clean</code> · or <code>:Lazy sync</code> for the latest</td></tr>
+    <tr><td><span class="step">3</span><code>:Lazy restore</code></td><td>Plugins to the new lockfile's tested commits, then <code>:Lazy clean</code> · or <code>:Lazy sync</code> to update plugins within their configured pins and version constraints</td></tr>
     <tr><td><span class="step">4</span><code>:checkhealth config</code></td><td>Then skim <code>CHANGES.md</code>; delete <code>nvim.bak</code> when happy</td></tr>
     <tr><td colspan="2" class="note">Roll back: swap the folders back, then <code>:Lazy restore</code>.</td></tr>
     <tr class="divider"><td colspan="2">Uninstall (quit nvim first)</td></tr>

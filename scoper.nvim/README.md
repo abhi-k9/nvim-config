@@ -70,7 +70,7 @@ Scope membership/management commands accept a list of arguments on the command l
 zero arguments to open an interactive selector. Selectors come in
 three shapes:
 
-- **Multi-select picker** — `:ScoperRemove`, `:ScoperDelete`. Choose
+- **Multi-select picker** — `:ScoperRemove`, `:ScoperRemoveExclude`, `:ScoperDelete`. Choose
   any subset of an enumerable list. Backend-dependent:
   - *fzf-lua*: `<Tab>` toggles a row, `<C-a>` toggles all, `<CR>`
     confirms the selection (or just the highlighted row if you didn't
@@ -139,7 +139,7 @@ See the [glob cheatsheet](../docs/glob-cheatsheet.md) for common include/exclude
 
 | Command | What |
 |---|---|
-| `:ScoperFind` | Fuzzy-find files within **all** active include paths/globs (fzf-lua → telescope → :find fallback). |
+| `:ScoperFind` | Fuzzy-find files within **all** active include paths/globs (fzf-lua → telescope → filename prompt). |
 | `:ScoperGrep [query]` | Live grep within **all** active include paths/globs (fzf-lua → telescope → :vimgrep fallback). |
 | `:ScoperReplace` | Open ordinary grug-far only when scoping is unrestricted; restricted replacement is refused. |
 | `:ScoperTogglePicker` | Switch the backend of `:ScoperFind` / `:ScoperGrep` between fzf-lua and telescope (sets `vim.g.scoper_picker`). |
@@ -147,8 +147,8 @@ See the [glob cheatsheet](../docs/glob-cheatsheet.md) for common include/exclude
 While scoping is off, these commands ignore includes and excludes. Empty
 includes while enabled mean include everything, then apply all exclusions. Find and grep use the loaded project
 root; unrestricted replacement retains grug-far's ordinary current-directory
-behavior. All three find/grep backends apply the excludes; the plain `:find`
-fallback opens the first match the excludes don't hide.
+behavior. All three find/grep backends apply the excludes; the native filename
+prompt uses `findfile()` to open the first match allowed by the scope.
 
 **Scoped replacement is unavailable with the pinned grug-far backend.** Its
 deferred searches and file writes resolve relative paths using the window

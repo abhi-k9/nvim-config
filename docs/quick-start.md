@@ -215,7 +215,9 @@ terminal job keeps its shell environment and original cwd when reopened.
 3. Use `<leader>dL` to validate/preview the launch file. `:DapEditLaunch` opens
    that configured file in a split without writing it. `<leader>dI` shows full
    launch details, including generated fallbacks, without starting a session.
-4. Set a breakpoint with F9, then F5 to choose/start a launch configuration.
+4. Return to the source file and place the cursor on an executable line.
+   F9 toggles a breakpoint there. Press F5 from that window to choose a launch
+   for its filetype.
    The chooser shows program, cwd and adapter command status, even for one choice.
    Computed values remain unevaluated until launch; a found command is not a
    complete debugger check. `<leader>da` explicitly opens the chooser again.

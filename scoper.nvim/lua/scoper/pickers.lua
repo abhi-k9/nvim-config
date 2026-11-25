@@ -31,7 +31,8 @@ local M = {}
 -- Helper: get scope context as a single struct, or nil with a notify when
 -- the active scope has includes but none has an existing file/search root
 -- (so the user gets a clear error, not silent "search everything"
--- behavior). `dirs` is nil when the whole cwd is in scope.
+-- behavior). Unrestricted queries use nil roots. An exclude-only query starts
+-- at the loaded project root and applies its matcher.
 -- ---------------------------------------------------------------------------
 local function get_context()
   -- Refresh external saves before reading membership or rejecting stale roots.

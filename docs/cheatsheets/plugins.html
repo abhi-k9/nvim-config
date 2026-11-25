@@ -417,8 +417,8 @@
     <tr><td><kbd class="red">&lt;leader&gt;co</kbd> <kbd class="red">&lt;leader&gt;ct</kbd></td><td>Take OURS / THEIRS for the conflict under the cursor</td></tr>
     <tr><td><kbd class="red">&lt;leader&gt;cb</kbd> <kbd class="red">&lt;leader&gt;ca</kbd></td><td>Take BASE / all versions</td></tr>
     <tr><td><kbd class="red">dx</kbd></td><td>Delete the conflict region</td></tr>
-    <tr><td><kbd class="red">&lt;leader&gt;cO</kbd> <kbd class="red">cT</kbd> <kbd class="red">cB</kbd> <kbd class="red">cA</kbd> · <kbd class="red">dX</kbd></td><td>The same for every conflict in the file</td></tr>
-    <tr><td><kbd class="red">&lt;leader&gt;cso</kbd> <kbd class="red">cst</kbd> <kbd class="red">csb</kbd></td><td>Replace the whole result with the OURS / THEIRS / BASE file <span class="note">new; also drops the non-conflicting changes merged from the other side</span></td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;cO</kbd> <kbd class="red">&lt;leader&gt;cT</kbd> <kbd class="red">&lt;leader&gt;cB</kbd> <kbd class="red">&lt;leader&gt;cA</kbd> · <kbd class="red">dX</kbd></td><td>The same for every conflict in the file</td></tr>
+    <tr><td><kbd class="red">&lt;leader&gt;cso</kbd> <kbd class="red">&lt;leader&gt;cst</kbd> <kbd class="red">&lt;leader&gt;csb</kbd></td><td>Replace the whole result with the OURS / THEIRS / BASE file <span class="note">new; also drops the non-conflicting changes merged from the other side</span></td></tr>
     <tr><td colspan="2" class="note">diffview's own defaults, local to the merge buffers — there they shadow this
       config's <kbd>&lt;leader&gt;c…</kbd> code keys.</td></tr>
   </table>
@@ -500,7 +500,7 @@
     <tr><td><code>:ScoperStatus</code></td><td>Show active scope + sizes</td></tr>
     <tr><td><code>:ScoperNew &lt;name&gt;</code></td><td>Create a new scope</td></tr>
     <tr><td><code>:ScoperUse &lt;name&gt;</code></td><td>Switch active scope</td></tr>
-    <tr><td><code>:ScoperAdd</code> / <code>:ScoperRemove</code></td><td>Add/remove one or more paths (no args → multi-select picker)</td></tr>
+    <tr><td><code>:ScoperAdd</code> / <code>:ScoperRemove</code></td><td>With no arguments, Add prompts for one path at a time (empty input finishes). Remove opens a multi-select list of current includes.</td></tr>
     <tr><td><code>:ScoperExclude</code> / <code>:ScoperRemoveExclude</code></td><td>Add/remove a deny glob (add with no args → prompts for one; remove with no args → multi-select picker) <span class="note">invalid globs are refused with a warning</span></td></tr>
     <tr><td><code>:ScoperShow</code></td><td>Show the active scope's includes and excludes</td></tr>
     <tr><td><code>:ScoperClear</code></td><td>Empty the active scope (keeps the excludes)</td></tr>
@@ -515,7 +515,7 @@
       <kbd>&lt;M-p&gt;</kbd> (insert and normal mode): it shows the highlighted entry's full path
       in the prompt title without closing the picker.</td></tr>
     <tr class="divider"><td colspan="2">clangd integration</td></tr>
-    <tr><td colspan="2" class="note">The host's automatic policy prepares a filtered compilation database for an active,
+    <tr><td colspan="2" class="note">The host's automatic policy prepares a filtered compilation database for an active
       scope with includes or excludes, or the complete selected database otherwise. A changed effective configuration restarts this project's
       clangd clients. Build selection is independent of search scope; explicit <code>selected</code>, <code>native</code> and
       <code>disabled</code> modes provide other policies. Filtering build entries does not sandbox headers or files you open.
@@ -540,10 +540,7 @@
       <kbd>&lt;leader&gt;1</kbd>…<kbd>&lt;leader&gt;9</kbd> jump by visual position; the displayed ordinal can then differ. Beyond 9 it is omitted to
       avoid clutter; use <kbd>&lt;leader&gt;bj</kbd> (letter picker) or <kbd>&lt;leader&gt;fb</kbd> for the rest.</td></tr>
     <tr><td colspan="2" class="note"><strong>Mouse</strong> — left = focus tab · middle = no-op · right = context
-      menu (open in split/vsplit, copy path / filename, toggle pin, close, close others). Bufferline's
-      default right-click is <code>bdelete</code>; we override it. The menu is a small custom floating window
-      rather than <code>vim.ui.select</code> — that route hit a progressive-indent glitch in our setup
-      (telescope-ui-select dropdown theme + custom mappings; not a generic telescope bug). Press
+      menu (open in split/vsplit, copy path / filename, toggle pin, close, close others). Open the same menu for the current buffer with <kbd>&lt;leader&gt;bm</kbd>. Press
       <kbd>1</kbd>..<kbd>8</kbd> to jump straight to an action, or <kbd>j</kbd>/<kbd>k</kbd>
       + <kbd>&lt;CR&gt;</kbd>. <kbd>q</kbd> or <kbd>&lt;Esc&gt;</kbd> closes.</td></tr>
     <tr><td colspan="2" class="note"><strong>Scrolling</strong> — bufferline auto-scrolls to keep the active tab

@@ -44,7 +44,9 @@ Jump to: [quick start](#quick-start-your-first-working-session),
 7. **Debug a built executable.** Copy the [launch template](templates/dap/launch.json.example)
    to the project's `.vscode/launch.json`, keep the configuration you need, and
    edit its executable, arguments and cwd. `Space d L` validates/previews it;
-   F9 sets a breakpoint and F5 selects a launch. See [debugging](#debugging).
+   Return to a source file, place the cursor on an executable line and press
+   F9 to toggle its breakpoint. Press F5 there to choose a launch for that
+   filetype. See [debugging](#debugging).
 8. **Review and resume.** `Space g d` opens Git diff review. Save important edits,
    then use `:confirm qall` to quit with unsaved-change prompts. Sessions can
    restore layouts later, but they do not replace saving file contents.
