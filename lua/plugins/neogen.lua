@@ -42,22 +42,22 @@ return {
         desc = "Generate doc comment",
       },
     },
-    opts = {
-      enabled = true,
-      -- The generated block is expanded as a LuaSnip snippet (the engine
-      -- blink.cmp uses, completion.lua), so blink's <Tab>/<S-Tab>
-      -- (snippet_forward / snippet_backward) jump between the empty
-      -- placeholders. Without an engine there is nothing to jump.
-      snippet_engine = "luasnip",
-      languages = {
-        -- stylua: ignore start
-        c   = { template = { annotation_convention = "doxygen" } },
-        cpp = { template = { annotation_convention = "doxygen" } },
-        -- stylua: ignore end
-        -- Other languages keep neogen's defaults listed above. Available
-        -- alternatives are documented in its README; override the language's
-        -- template.annotation_convention to select one explicitly.
-      },
-    },
+    opts = function()
+      return {
+        enabled = true,
+        -- The generated block is expanded as a LuaSnip snippet (the engine
+        -- blink.cmp uses, completion.lua), so blink's <Tab>/<S-Tab>
+        -- (snippet_forward / snippet_backward) jump between the empty
+        -- placeholders. Use native snippets when LuaSnip is unavailable.
+        snippet_engine = pcall(require, "luasnip") and "luasnip" or "nvim",
+        languages = {
+          c = { template = { annotation_convention = "doxygen" } },
+          cpp = { template = { annotation_convention = "doxygen" } },
+          -- Other languages keep neogen's defaults listed above. Available
+          -- alternatives are documented in its README; override the language's
+          -- template.annotation_convention to select one explicitly.
+        },
+      }
+    end,
   },
 }

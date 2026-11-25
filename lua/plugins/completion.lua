@@ -152,7 +152,13 @@ return {
         -- Lua buffers add lazydev to the defaults. Listed per filetype, not
         -- in `default`: blink requires every listed source's module when
         -- sources are set up, which would load lazydev in every filetype.
-        per_filetype = { lua = { inherit_defaults = true, "lazydev" } },
+        per_filetype = {
+          lua = function()
+            -- Its Lua FileType hook loads the optional provider when installed.
+            if package.loaded.lazydev then return { inherit_defaults = true, "lazydev" } end
+            return { inherit_defaults = true }
+          end,
+        },
         providers = {
           -- lazydev.nvim's blink source (the plugin spec itself lives in
           -- lua/plugins/lazydev.lua). It surfaces module-path completions for
