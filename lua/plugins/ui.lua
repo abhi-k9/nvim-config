@@ -219,18 +219,8 @@ return {
       -- stylua: ignore end
     },
     opts = function()
-      -- Right-click context menu for a tab. Bufferline calls this with
-      -- the clicked buffer's bufnr; we render a small floating-window menu.
-      -- Keep this menu anchored to the clicked tab or text cursor, independent
-      -- of the global selection provider.
-      --
-      -- This replaces bufferline's default `right_mouse_command =
-      -- "bdelete! %d"` (close on right-click) which is hostile — there's
-      -- no undo for a buffer drop and reopening loses cursor state.
-
-      -- Tracks the currently-open menu so a fresh right-click closes any
-      -- existing menu first — otherwise repeated right-clicks pile floats
-      -- on top of each other.
+      -- Mouse and keyboard invocations share one menu. Track both handles so
+      -- cleanup can distinguish the original menu from a repurposed window.
       local current_menu_win, current_menu_buf
 
       -- `anchor` selects where the float opens: "mouse" (default, for
