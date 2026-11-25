@@ -116,9 +116,9 @@ describe("asynchronous LSP formatting", function()
     assert.is_false(vim.api.nvim_buf_is_valid(buf))
   end)
 
-  it("cancels superseded requests and ignores their responses", function()
+  it("resolves buffer zero before cancelling a superseded request", function()
     local stale = response
-    require("config.lsp_format").format(buf)
+    require("config.lsp_format").format(0)
     assert.are.same({ 1 }, cancelled)
     stale()
     assert.are.equal(

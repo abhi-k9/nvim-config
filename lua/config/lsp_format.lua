@@ -6,7 +6,7 @@ local method = "textDocument/formatting"
 
 function M.format(buf, opts)
   opts = opts or {}
-  buf = buf or vim.api.nvim_get_current_buf()
+  if not buf or buf == 0 then buf = vim.api.nvim_get_current_buf() end
   if pending[buf] then pending[buf].cancel() end
   if not vim.api.nvim_buf_is_loaded(buf) then return end
   local clients = vim.lsp.get_clients({ bufnr = buf, method = method })
