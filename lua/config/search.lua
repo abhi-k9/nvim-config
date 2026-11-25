@@ -50,6 +50,10 @@ function M.component_patterns(names)
   return out
 end
 
+local function directory_glob(name)
+  return "**/" .. name:gsub("([*?%[%]{}\\])", "\\%1") .. "/**"
+end
+
 function M.find_command(policy)
   if vim.fn.executable("rg") == 1 then
     local command = { "rg", "--files", "--color=never" }
@@ -59,8 +63,7 @@ function M.find_command(policy)
     -- Exact directory-component filtering also runs on parsed entries. At
     -- source use escaped glob metacharacters for names such as [vendor].
     for _, name in ipairs(policy.exclude_dirs) do
-      local literal = name:gsub("([*?%[%]{}\\])", "\\%1")
-      command[#command + 1] = "--glob=!**/" .. literal .. "/**"
+      command[#command + 1] = "--glob=!" .. directory_glob(name)
     end
     return command
   end
@@ -72,7 +75,7 @@ function M.find_command(policy)
       if policy.follow_links then command[#command + 1] = "--follow" end
       for _, name in ipairs(policy.exclude_dirs) do
         command[#command + 1] = "--exclude"
-        command[#command + 1] = "**/" .. name:gsub("([*?%[%]{}\\])", "\\%1") .. "/**"
+        command[#command + 1] = directory_glob(name)
       end
       return command
     end
@@ -94,7 +97,7 @@ function M.telescope_options(kind)
       if not policy.respect_gitignore then args[#args + 1] = "--no-ignore" end
       if policy.follow_links then args[#args + 1] = "--follow" end
       for _, name in ipairs(policy.exclude_dirs) do
-        args[#args + 1] = "--glob=!**/" .. name:gsub("([*?%[%]{}\\])", "\\%1") .. "/**"
+        args[#args + 1] = "--glob=!" .. directory_glob(name)
       end
       return args
     end or nil,
@@ -124,7 +127,7 @@ function M.fzf_options(kind)
     if not policy.respect_gitignore then args[#args + 1] = "--no-ignore" end
     if policy.follow_links then args[#args + 1] = "--follow" end
     for _, name in ipairs(policy.exclude_dirs) do
-      args[#args + 1] = escape("--glob=!**/" .. name:gsub("([*?%[%]{}\\])", "\\%1") .. "/**")
+      args[#args + 1] = escape("--glob=!" .. directory_glob(name))
     end
     -- Preserve the backend's required end marker: dash-leading queries remain patterns.
     args[#args + 1] = "-e"
