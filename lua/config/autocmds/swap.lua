@@ -38,7 +38,10 @@ end
 local function live_owner(info)
   if not local_swap_host(info) then return nil end
   local pid = type(info.pid) == "number" and info.pid or 0
-  return pid > 0 and vim.uv.kill(pid, 0) == 0 and pid or nil
+  if pid <= 0 then return nil end
+  -- Only ESRCH establishes that a recorded process no longer exists.
+  local _, _, code = vim.uv.kill(pid, 0)
+  return code ~= "ESRCH" and pid or nil
 end
 
 -- ---------------------------------------------------------------------------
@@ -139,7 +142,7 @@ vim.api.nvim_create_autocmd("SwapExists", {
     -- another process; the probe establishes process existence, not identity.
     -- Signal 0 checks existence
     -- without signaling, and libuv implements it on Windows too.
-    local live = type(info.pid) == "number" and info.pid > 0 and vim.uv.kill(info.pid, 0) == 0
+    local live = live_owner(info)
 
     if live then
       -- Another live Nvim owns the swap (two instances on one file).
@@ -274,7 +277,7 @@ do
   end
 
   local function norm(p)
-    p = vim.fs.normalize(expand_home(p or ""))
+    p = vim.fs.normalize(expand_home(p or ""), { expand_env = false })
     if vim.fn.has("win32") == 1 then p = p:lower() end
     return p
   end
@@ -293,7 +296,7 @@ do
       while h do
         local name, t = vim.uv.fs_scandir_next(h)
         if not name then break end
-        if t ~= "directory" and name:match("%.sw[a-z]$") then
+        if t == "file" and name:match("%.sw[a-z]$") then
           local full = dir .. "/" .. name
           local ok, info = pcall(vim.fn.swapinfo, full)
           if
@@ -317,7 +320,7 @@ do
       -- NOTE: not vim.fn.expand() — a swap path is full of '%' from the
       -- dir// mangling, and expand() would treat each '%' as "current
       -- file name". vim.fs.normalize handles '~'; ':p' makes it absolute.
-      targets = { vim.fn.fnamemodify(vim.fs.normalize(cmd.args), ":p") }
+      targets = { vim.fn.fnamemodify(vim.fs.normalize(cmd.args, { expand_env = false }), ":p") }
     else
       local path = vim.api.nvim_buf_get_name(0)
       if path == "" then
@@ -378,7 +381,7 @@ do
         local pid = (type(info.pid) == "number") and info.pid or 0
         local local_host = local_swap_host(info)
         local own = local_host and pid > 0 and pid == mypid
-        local live_other = local_host and pid > 0 and not own and vim.uv.kill(pid, 0) == 0
+        local live_other = not own and live_owner(info)
         if live_other then
           vim.notify(
             ("SwapDelete: skipping — in use by another running Neovim (pid %d):\n  %s\nClose that instance first."):format(
@@ -508,10 +511,11 @@ do
     local mypid, now, list = vim.fn.getpid(), os.time(), {}
     -- A missing or unreadable dir is skipped: there is nothing to list.
     for _, dir in ipairs(dirs) do
-      local ok_dir, iter = pcall(vim.fs.dir, dir)
-      if not (ok_dir and vim.uv.fs_scandir(dir)) then iter = function() end end
-      for name, t in iter do
-        if t ~= "directory" and name:match("%.sw[a-z]$") then
+      local handle = vim.uv.fs_scandir(dir)
+      while handle do
+        local name, t = vim.uv.fs_scandir_next(handle)
+        if not name then break end
+        if t == "file" and name:match("%.sw[a-z]$") then
           local swap = dir .. "/" .. name
           local ok, info = pcall(vim.fn.swapinfo, swap)
           info = ok and type(info) == "table" and info or { error = "unreadable" }
@@ -522,7 +526,7 @@ do
             kind = "remote"
           elseif pid > 0 and pid == mypid then
             kind = "own"
-          elseif pid > 0 and vim.uv.kill(pid, 0) == 0 then
+          elseif live_owner(info) then
             kind = "live"
           elseif info.error then
             kind = (st and st.size == 0 and now - st.mtime.sec > 60) and "empty" or "unreadable"

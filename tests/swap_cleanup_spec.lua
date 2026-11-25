@@ -38,6 +38,37 @@ describe("swap cleanup revalidates confirmed targets", function()
     vim.fn.delete(dir, "rf")
   end)
 
+  it("retains a local swap when permission to probe the owner is denied", function()
+    info.pid = vim.fn.getpid() + 1
+    local kill = vim.uv.kill
+    vim.uv.kill = function()
+      return nil, "operation not permitted", "EPERM"
+    end
+    local ok, err = pcall(function()
+      vim.cmd("SwapClean")
+      vim.cmd("SwapDelete! " .. path)
+      assert.is_not_nil(vim.uv.fs_stat(path))
+    end)
+    vim.uv.kill = kill
+    assert.is_true(ok, tostring(err))
+  end)
+
+  it("deletes the literal swap path when its name contains an environment variable", function()
+    local previous = vim.env.NVIM_SWAP_PATH_TEST
+    vim.env.NVIM_SWAP_PATH_TEST = "leftover"
+    local literal = dir .. "/$NVIM_SWAP_PATH_TEST.swp"
+    vim.fn.writefile({ "fixture" }, literal)
+    local ok, err = pcall(
+      vim.api.nvim_cmd,
+      { cmd = "SwapDelete", bang = true, args = { literal } },
+      {}
+    )
+    vim.env.NVIM_SWAP_PATH_TEST = previous
+    assert.is_true(ok, tostring(err))
+    assert.is_nil(vim.uv.fs_stat(literal))
+    assert.is_not_nil(vim.uv.fs_stat(path))
+  end)
+
   it("still removes an unchanged clean leftover", function()
     assert.equals("clean", swap.inventory()[1].kind)
     vim.cmd("SwapClean")

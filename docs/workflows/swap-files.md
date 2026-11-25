@@ -32,6 +32,10 @@ machine: `:echo &directory`. These are defaults, not a requirement: a custom
 `'directory'` can contain several locations, including per-file `.` entries.
 WSL and native Windows normally use separate swap folders.
 
+If the OS denies permission to check a local owner PID, the guard and cleanup
+commands treat the swap as in use. An explicit `:SwapDelete` path preserves
+literal dollar signs in filenames.
+
 A swap's name is the edited file's full path with `%` for every path
 separator, plus `.swp`. When a swap with that name already exists, the
 next one is `.swo`, then `.swn`, and so on. Examples:
