@@ -257,8 +257,9 @@ Labels use **close buffer** for removing an open document, **close window** for
 removing a view, **delete file** for removing a disk file, and **quit** for leaving
 the editor. `<leader>bD` closes a buffer and discards unsaved changes;
 `<leader>Q` quits all and discards them. Ordinary buffer closes do not delete disk
-files. **Preview** inspects; **restore/revert** applies a change. In Atone, Enter
-restores the selected undo node, so inspect its diff first; `q` / Esc closes its
+files. **Preview** inspects; **restore/revert** applies a change. To compare two undo states, open Atone with `<leader>u`, highlight the first
+state and press `=` to pin it. Move to the second state to preview the diff.
+Enter restores the highlighted state; `q` / Esc closes its
 help without restoring anything. Esc in the tree itself retains its native action.
 
 To close a chosen set, open `<leader>fb` (this tab) or `<leader>fB` (all tabs),

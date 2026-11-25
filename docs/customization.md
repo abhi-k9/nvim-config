@@ -125,7 +125,7 @@ continues to mean the **global** working directory, as described above.
 - [Debug adapters, launch files and terminals](debug-terminal-configuration.md)
 - [Editing, UI and retention](editing-ui-configuration.md)
 - [Optional local-image previews and system-viewer fallback](image-previews.md)
-- [Verification environment, acceptance cases and limits](generalization-verification.md)
+- [Running the configuration tests](../README.md#testing)
 
 Inspect one effective value with
 `:lua vim.print(require("config.settings").get("search.root", "cwd"))`.

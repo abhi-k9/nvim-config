@@ -398,8 +398,6 @@ nvim/
 │   ├── image-previews.md      opt-in image commands, platform support, dependencies and fallback
 │   ├── visual-studio-migration.md  Visual Studio migration, quick start and feature reference
 │   ├── customization.md       local override lifecycle, trust and feature guide index
-│   ├── generalization-verification.md  test environment, acceptance cases and platform limits
-│   ├── documentation-audit-2026-10-28.md  documentation/comment coverage, corrections and evidence
 │   ├── performance-review-2026-11-04.md  responsiveness measurements, retained safeguards and deferred options
 │   ├── bufferline-audit-2026-11-08.md  maintenance evidence, feature parity, fork scope and bounded probes
 │   ├── bufferline-fork-migration-2026-11-09.md  fork adoption, pin migration and rollback
@@ -412,12 +410,8 @@ nvim/
 │   ├── search-session-configuration.md  roots, visibility, selectors and persistence policies
 │   ├── debug-terminal-configuration.md  adapters, launch files, shells and lazygit
 │   ├── editing-ui-configuration.md  content editing, themes, motion, icons and retention
-│   ├── audit-2026-10-21.md     findings, regressions, sources, and limits
-│   ├── audit-followup-2026-10-22.md  expanded audit and complete file coverage
-│   ├── audit-resolution.md    unresolved findings, verification and retained limits
 │   ├── ci-troubleshooting.md  cold-start hangs, platform paths, execution limits
 │   ├── limited-environments.md  optional tool policy and minimal-machine verification
-│   ├── CHANGES-archive.md    older changelog entries
 │   ├── cheatsheets/          Open these in any browser
 │   │   ├── keymaps.html              All bindings, grouped by prefix
 │   │   ├── plugins.html              Per-plugin commands & features

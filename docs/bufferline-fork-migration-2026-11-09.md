@@ -1,10 +1,4 @@
-# Published Bufferline fork migration
-
-Published and adopted on 2026-11-09 after explicit authorization. Both repositories'
-`main` branches were fast-forwarded: the fork to
-`4e964066ed10eb61f7b42b634f9b0877047eccdd` and nvim-config to
-`6d5a6dba83650e7663b70195758003ab1e05b77f` (based on `c287c4e`, including
-`e09c9a6`). No force-push or PR was used; ignored local configuration was untouched.
+# Bufferline fork migration
 
 The plugin spec and lockfile now select the published `abhi-k9/bufferline.nvim`
 commit `4e964066ed10eb61f7b42b634f9b0877047eccdd`. Normal Lazy installations can

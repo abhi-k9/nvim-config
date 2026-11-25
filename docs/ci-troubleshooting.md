@@ -220,6 +220,3 @@ states, not runtime guarantees. Explicit execution limits remain in place.
 - [LLVM 18 legacy alignment conversion](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/clang/lib/Format/Format.cpp#L74).
 - [Ubuntu 24.04 runner tool inventory](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md).
 - [Python virtual environments are not inherently portable](https://docs.python.org/3/library/venv.html#how-venvs-work).
-
-The [expanded audit](audit-followup-2026-10-22.md) describes the preceding snapshot;
-this page records the later CI-specific corrections and their native-run evidence.
