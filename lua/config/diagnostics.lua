@@ -341,20 +341,27 @@ function M.dump(opts)
   -- get a -2, -3, … suffix instead of overwriting an existing report.
   local base = ("%s/diagnostic_%s_%d"):format(log_dir, os.date("%Y%m%d_%H%M%S"), vim.uv.os_getpid())
   local dest, n = base .. ".txt", 1
-  while vim.uv.fs_lstat(dest) do
+  -- Reports can contain credentials. Claim the filename exclusively and
+  -- request owner-only permissions on platforms with POSIX mode bits.
+  local fd, err, code = vim.uv.fs_open(dest, "wx", 384)
+  while not fd and code == "EEXIST" do
     n = n + 1
     dest = ("%s-%d.txt"):format(base, n)
+    fd, err, code = vim.uv.fs_open(dest, "wx", 384)
   end
-  -- writefile returns 0 on success, -1 on failure (disk full, permission
-  -- denied, write to a non-writable filesystem). The user typically runs
-  -- this command because something is already wrong; failing silently
-  -- here would leave them debugging the wrong problem ("the dump says
-  -- the LSP attached fine — but actually the dump didn't save").
-  -- API calls also raise the Vim error as a Lua exception (e.g. E482).
-  local wrote, status = pcall(vim.fn.writefile, vim.split(table.concat(out, "\n"), "\n"), dest)
-  if not wrote or status ~= 0 then
+  if not fd then
+    vim.notify(("Diagnostic dump FAILED to create %s: %s"):format(dest, err), vim.log.levels.ERROR)
+    return nil
+  end
+  local body = table.concat(out, "\n") .. "\n"
+  local written, write_error = vim.uv.fs_write(fd, body, 0)
+  local closed, close_error = vim.uv.fs_close(fd)
+  if written ~= #body or not closed then
     vim.notify(
-      ("Diagnostic dump FAILED to write %s (disk full? permissions?)"):format(dest),
+      ("Diagnostic dump FAILED to complete %s: %s"):format(
+        dest,
+        write_error or close_error or "short write"
+      ),
       vim.log.levels.ERROR
     )
     return nil

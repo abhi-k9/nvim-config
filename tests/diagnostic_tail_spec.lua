@@ -33,6 +33,12 @@ describe("diagnostic dump log I/O", function()
     assert.are.equal(64 * 1024, #body)
   end)
 
+  it("keeps reports private on POSIX systems", function()
+    if vim.fn.has("win32") == 1 then return end
+    local dest = diagnostics.dump()
+    assert.equals(0, bit.band(vim.uv.fs_stat(dest).mode, 63))
+  end)
+
   it("skips nonregular log paths without blocking", function()
     if vim.fn.has("win32") == 1 or vim.fn.executable("mkfifo") == 0 then return end
     vim.fn.system({ "mkfifo", log_path })
@@ -61,13 +67,13 @@ describe("diagnostic dump log I/O", function()
     assert.is_truthy(messages[#messages][1]:find("FAILED", 1, true))
   end)
 
-  it("reports a write exception instead of throwing", function()
-    local writefile = vim.fn.writefile
-    vim.fn.writefile = function()
-      error("E482: injected disk failure")
+  it("reports a failed descriptor write instead of announcing success", function()
+    local write = vim.uv.fs_write
+    vim.uv.fs_write = function()
+      return nil, "injected disk failure"
     end
     local ok, result = pcall(diagnostics.dump)
-    vim.fn.writefile = writefile
+    vim.uv.fs_write = write
     assert.is_true(ok)
     assert.is_nil(result)
     assert.are.equal(vim.log.levels.ERROR, messages[#messages][2])
