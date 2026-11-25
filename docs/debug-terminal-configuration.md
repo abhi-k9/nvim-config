@@ -350,7 +350,8 @@ the configured shell. This is Toggleterm's shell interface, so a string with
 shell arguments follows that plugin's parsing rules.
 
 Normal terminal mappings launch in the literal active cwd. Existing terminal
-jobs retain their original directory when reopened after a project switch.
+jobs retain their directory and environment when reopened after a project switch.
+Numbered shell mappings remain available even if LazyGit was opened first.
 The default lazygit policy keeps one process for the session. With
 `terminal.lazygit_per_project = true`, each resolved project root gets a separate
 handle; returning to a project toggles its existing process. Each process starts

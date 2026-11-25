@@ -18,6 +18,11 @@ describe("terminal policy", function()
     end
     terms = {}
     package.loaded["toggleterm.terminal"] = {
+      get = function(id)
+        for _, term in ipairs(terms) do
+          if term.id == id then return term end
+        end
+      end,
       Terminal = {
         new = function(_, opts)
           opts.toggles = 0
@@ -139,6 +144,18 @@ describe("terminal policy", function()
     lazygit()
     assert.equals(2, #terms)
     assert.equals(2, terms[2].toggles)
+  end)
+
+  it("can reopen a running LazyGit after its executable leaves PATH", function()
+    lazygit()
+    vim.fn.executable = function()
+      return 0
+    end
+    lazygit()
+    assert.equals(2, terms[1].toggles)
+    terms[1].on_exit()
+    lazygit()
+    assert.equals(1, #terms)
   end)
 
   it("reports a missing LazyGit executable without creating a terminal", function()

@@ -106,6 +106,33 @@ describe("real shell literal cwd", function()
     capture(true)
   end)
 
+  it("keeps shell number one available when LazyGit is opened first", function()
+    if vim.fn.has("win32") == 1 then
+      pending("uses a POSIX shell stand-in for the interactive LazyGit job")
+      return
+    end
+    local executable = base .. "/lazygit"
+    vim.fn.writefile({ "#!/bin/sh", "exec /bin/sh" }, executable)
+    assert(vim.uv.fs_chmod(executable, 448))
+    local path = vim.env.PATH
+    vim.env.PATH = base .. ":" .. path
+    local spec = dofile("lua/plugins/terminal.lua")[1]
+    local ok, err = pcall(function()
+      for _, key in ipairs(spec.keys) do
+        if key[1] == "<leader>tg" then key[2]() end
+      end
+    end)
+    vim.env.PATH = path
+    assert.is_true(ok, tostring(err))
+    local git = terminals.get_all(true)[1]
+    assert.is_true(git.hidden)
+    git:close()
+    require("toggleterm").toggle(1, nil, ".", "horizontal")
+    local shell = terminals.get(1)
+    assert.is_table(shell)
+    assert.is_not.equal(git.job_id, shell.job_id)
+  end)
+
   it("keeps a running terminal's directory when reopened from another project", function()
     if vim.fn.has("win32") == 1 then
       pending("uses a POSIX shell")
@@ -118,15 +145,17 @@ describe("real shell literal cwd", function()
     local job, buffer = term.job_id, term.bufnr
     term:close()
     vim.api.nvim_set_current_dir(base .. "/expanded")
+    vim.env.NVIM_TERM_LITERAL = "changed-after-launch"
     term:open()
     assert.equals(job, term.job_id)
     assert.equals(buffer, term.bufnr)
     local output = base .. "/persisted.txt"
-    term:send("pwd > " .. vim.fn.shellescape(output))
+    term:send('printf "%s\\n" "$PWD" "$NVIM_TERM_LITERAL" > ' .. vim.fn.shellescape(output))
     assert.is_true(vim.wait(3000, function()
-      return vim.fn.filereadable(output) == 1
+      return vim.fn.filereadable(output) == 1 and #vim.fn.readfile(output) == 2
     end))
     assert.equals(vim.uv.fs_realpath(literal), vim.uv.fs_realpath(vim.fn.readfile(output)[1]))
+    assert.equals("expanded", vim.fn.readfile(output)[2])
     term:shutdown()
   end)
 end)

@@ -36,15 +36,21 @@ return {
       { "<leader>th", toggle("horizontal"), desc = "Horizontal terminal" },
       { "<leader>tv", toggle("vertical"),   desc = "Vertical terminal" },
       { "<leader>tg", function()                                  -- lazygit in a float
-          if vim.fn.executable("lazygit") == 0 then
-            vim.notify("lazygit is not on PATH", vim.log.levels.WARN)
-            return
-          end
           local key = Settings.get("terminal.lazygit_per_project", false)
               and Settings.project_root() or "session"
           local lazygit_term = lazygit_terms[key]
           if not lazygit_term then
-            lazygit_term = require("toggleterm.terminal").Terminal:new({
+            if vim.fn.executable("lazygit") == 0 then
+              vim.notify("lazygit is not on PATH", vim.log.levels.WARN)
+              return
+            end
+            -- Hidden jobs share Toggleterm's numeric registry. Keep them above
+            -- the signed integer range used by Normal-mode counts.
+            local terminals = require("toggleterm.terminal")
+            local id = 2147483648
+            while terminals.get(id, true) do id = id + 1 end
+            lazygit_term = terminals.Terminal:new({
+              id = id,
               cmd = "lazygit",
               dir = ".", -- preserve literal cwd as for the shell mappings
               hidden = true,
