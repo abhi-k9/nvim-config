@@ -97,15 +97,16 @@ storage error. Project names containing literal environment references such as
 inspect the old project's snapshot before moving any breakpoints. Its store may
 also contain breakpoints from the directory with the expanded name.
 
-Before closing with unsaved changes, export them and copy the printed temporary
-file to durable storage:
+If another editor saved first, keep the editor with the rejected save open.
+Run `:PBExport <file>` there and choose an unused filename in an existing
+backup directory. Use Tab to complete paths with spaces. Wait for the success
+message before quitting. If the export fails, choose another path and retry.
+The command leaves both the shared store and your pending edits intact.
 
-```vim
-:lua local s = require("persistent-breakpoints.api").snapshot(); local p = vim.fn.tempname() .. ".breakpoints.json"; assert(vim.fn.writefile({vim.json.encode(s)}, p) == 0); print(p)
-```
+The exported JSON contains the file-to-breakpoints map. After closing both
+editors, back up the winning store and compare its `breakpoints` field with
+the export to reconcile the changes.
 
-`snapshot()` returns the map and, as its second value, the owned target filename.
-With all relevant editors closed, review/merge recovery data, then restart.
 Corrupt files are not automatically deleted or replaced by empty maps: back up,
 repair JSON or restore a reviewed backup. Deleting versioned files can expose
 older legacy state again; use `<leader>dX` to clear the owned project's state.

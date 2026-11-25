@@ -269,11 +269,8 @@ refreshes the current buffer window without registering handlers on re-entry.
 The plugin now owns the lifecycle; the temporary local adapter has been removed.
 The separate fixed-width guard below remains in place.
 
-Control-buffer wipeout rebinding is deferred by the plugin. Scripts that delete
-the control buffer and immediately reopen the UI should schedule the reopen
-with `vim.schedule(function() require("dapui").open() end)` after deletion.
-Reopening synchronously in that same callback can leave the toolbar blank until
-the next focus/debug event. The native smoke check waits for rebinding explicitly.
+If a script wipes the toolbar buffer, it can call `require("dapui").open()`
+immediately to restore the controls.
 
 After pulling this config, start Neovim and run:
 

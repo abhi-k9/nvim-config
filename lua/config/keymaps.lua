@@ -16,7 +16,7 @@
 --   <leader>t...  → terminal
 --   <leader>b...  → buffer
 --   <leader>w...  → window / session  (pure prefix — save lives on <C-s>)
---   <leader>1..9  → jump to bufferline ordinal N (matches superscript on tab)
+--   <leader>1..9  → jump to bufferline position N (matches superscript on tab)
 --   <leader>0     → jump to last bufferline buffer
 --   <leader>?     → which-key buffer-local keys
 

@@ -147,34 +147,16 @@ drain()
 cycle()
 drain()
 -- A wiped control buffer must regain its toolbar without accumulating handlers.
--- Exercise the plugin's actual buffer factories and deferred rebinding.
+-- Exercise the plugin's actual buffer factories.
 ui.open()
 drain()
 local old_control = control_buffer()
-ui.close()
 vim.api.nvim_buf_delete(old_control, { force = true })
--- Native DAP UI rebinds in a scheduled BufWipeout callback. Wait for ownership
--- to move before reopening, rather than rely on the retired adapter's timing.
-assert(
-  vim.wait(1000, function()
-    local commands = vim.api.nvim_get_autocmds({ group = "DAPUIControls" })
-    if #commands == 0 then return false end
-    for _, command in ipairs(commands) do
-      if
-        not command.buffer
-        or command.buffer == old_control
-        or not vim.api.nvim_buf_is_valid(command.buffer)
-      then
-        return false
-      end
-    end
-    return true
-  end, 10),
-  "DAP control handlers did not rebind after buffer wipe"
-)
 ui.open()
+local replacement = control_buffer()
+assert(replacement ~= old_control, "DAP control buffer was not recreated")
 drain()
-assert(control_buffer() ~= old_control, "DAP control buffer was not recreated")
+assert(control_buffer() == replacement, "Deferred callback displaced the new toolbar")
 ui.close()
 drain()
 local function resources()

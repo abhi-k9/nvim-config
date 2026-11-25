@@ -81,6 +81,17 @@ describe("persistent breakpoint lifecycle", function()
     restart()
     assert.equals(0, #points(buf))
   end)
+  it("exports a mapped breakpoint to a new recovery file", function()
+    local buf = buffer("recovery.cpp")
+    for _, key in ipairs(dofile(cwd .. "/lua/plugins/dap.lua")[1].keys) do
+      if key[1] == "<F9>" then key[2]() end
+    end
+    vim.cmd("PBExport recovery\\ snapshot.json")
+    local raw = vim.fn.readfile(root .. "/recovery snapshot.json")
+    local data = vim.json.decode(table.concat(raw, "\n"))
+    assert.same({ { line = 1 } }, data[vim.api.nvim_buf_get_name(buf)])
+  end)
+
   it("migrates legacy fields on a mapped edit and keeps the original file", function()
     local buf = buffer("legacy.cpp")
     local name = vim.api.nvim_buf_get_name(buf)

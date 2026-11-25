@@ -148,7 +148,7 @@ return {
   -- -------------------------------------------------------------------------
   {
     "abhi-k9/bufferline.nvim",
-    commit = "4e964066ed10eb61f7b42b634f9b0877047eccdd",
+    commit = "58ee5aa7dba4fdfa574a747cac76cbd56b1f238b",
     -- At startup, not VeryLazy: setup() registers the SessionLoadPost
     -- handler that restores pinned buffers, and auto-session restores the
     -- session in VimEnter, before VeryLazy.
@@ -200,9 +200,7 @@ return {
       { "[B",         "<cmd>BufferLineMovePrev<cr>",             desc = "Move buffer left" },
       { "]B",         "<cmd>BufferLineMoveNext<cr>",             desc = "Move buffer right" },
       -- stylua: ignore end
-      -- Jump by position: <leader>1 jumps to the leftmost buffer, etc. The
-      -- superscripts match only while nothing is pinned: bufferline numbers
-      -- tabs before it moves pinned ones to the front.
+      -- Numeric jumps follow the strip order after grouping and sorting.
       -- <leader>0 jumps to the LAST buffer regardless of position
       -- (BufferLineGoToBuffer -1 is the documented "last" sentinel).
       -- stylua: ignore start
@@ -498,10 +496,7 @@ return {
         buffer_context_menu(cur, "cursor")
       end
 
-      -- Superscript ordinals for the small-number-in-corner effect.
-      -- Limited to 1-9 — past that we show nothing because (a) you should
-      -- be using <leader>fb to find a specific one if you have 10+ open,
-      -- and (b) two-character superscripts like "¹⁰" look cluttered.
+      -- Label only positions with a numeric shortcut.
       local supers = { "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹" }
 
       return {
@@ -528,10 +523,8 @@ return {
             -- stylua: ignore end
             return table.concat(parts, " ")
           end,
-          -- Show bufferline's superscript ordinals. Pinning can change its
-          -- displayed order without renumbering; <leader>1..9 use positions.
           numbers = function(opts)
-            return supers[opts.ordinal] or ""
+            return supers[opts.jump_position] or ""
           end,
           -- Mouse behaviour. The defaults are surprising:
           --   left   = "buffer %d"      → switch to the buffer (sensible)

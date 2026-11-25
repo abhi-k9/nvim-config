@@ -1,4 +1,4 @@
-describe("Bufferline's supported diagnostic cache", function()
+describe("Bufferline fork options", function()
   local line, diagnostics, settings, plugin, original_get, buffer, namespace, original_config
   before_each(function()
     line = require("bufferline")
@@ -20,6 +20,12 @@ describe("Bufferline's supported diagnostic cache", function()
     vim.api.nvim_buf_delete(buffer, { force = true })
     vim.diagnostic.config(original_config)
     line.setup({})
+  end)
+
+  it("labels only the first nine jump targets after grouping", function()
+    local label = plugin.opts().options.numbers
+    assert.equals("¹", label({ ordinal = 10, jump_position = 1 }))
+    assert.equals("", label({ ordinal = 1, jump_position = 10 }))
   end)
 
   it("uses the native cache without replacing the plugin getter", function()
