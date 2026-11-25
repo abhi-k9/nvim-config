@@ -15,6 +15,17 @@ describe("deferred big-file cleanup", function()
     vim.fn.delete(dir, "rf")
   end)
 
+  it("keeps highlighting disabled after another filetype change", function()
+    vim.fn.writefile({ string.rep("a", 100) }, path)
+    vim.api.nvim_cmd({ cmd = "edit", args = { path } }, {})
+    buf = vim.api.nvim_get_current_buf()
+    vim.wait(50)
+    vim.bo[buf].filetype = "markdown"
+    vim.wait(50)
+    assert.is_nil(vim.treesitter.highlighter.active[buf])
+    assert.equals("", vim.bo[buf].syntax)
+  end)
+
   it("does not stop a new small-file highlighter after a rapid reread", function()
     vim.fn.writefile({ "local value = " .. string.rep("1", 100) }, path)
     vim.api.nvim_cmd({ cmd = "edit", args = { path } }, {})

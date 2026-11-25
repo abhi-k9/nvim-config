@@ -22,7 +22,7 @@ local augroup = require("config.util").augroup
 -- Load-order rule: these handlers are registered before lazy.nvim sources
 -- filetype.lua, so on BufReadPost they run BEFORE filetype detection.
 -- Anything that detection (FileType, the `syntaxset` handler) would undo
--- has to be deferred to a buffer-local FileType autocmd.
+-- has to be disabled again after filetype handlers run.
 -- ---------------------------------------------------------------------------
 vim.api.nvim_create_autocmd("BufReadPre", {
   group = augroup("big_file_mark"),
@@ -66,26 +66,6 @@ vim.api.nvim_create_autocmd("BufReadPost", {
     -- effective before the file is read.)
     vim.opt_local.foldmethod = "manual"
     vim.opt_local.spell = false
-    -- Disable the regex syntax engine for THIS buffer once its filetype is
-    -- known (see the load-order rule above). treesitter.lua doesn't attach
-    -- big files, but Neovim's own ftplugins start it for lua, help, query
-    -- and markdown; stop it once every FileType handler has run. Stopping
-    -- it turns regex syntax back on, so clear 'syntax' again after.
-    vim.api.nvim_create_autocmd("FileType", {
-      buffer = args.buf,
-      once = true,
-      desc = "big_file: no regex syntax, no treesitter",
-      callback = function(ev)
-        if not vim.b[ev.buf].big_file then return end
-        vim.bo[ev.buf].syntax = ""
-        vim.schedule(function()
-          if vim.api.nvim_buf_is_valid(ev.buf) and vim.b[ev.buf].big_file then
-            vim.treesitter.stop(ev.buf)
-            vim.bo[ev.buf].syntax = ""
-          end
-        end)
-      end,
-    })
     -- LSP clients are detached in lsp.lua's LspAttach guard and ufo skips
     -- the buffer; the notification explains the missing features.
     vim.notify(
@@ -95,5 +75,25 @@ vim.api.nvim_create_autocmd("BufReadPost", {
       ),
       vim.log.levels.INFO
     )
+  end,
+})
+
+-- Built-in ftplugins can start Treesitter independently on any FileType
+-- change. Coalesce a read and its filetype event, and recheck the marker
+-- because a rapid reread may already have returned the buffer to normal.
+vim.api.nvim_create_autocmd({ "BufReadPost", "FileType" }, {
+  group = augroup("big_file_highlight"),
+  callback = function(ev)
+    local buf = ev.buf
+    if not vim.b[buf].big_file or vim.b[buf].big_file_stop_pending then return end
+    vim.b[buf].big_file_stop_pending = true
+    vim.schedule(function()
+      if not vim.api.nvim_buf_is_valid(buf) then return end
+      vim.b[buf].big_file_stop_pending = nil
+      if vim.api.nvim_buf_is_loaded(buf) and vim.b[buf].big_file then
+        vim.treesitter.stop(buf)
+        vim.bo[buf].syntax = ""
+      end
+    end)
   end,
 })

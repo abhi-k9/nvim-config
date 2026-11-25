@@ -81,6 +81,15 @@ describe("on-demand parser installation", function()
     assert.are.equal(2, attempts)
   end)
 
+  it("defers first-use installation until an ordinary buffer needs the parser", function()
+    vim.b[buf].big_file = true
+    filetype()
+    assert.equals(0, attempts)
+    vim.b[buf].big_file = nil
+    filetype()
+    assert.equals(1, attempts)
+  end)
+
   it("honors the opt-out for both startup and first-use installation", function()
     vim.g.treesitter_auto_install = false
     dofile(vim.fn.getcwd() .. "/lua/plugins/treesitter.lua")[1].config(nil, {

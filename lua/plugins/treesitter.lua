@@ -210,7 +210,7 @@ return {
         group = vim.api.nvim_create_augroup("user_treesitter", { clear = true }),
         callback = function(args)
           attach(args.buf)
-          maybe_install(args.buf)
+          if not vim.b[args.buf].big_file then maybe_install(args.buf) end
         end,
       })
 
