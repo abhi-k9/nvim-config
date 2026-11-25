@@ -109,7 +109,14 @@ disable it for the basic smoke check. With GitHub CLI:
 gh workflow run ci.yml --ref main -f stress=true
 ```
 
-The runner copies shipped config files into a disposable directory, ignores
+A separate Windows job on the same dispatch builds a small C++ executable with
+MSVC and a full PDB. It checks two Scoper reloads against live clangd and two
+CodeLLDB launches against a source breakpoint, including normal process exit.
+It uses the lockfile revision of nvim-dap and a checksum-pinned CodeLLDB archive.
+This eight-minute job runs even with stress disabled. Its small fixture checks
+correctness; launch times for large production PDBs still require local testing.
+
+The UI smoke runner copies shipped config files into a disposable directory, ignores
 private `local.lua`, isolates config/state/cache and reads the copied lockfile.
 CI reuses a dedicated plugin data cache. Language servers, Mason package/parser
 installation and native-sorter builds are disabled for this check. Optional
