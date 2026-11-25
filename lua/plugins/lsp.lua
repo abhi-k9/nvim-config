@@ -156,6 +156,7 @@ return {
       -- ---------------------------------------------------------------------
       -- Per-buffer keymaps + features when an LSP attaches.
       -- ---------------------------------------------------------------------
+      local hl_group = vim.api.nvim_create_augroup("user_lsp_highlight", { clear = false })
       vim.api.nvim_create_autocmd("LspAttach", {
         group = vim.api.nvim_create_augroup("user_lsp_attach", { clear = true }),
         callback = function(ev)
@@ -318,8 +319,7 @@ return {
           -- Document highlight on CursorHold: subtly underlines other
           -- occurrences of the symbol under the cursor.
           if client and client:supports_method("textDocument/documentHighlight", buf) then
-            local hl_group_name = "user_lsp_highlight_" .. buf
-            local hl_group = vim.api.nvim_create_augroup(hl_group_name, { clear = true })
+            vim.api.nvim_clear_autocmds({ group = hl_group, buffer = buf })
             vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
               group = hl_group,
               buffer = buf,
@@ -336,10 +336,7 @@ return {
             -- with no capable client — at best a no-op, at worst a
             -- "method not supported" notification on every hold.
             vim.api.nvim_create_autocmd("LspDetach", {
-              group = vim.api.nvim_create_augroup(
-                "user_lsp_highlight_detach_" .. buf,
-                { clear = true }
-              ),
+              group = hl_group,
               buffer = buf,
               callback = function(dev)
                 -- If ANOTHER attached client still supports the method
@@ -358,7 +355,7 @@ return {
                 -- for a background buffer (e.g. scoper restarting clangd
                 -- with many C++ buffers attached).
                 vim.lsp.util.buf_clear_references(dev.buf)
-                pcall(vim.api.nvim_del_augroup_by_name, hl_group_name)
+                vim.api.nvim_clear_autocmds({ group = hl_group, buffer = dev.buf })
               end,
             })
           end

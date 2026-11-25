@@ -139,13 +139,34 @@ describe("LSP buffer and capability lifecycle", function()
       end
       vim.api.nvim_set_current_buf(other)
       vim.api.nvim_exec_autocmds("LspDetach", {
-        group = "user_lsp_highlight_detach_" .. target,
+        group = "user_lsp_highlight",
         buffer = target,
         data = { client_id = leaving.id },
       })
-      assert.is_true(#vim.api.nvim_get_autocmds({ group = "user_lsp_highlight_" .. target }) > 0)
+      assert.is_true(
+        #vim.api.nvim_get_autocmds({ group = "user_lsp_highlight", buffer = target }) > 0
+      )
     end
   )
+
+  it("removes all highlight listeners only from the final detaching buffer", function()
+    local first, second = buffer(nil), buffer(nil)
+    local c = client(9109, { documentHighlightProvider = true })
+    attach(first, c)
+    attach(second, c)
+    vim.lsp.get_clients = function()
+      return { c }
+    end
+    vim.api.nvim_exec_autocmds("LspDetach", {
+      group = "user_lsp_highlight",
+      buffer = first,
+      data = { client_id = c.id },
+    })
+    assert.equals(0, #vim.api.nvim_get_autocmds({ group = "user_lsp_highlight", buffer = first }))
+    assert.is_true(
+      #vim.api.nvim_get_autocmds({ group = "user_lsp_highlight", buffer = second }) > 0
+    )
+  end)
 
   it("applies linked-editing toggles to clients supported in their other buffers", function()
     local first = buffer(vim.fn.tempname() .. ".html", "html")
