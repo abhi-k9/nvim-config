@@ -86,6 +86,39 @@ describe("explorer directory startup", function()
     assert.is_nil(opened)
   end)
 
+  it("honors a startup restore deferred until the Lazy window closes", function()
+    local directory = root .. "/requested directory"
+    vim.fn.argv = function()
+      return { directory }
+    end
+    vim.api.nvim_buf_set_name(buf, root .. "/restored.lua")
+    local popup = vim.api.nvim_open_win(vim.api.nvim_create_buf(false, true), false, {
+      relative = "editor",
+      row = 0,
+      col = 0,
+      width = 10,
+      height = 2,
+    })
+    local view = require("lazy.view")
+    local previous_view = view.view
+    view.view = { win = popup }
+    startup_hook()
+    vim.api.nvim_exec_autocmds("VimEnter", { group = "user_neotree_dir" })
+    vim.wait(20)
+    view.view = previous_view
+    vim.api.nvim_win_close(popup, true)
+    -- The pinned auto-session schedules startup restoration from WinClosed.
+    vim.schedule(function()
+      vim.cmd("doautoall SessionLoadPost")
+    end)
+    assert.is_true(vim.wait(500, function()
+      return opened ~= nil
+    end, 1))
+    assert.equals(vim.fn.fnamemodify(directory, ":p"), opened.dir)
+    assert.equals(buf, vim.api.nvim_get_current_buf())
+    assert.same({}, vim.api.nvim_get_autocmds({ group = "user_neotree_dir" }))
+  end)
+
   it("does not open the startup directory for a later manual session restore", function()
     vim.fn.argv = function()
       return { root .. "/requested directory" }

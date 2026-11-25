@@ -170,24 +170,57 @@ return {
     local args = starting and vim.fn.argv() or {}
     if #args == 1 and vim.fn.isdirectory(args[1]) == 1 then
       local directory = vim.fn.fnamemodify(args[1], ":p")
-      local restore = vim.api.nvim_create_autocmd("SessionLoadPost", {
-        group = group,
-        once = true,
-        callback = function()
-          -- Session files use :doautoall SessionLoadPost: the current buffer
-          -- here can be a temporary hidden-buffer context. Capture the final
-          -- restored window/buffer only after that iteration has finished.
-          local tab = vim.api.nvim_get_current_tabpage()
-          vim.schedule(function()
-            if vim.api.nvim_get_current_tabpage() ~= tab then return end
-            open_directory({ buf = vim.api.nvim_get_current_buf() }, directory)
-          end)
-        end,
-      })
+      local function arm_restore()
+        return vim.api.nvim_create_autocmd("SessionLoadPost", {
+          group = group,
+          once = true,
+          callback = function()
+            -- Session files use :doautoall SessionLoadPost: the current buffer
+            -- here can be a temporary hidden-buffer context. Capture the final
+            -- restored window/buffer only after that iteration has finished.
+            local tab = vim.api.nvim_get_current_tabpage()
+            vim.schedule(function()
+              if vim.api.nvim_get_current_tabpage() ~= tab then return end
+              open_directory({ buf = vim.api.nvim_get_current_buf() }, directory)
+            end)
+          end,
+        })
+      end
+      local restore = arm_restore()
       vim.api.nvim_create_autocmd("VimEnter", {
         group = group,
         once = true,
         callback = function()
+          -- Auto-session schedules its deferred startup restore from the Lazy
+          -- window's WinClosed event. Listen only for that event-loop turn.
+          local view = package.loaded["lazy.view"]
+          local session = package.loaded["auto-session.config"]
+          if
+            session
+            and session.enabled
+            and session.auto_restore
+            and session.lazy_support
+            and view
+            and type(view.visible) == "function"
+            and view.visible()
+            and view.view
+            and view.view.win
+          then
+            vim.api.nvim_create_autocmd("WinClosed", {
+              group = group,
+              once = true,
+              pattern = tostring(view.view.win),
+              callback = function()
+                local delayed = arm_restore()
+                -- Either WinClosed handler can run first.
+                vim.schedule(function()
+                  vim.schedule(function()
+                    pcall(vim.api.nvim_del_autocmd, delayed)
+                  end)
+                end)
+              end,
+            })
+          end
           -- Let all synchronous VimEnter session handlers finish first.
           vim.schedule(function()
             pcall(vim.api.nvim_del_autocmd, restore)
