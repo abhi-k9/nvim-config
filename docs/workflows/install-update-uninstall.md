@@ -113,7 +113,9 @@ in the seed built against that lockfile.
    recipes there).
 2. If you already have a Neovim config, move it out of the way. If it came
    from another setup (a distribution, packer, vim-plug), move its data,
-   state and cache aside too, so old plugins don't mix with these.
+   state and cache aside too, so old plugins don't mix with these. Check that
+   each backup destination is unused before moving anything. Moving into an
+   existing backup directory can nest the old config one level deeper.
 
    ```powershell
    Move-Item "$env:LOCALAPPDATA\nvim" "$env:LOCALAPPDATA\nvim.bak"
@@ -173,6 +175,17 @@ Its folders are then `nvim-new`, `nvim-new-data` (Windows) or
 config folder's name by itself. To make it permanent, set `NVIM_APPNAME` in
 your shell profile (`set -gx NVIM_APPNAME nvim-new` in fish's
 `config.fish`), or rename the folders to `nvim`.
+
+## Update an installed Git checkout
+
+Quit Neovim and open a shell in its config repository. Run `git status` and
+save any edits you want to keep. With a clean checkout on the branch you
+normally follow, run `git pull --ff-only`. If Git reports a lockfile conflict,
+use the [lockfile recovery steps](#pull-blocked-by-local-lockfile-changes).
+
+Start Neovim, run `:Lazy restore`, wait for it to finish, then restart. This
+uses the plugin revisions shipped with the configuration you pulled. The
+following workflow is for deliberately choosing and publishing newer revisions.
 
 ## Update and share plugin versions (Git checkout)
 
@@ -295,16 +308,24 @@ scoper scopes survive the update. Only the config folder is replaced.
 1. Quit every Neovim instance, including ones in other terminals, tmux or
    zellij, and IDE terminals.
 2. Move the current config aside. It keeps your own edits and the old
-   lockfile for a rollback:
+   lockfile for a rollback. These examples use the default config location.
+   If you set XDG variables or `NVIM_APPNAME`, substitute the config path
+   reported by `:echo stdpath('config')` and its parent.
 
    ```powershell
-   Move-Item "$env:LOCALAPPDATA\nvim" "$env:LOCALAPPDATA\nvim.bak"
-   Expand-Archive .\nvim-config.zip -DestinationPath $env:LOCALAPPDATA
+   $config = Join-Path $env:LOCALAPPDATA "nvim"
+   if (Test-Path -LiteralPath "$config.bak") { throw "Move the existing config backup aside first" }
+   Move-Item -LiteralPath $config -Destination "$config.bak" -ErrorAction Stop
+   Expand-Archive .\nvim-config.zip -DestinationPath $env:LOCALAPPDATA -ErrorAction Stop
    ```
 
    ```sh
-   mv ~/.config/nvim ~/.config/nvim.bak
-   unzip -q nvim-config.zip -d ~/.config
+   config="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
+   if [ -e "$config.bak" ] || [ -L "$config.bak" ]; then
+     echo "Move the existing config backup aside first" >&2
+   else
+     mv "$config" "$config.bak" && unzip -q nvim-config.zip -d "${config%/*}"
+   fi
    ```
 
 3. Carry over your own changes, if you made any. Compare the two folders:
@@ -332,7 +353,8 @@ scoper scopes survive the update. Only the config folder is replaced.
    them with `python3 scripts/update-ci-actions.py` and review the diff.
 5. Run `:checkhealth config`, and skim `CHANGES.md` for anything a release
    asks you to do by hand.
-6. When you're happy, delete `nvim.bak`.
+6. Keep `nvim.bak` until you have verified the new setup and copied any
+   personal settings you want to keep.
 
 On a machine without internet, steps 1–3 are the same. For step 4, build a
 new seed online and install it as the last section of
@@ -348,7 +370,8 @@ repository root; this discards local changes to that file, so save a copy first
 if you want to keep the newer selection. Then run `:Lazy restore` and restart.
 If the update was committed, select the earlier known-good revision instead.
 
-Quit Neovim, move the new config aside, rename `nvim.bak` back to `nvim`,
+For a **zip update**, first verify that `nvim.bak/init.lua` is your previous
+config and that the destination `nvim.new` is unused. Quit Neovim, move the new config aside, rename `nvim.bak` back to `nvim`,
 start Neovim, and run `:Lazy restore`. That returns the plugins to the old
 lockfile's commits, which needs the network. Offline, reinstall the old
 seed with `--force`, or move `lazy/`, `mason/` and `site/` back from the
@@ -356,12 +379,13 @@ seed with `--force`, or move `lazy/`, `mason/` and `site/` back from the
 folder.
 
 ```powershell
-Move-Item "$env:LOCALAPPDATA\nvim" "$env:LOCALAPPDATA\nvim.new"
+Move-Item "$env:LOCALAPPDATA\nvim" "$env:LOCALAPPDATA\nvim.new" -ErrorAction Stop
 Move-Item "$env:LOCALAPPDATA\nvim.bak" "$env:LOCALAPPDATA\nvim"
 ```
 
 ```sh
-mv ~/.config/nvim ~/.config/nvim.new && mv ~/.config/nvim.bak ~/.config/nvim
+config="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
+mv "$config" "$config.new" && mv "$config.bak" "$config"
 ```
 
 ## Uninstall
