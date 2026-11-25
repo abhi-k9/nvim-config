@@ -88,6 +88,29 @@ describe("health reports effective tool intent", function()
     end
   )
 
+  it("accepts PowerShell for Mason downloads on Windows and skips disabled requirements", function()
+    vim.fn.has = function(feature)
+      if feature == "win32" then return 1 end
+      return has(feature)
+    end
+    vim.fn.executable = function(bin)
+      return bin == "pwsh" and 1 or 0
+    end
+    vim.system = function()
+      return {
+        wait = function()
+          return { code = 0, stdout = "test" }
+        end,
+      }
+    end
+    require("config.health").check()
+    assert.is_truthy(table.concat(messages, "\n"):find("Mason downloader — test (pwsh)", 1, true))
+    package.loaded["lazy.core.config"].plugins["mason-lspconfig.nvim"].opts.ensure_installed = {}
+    messages = {}
+    require("config.health").check()
+    assert.is_falsy(table.concat(messages, "\n"):find("Mason downloader", 1, true))
+  end)
+
   it("treats the legacy automatic parser opt-out as intentional disablement", function()
     local previous = vim.g.treesitter_auto_install
     vim.g.treesitter_auto_install = false

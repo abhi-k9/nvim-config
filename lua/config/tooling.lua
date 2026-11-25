@@ -248,9 +248,12 @@ function M.runtime_missing(package)
   return missing
 end
 
+function M.mason_downloaders()
+  return vim.fn.has("win32") == 1 and { "curl", "wget", "pwsh", "powershell" } or { "curl", "wget" }
+end
+
 function M.mason_download_ready()
-  local windows = vim.fn.has("win32") == 1
-  return any({ "curl", "wget" }) or windows and any({ "pwsh", "powershell" })
+  return any(M.mason_downloaders())
 end
 
 function M.install_supported(package)

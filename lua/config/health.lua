@@ -169,8 +169,12 @@ function M.check()
     return requested[name] and requested[name].enabled
   end
   local parser_builds = intent.parser_provisioning(declared.parsers)
+  local mason_downloads = false
   for name, item in pairs(requested) do
-    if item.enabled then require("config.tooling").install_supported(name) end
+    if item.enabled then
+      mason_downloads = true
+      require("config.tooling").install_supported(name)
+    end
   end
 
   -- ── Neovim itself ─────────────────────────────────────────────────────────
@@ -247,8 +251,8 @@ function M.check()
         )
       end
     end
-    check_any({ "curl", "wget" }, "curl or wget", "warn", {
-      "Used by Mason and nvim-treesitter to download sources.",
+    check("curl", "curl", "warn", {
+      "Used by nvim-treesitter to download parser sources.",
     })
     check("tar", "tar", "warn", {
       "nvim-treesitter (main) unpacks downloaded parser sources with tar.",
@@ -256,10 +260,10 @@ function M.check()
   else
     h.info("Automatic parser builds are disabled or no parser languages are selected.")
   end
-  if next(requested) and not parser_builds then
+  if mason_downloads and not (parser_builds and have("curl")) then
     check_any(
-      { "curl", "wget" },
-      "curl or wget",
+      require("config.tooling").mason_downloaders(),
+      "Mason downloader",
       "warn",
       { "Needed for requested Mason package downloads." }
     )
