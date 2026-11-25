@@ -238,7 +238,7 @@ map("n", "<leader>wc", function()
   local normal = vim.tbl_filter(function(w)
     return vim.api.nvim_win_get_config(w).relative == ""
   end, vim.api.nvim_tabpage_list_wins(0))
-  if #normal <= 1 and #vim.api.nvim_list_tabpages() == 1 then
+  if vim.api.nvim_win_get_config(0).relative == "" and #normal <= 1 and #vim.api.nvim_list_tabpages() == 1 then
     vim.notify("Last window — <leader>bd closes the buffer, :q quits", vim.log.levels.INFO)
     return
   end

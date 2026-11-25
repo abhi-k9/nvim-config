@@ -76,3 +76,24 @@ describe("zoom restoration tracks the ordered window layout", function()
     assert.is_true(largest - smallest <= 1)
   end)
 end)
+
+describe("closing a floating window above a single split", function()
+  it("closes the float and keeps the last editor window", function()
+    vim.cmd("only")
+    local editor = vim.api.nvim_get_current_win()
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[buf].bufhidden = "wipe"
+    local win = vim.api.nvim_open_win(buf, true, {
+      relative = "editor",
+      row = 0,
+      col = 0,
+      width = 10,
+      height = 2,
+    })
+    vim.fn.maparg("<Space>wc", "n", false, true).callback()
+    local closed = not vim.api.nvim_win_is_valid(win)
+    if not closed then vim.api.nvim_win_close(win, true) end
+    assert.is_true(closed)
+    assert.equals(editor, vim.api.nvim_get_current_win())
+  end)
+end)
