@@ -24,6 +24,7 @@ def main():
     nvim = shutil.which(args.nvim)
     if not nvim:
         parser.error("Neovim was not found; install it or pass --nvim")
+    nvim = os.path.abspath(nvim)  # Child processes run in a different working directory.
     try:
         import msgpack  # noqa: F401 -- optional test dependency, never installed automatically
     except ImportError:
