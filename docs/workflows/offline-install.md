@@ -116,7 +116,11 @@ machine and pass it with `--sha256` on the offline one.
       venvs, which step 6 re-points); entries written through a link; and
       seeds over the size limits or larger than the free disk space.
    4. Unpacks into a new `.offline-seed-staging-*` folder inside the data
-      folder.
+      folder. Install holds an empty `.offline-seed-lock` directory there through
+      promotion and Python repair. Build uses the same lock in its output folder.
+      Keep the build source idle and choose an output folder outside the trees
+      being packed. If a process was killed, confirm it has exited and inspect
+      staging and backups before removing the empty lock directory and retrying.
    5. Moves `lazy/`, `mason/` and `site/` from there into place. With
       `--force`, any existing ones are first moved, not merged, to
       `offline-seed-backup-<date>-*/` in the data folder. This includes a

@@ -344,6 +344,14 @@ class Authenticity(Base):
 
 
 class ExistingData(Base):
+    def test_second_writer_cannot_force_install_while_destination_is_locked(self):
+        seed = make_zip(self.tmp / "seed.zip")
+        self.data.mkdir()
+        with S.exclusive_directory(self.data):
+            self.assertRefused(self.install(seed, force=True), ".offline-seed-lock")
+            self.assertFalse((self.data / "lazy").exists())
+        self.assertEqual(self.install(seed), 0)
+
     def test_refused_without_force(self):
         (self.data / "lazy").mkdir(parents=True)
         (self.data / "lazy" / "mine.txt").write_text("keep")
@@ -496,6 +504,34 @@ class CompletenessCheck(Base):
     def test_reports(self):
         self.assertEqual(self.check("gaps"), ["missing parser gitcommit"])
         self.assertEqual(self.check("complete"), [])
+
+    def test_build_and_install_with_concurrent_output_writer(self):
+        out = self.tmp / "out"
+        out.mkdir()
+        (self.data / "lazy").mkdir()
+        site = self.data / "site"
+        site.mkdir()
+        (site / "sample").write_bytes(b"parser fixture")
+        args = argparse.Namespace(data_dir=str(self.data), out_dir=str(out), only="site",
+                                  no_check=True, allow_mismatch=False)
+        with redirect_stdout(io.StringIO()):
+            with S.exclusive_directory(out), self.assertRaisesRegex(SystemExit, "offline-seed-lock"):
+                S.cmd_build(args)
+            self.assertEqual(S.cmd_build(args), 0)
+        seed, = (p for p in out.iterdir() if not p.name.endswith(".sha256"))
+        dest = self.tmp / "installed"
+        self.assertEqual(self.install(seed, data_dir=str(dest)), 0)
+        self.assertEqual((dest / "site" / "sample").read_bytes(), b"parser fixture")
+
+    def test_build_refuses_output_inside_archived_tree(self):
+        (self.data / "lazy").mkdir()
+        site = self.data / "site"
+        site.mkdir()
+        args = argparse.Namespace(data_dir=str(self.data), out_dir=str(site / "out"),
+                                  only="site", no_check=True, allow_mismatch=False)
+        with self.assertRaisesRegex(SystemExit, "outside the folders"):
+            S.cmd_build(args)
+        self.assertFalse((site / "out").exists())
 
     def test_wrong_data_dir_name(self):
         with self.assertRaises(S.CheckFailed):

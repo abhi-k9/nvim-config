@@ -43,6 +43,7 @@ import tarfile
 import tempfile
 import time
 import zipfile
+from contextlib import contextmanager
 from pathlib import Path
 
 # Preserve a symlinked config's installed name (for example ~/.config/nvim
@@ -123,7 +124,7 @@ def nvim_env(data_dir):
         env["NVIM_APPNAME"] = app_name()
     else:
         env.pop("NVIM_APPNAME", None)
-    env["XDG_DATA_HOME"] = str(data_dir.parent)
+    env["XDG_DATA_HOME"] = str(data_dir.absolute().parent)
     return env
 
 
@@ -145,11 +146,12 @@ def run_check(data_dir):
         raise CheckFailed(f"the data dir must be named '{data_dir_name()}' for Neovim to use it")
     fd, out = tempfile.mkstemp(prefix="nvim-seed-check-", suffix=".json")
     os.close(fd)
+    env["OFFLINE_SEED_CHECK_SCRIPT"] = str(CHECK_LUA)
     env["OFFLINE_SEED_CHECK_OUT"] = out
     try:
         try:
             res = subprocess.run(
-                [nvim, "--headless", f"+luafile {CHECK_LUA.as_posix()}"],
+                [nvim, "--headless", "+lua dofile(vim.env.OFFLINE_SEED_CHECK_SCRIPT)"],
                 cwd=CONFIG_DIR, env=env, stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=CHECK_TIMEOUT,
             )
@@ -265,6 +267,21 @@ def write_tgz(out, data_dir, paths, manifest):
             t.add(data_dir / rel, rel.as_posix(), recursive=True)
 
 
+@contextmanager
+def exclusive_directory(directory):
+    """Serialize seed writers targeting this directory, including post-install repair."""
+    marker = directory / ".offline-seed-lock"
+    try:
+        marker.mkdir()
+    except FileExistsError:
+        fail(f"{marker} exists. Wait for the other seed operation. After an interruption, "
+             "inspect staging and backups before removing the empty lock directory.")
+    try:
+        yield
+    finally:
+        marker.rmdir()
+
+
 def cmd_build(args):
     data_dir = Path(args.data_dir) if args.data_dir else default_data_dir()
     if not (data_dir / "lazy").is_dir():
@@ -317,28 +334,32 @@ def cmd_build(args):
 
     ext = "zip" if WINDOWS else "tar.gz"
     out_dir = Path(args.out_dir).resolve()
+    if any(data_dir / path in (out_dir, *out_dir.parents) for path in paths):
+        fail("choose an output directory outside the folders being packed")
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"nvim-offline-seed_{plat}_lock-{lock_hash[:8]}.{ext}"
-    part = out.with_name(out.name + ".part")
     print(f"Packing {'; '.join(summary)} from {data_dir}\n  -> {out}")
-    try:
+    with exclusive_directory(out_dir), tempfile.TemporaryDirectory(dir=out_dir) as staging:
+        part = Path(staging) / out.name
         (write_zip if WINDOWS else write_tgz)(part, data_dir, paths, manifest)
-        with open_seed(part, WINDOWS) as archive:  # never ship a seed `install` would refuse
+        with open_seed(part) as archive:  # never ship a seed `install` would refuse
             validate(seed_entries(archive), MAX_ENTRIES, MAX_TOTAL_MB * 2**20, MAX_FILE_MB * 2**20)
+        digest = write_checksum(part)
         os.replace(part, out)
-    finally:
-        if part.exists():
-            part.unlink()
-    digest = write_checksum(out)
+        os.replace(str(part) + ".sha256", str(out) + ".sha256")
     print(f"Done: {out.name} ({out.stat().st_size / 2**20:.1f} MB)\n  sha256 {digest}  (also in {out.name}.sha256)")
     return 0
 
 
 def sha256_of(path):
+    with open(path, "rb") as stream:
+        return stream_digest(stream)
+
+
+def stream_digest(stream):
     h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
+    for chunk in iter(lambda: stream.read(1 << 20), b""):
+        h.update(chunk)
     return h.hexdigest()
 
 
@@ -349,7 +370,7 @@ def write_checksum(seed):
     return digest
 
 
-def verify_checksum(seed, expected, no_verify):
+def verify_checksum(seed, stream, expected, no_verify):
     """Compare the seed with --sha256, else with its .sha256 file; fail on any doubt."""
     if no_verify:
         warn("--no-verify: the seed's checksum was not checked")
@@ -366,34 +387,34 @@ def verify_checksum(seed, expected, no_verify):
     expected = expected.strip().lower()
     if not re.fullmatch(r"[0-9a-f]{64}", expected):
         fail(f"{source} doesn't hold a SHA-256 digest")
-    actual = sha256_of(seed)
+    actual = stream_digest(stream)
+    stream.seek(0)
     if actual != expected:
         fail(f"checksum mismatch: {seed.name} is {actual}, {source} says {expected}. "
              "The file is damaged or not the seed you think it is.")
     print(f"Checksum OK ({source}).")
 
 
-def read_manifest(seed):
+def read_manifest(seed, archive):
     try:
-        with open_seed(seed) as archive:
-            if isinstance(archive, zipfile.ZipFile):
-                member = archive.getinfo(MANIFEST)
-                size = member.file_size
-            else:
-                member = archive.getmember(MANIFEST)
-                if not member.isfile():
-                    fail(f"{seed.name} has no regular {MANIFEST}; not an offline seed")
-                size = member.size
-            # Metadata is parsed before the archive-wide entry checks. Bound
-            # both the declared size and the actual read before JSON decoding.
-            if size > MAX_MANIFEST_BYTES:
-                fail("manifest exceeds the 1 MiB metadata limit")
-            source = (archive.open(member) if isinstance(archive, zipfile.ZipFile)
-                      else archive.extractfile(member))
-            with source:
-                raw = source.read(MAX_MANIFEST_BYTES + 1)
-            if len(raw) > MAX_MANIFEST_BYTES:
-                fail("manifest exceeds the 1 MiB metadata limit")
+        if isinstance(archive, zipfile.ZipFile):
+            member = archive.getinfo(MANIFEST)
+            size = member.file_size
+        else:
+            member = archive.getmember(MANIFEST)
+            if not member.isfile():
+                fail(f"{seed.name} has no regular {MANIFEST}; not an offline seed")
+            size = member.size
+        # Metadata is parsed before the archive-wide entry checks. Bound
+        # both the declared size and the actual read before JSON decoding.
+        if size > MAX_MANIFEST_BYTES:
+            fail("manifest exceeds the 1 MiB metadata limit")
+        source = (archive.open(member) if isinstance(archive, zipfile.ZipFile)
+                  else archive.extractfile(member))
+        with source:
+            raw = source.read(MAX_MANIFEST_BYTES + 1)
+        if len(raw) > MAX_MANIFEST_BYTES:
+            fail("manifest exceeds the 1 MiB metadata limit")
         manifest = json.loads(raw)
         if not isinstance(manifest, dict):
             fail("manifest must be a JSON object")
@@ -965,10 +986,8 @@ def repair_venvs(data_dir, source_roots=None):
     return complete
 
 
-def open_seed(seed, is_zip=None):
-    if is_zip is None:
-        is_zip = seed.name.endswith(".zip")
-    return zipfile.ZipFile(seed) if is_zip else tarfile.open(seed, "r:*")
+def open_seed(seed):
+    return zipfile.ZipFile(seed) if seed.name.endswith(".zip") else tarfile.open(seed, "r:*")
 
 
 def seed_entries(archive):
@@ -979,8 +998,19 @@ def cmd_install(args):
     seed = Path(args.seed).resolve()
     if not seed.is_file():
         fail(f"no such file: {seed}")
-    verify_checksum(seed, args.sha256, args.no_verify)
-    manifest = read_manifest(seed)
+    with seed.open("rb") as stream:
+        verify_checksum(seed, stream, args.sha256, args.no_verify)
+        try:
+            archive = (zipfile.ZipFile(stream) if seed.name.endswith(".zip")
+                       else tarfile.open(fileobj=stream, mode="r:*"))
+        except (OSError, tarfile.TarError, zipfile.BadZipFile):
+            fail(f"{seed.name} is not a readable offline seed")
+        with archive:
+            return install_archive(args, seed, archive)
+
+
+def install_archive(args, seed, archive):
+    manifest = read_manifest(seed, archive)
     plat = this_platform()
     if manifest.get("platform") != plat:
         msg = f"seed was built for {manifest.get('platform')}, this machine is {plat}"
@@ -996,15 +1026,15 @@ def cmd_install(args):
         warn(msg)
 
     data_dir = Path(args.data_dir) if args.data_dir else default_data_dir()
-    with open_seed(seed) as archive:
-        entries = seed_entries(archive)
-        total = validate(entries, args.max_entries, int(args.max_total_mb * 2**20), int(args.max_file_mb * 2**20))
-        tops = sorted({e.parts[0] for e in entries})
+    entries = seed_entries(archive)
+    total = validate(entries, args.max_entries, int(args.max_total_mb * 2**20), int(args.max_file_mb * 2**20))
+    tops = sorted({e.parts[0] for e in entries})
+    data_dir.mkdir(parents=True, exist_ok=True)
+    with exclusive_directory(data_dir):
         present = [p for p in tops if os.path.lexists(data_dir / p)]
         if present and not args.force:
             fail(f"{data_dir} already has {', '.join(present)}. Move it aside first, or pass --force "
                  "to replace it (the old one is moved to a backup folder, not merged).")
-        data_dir.mkdir(parents=True, exist_ok=True)
         free = shutil.disk_usage(data_dir).free
         if free < total + 2**26:
             fail(f"the seed unpacks to {total >> 20} MB but {data_dir} has only {free >> 20} MB free")
@@ -1022,13 +1052,13 @@ def cmd_install(args):
             backup = promote(staging, data_dir, tops, overwrite=args.force)
         finally:
             remove_tree(staging)
-    if backup is not None:
-        print(f"  the previous {', '.join(present)} moved to {backup}; delete it once nvim works")
-    if "mason" in tops:
-        if not repair_venvs(data_dir, manifest.get("python_venv_roots", {})):
-            fail("seed files were installed, but Python tooling relocation is incomplete; "
-                 "review the warnings and reinstall affected packages at their final paths. "
-                 "Any previous data remains in the backup shown above.")
+        if backup is not None:
+            print(f"  the previous {', '.join(present)} moved to {backup}; delete it once nvim works")
+        if "mason" in tops:
+            if not repair_venvs(data_dir, manifest.get("python_venv_roots", {})):
+                fail("seed files were installed, but Python tooling relocation is incomplete; "
+                     "review the warnings and reinstall affected packages at their final paths. "
+                     "Any previous data remains in the backup shown above.")
     print("Done. Start nvim; :checkhealth should report no downloads pending.")
     return 0
 
