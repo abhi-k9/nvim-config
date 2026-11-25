@@ -93,3 +93,33 @@ describe("exact current-file history mappings", function()
     assert.is_true(vim.tbl_contains(spec.cmd, "DiffviewFileHistory"))
   end)
 end)
+
+describe("Git hunk navigation in a diff window", function()
+  it("forwards the count in both directions", function()
+    vim.cmd("tabnew")
+    local ok, err = pcall(function()
+      local left = {}
+      for row = 1, 40 do
+        left[row] = tostring(row)
+      end
+      vim.api.nvim_buf_set_lines(0, 0, -1, false, left)
+      vim.cmd("diffthis")
+      vim.cmd("vnew")
+      for _, row in ipairs({ 5, 18, 33 }) do
+        left[row] = "changed"
+      end
+      vim.api.nvim_buf_set_lines(0, 0, -1, false, left)
+      vim.cmd("diffthis")
+      vim.cmd("diffupdate")
+      require("lazy").load({ plugins = { "gitsigns.nvim" } })
+      dofile("lua/plugins/git.lua")[1].opts.on_attach(vim.api.nvim_get_current_buf())
+      vim.cmd("normal 2]h")
+      assert.equals(18, vim.fn.line("."))
+      vim.cmd("normal ]h")
+      vim.cmd("normal 2[h")
+      assert.equals(5, vim.fn.line("."))
+    end)
+    vim.cmd("tabclose!")
+    assert.is_true(ok, tostring(err))
+  end)
+end)

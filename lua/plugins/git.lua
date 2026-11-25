@@ -92,14 +92,14 @@ return {
         -- `prev_hunk()` are deprecated.
         map("n", "]h", function()
           if vim.wo.diff then
-            vim.cmd.normal({ "]c", bang = true })
+            vim.cmd.normal({ vim.v.count1 .. "]c", bang = true })
           else
             gs.nav_hunk("next")
           end
         end, "Next hunk")
         map("n", "[h", function()
           if vim.wo.diff then
-            vim.cmd.normal({ "[c", bang = true })
+            vim.cmd.normal({ vim.v.count1 .. "[c", bang = true })
           else
             gs.nav_hunk("prev")
           end
