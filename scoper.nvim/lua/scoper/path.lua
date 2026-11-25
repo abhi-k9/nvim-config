@@ -288,6 +288,12 @@ function M.valid_glob(pattern)
   return true
 end
 
+-- A scope resolves its include patterns to absolute paths once. Its matcher
+-- receives already folded, absolute subjects from the same scope.
+function M.absolute_glob(pattern)
+  return compiled(cmp_key(pattern))
+end
+
 -- Include globs: tested against the absolute path and the cwd-relative
 -- form, so "**/*.proto" and "src/**/*.proto" both work.
 function M.match_glob(path, pattern, cwd)

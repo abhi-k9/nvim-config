@@ -19,7 +19,10 @@ function M.compile(scope, cwd)
       -- literal ancestor. For /build/lib*/**/*.c that is /build, whereas
       -- /build/lib/**/*.c starts at /build/lib. Retain the slash for roots.
       local ancestor = absolute:sub(1, first - 1):match("^(.*)/")
-      table.insert(globs, { pattern = absolute, root = Path.key((ancestor or "") .. "/") })
+      table.insert(
+        globs,
+        { matcher = Path.absolute_glob(absolute), root = Path.key((ancestor or "") .. "/") }
+      )
     end
   end
   for _, pat in ipairs(scope.exclude) do
@@ -61,7 +64,7 @@ function M.compile(scope, cwd)
       end
     end
     for _, g in ipairs(globs) do
-      if Path.match_glob(abs, g.pattern, cwd) then
+      if g.matcher and g.matcher:match(key) ~= nil then
         if #excludes == 0 then return true end
         if project_rel then return allowed(key, project_rel) end
         if not allowed(key, rel_to(key, g.root) or key) then return false end
