@@ -102,6 +102,13 @@ config destination after backing up the old one. Preserve hidden files and
 check that `init.lua` is directly inside the final config folder. Do not extract
 an unknown archive layout over an existing configuration.
 
+To package a tested checkout for this layout, run
+`git archive --format=zip --prefix=nvim/ -o ../nvim-config.zip HEAD` from
+the repository root. Choose an unused output filename. For a tagged release,
+replace `HEAD` with the tested tag. Git packages the files committed at that
+revision, including its plugin lockfile. Offline dependencies travel separately
+in the seed built against that lockfile.
+
 1. Install the prerequisites (README, Prerequisites; there are per-platform
    recipes there).
 2. If you already have a Neovim config, move it out of the way. If it came
