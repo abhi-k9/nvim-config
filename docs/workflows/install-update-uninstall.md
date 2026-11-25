@@ -264,6 +264,22 @@ explicit `origin/main` source avoids the differing meaning of “ours/theirs”
 during a rebase. This lockfile records plugins; Mason tools, parsers and pinned
 GitHub Actions have their own update mechanisms.
 
+### Forks and compatibility checks
+
+Lazy follows each spec’s branch, version range or explicit commit. Blink selects
+release tags and LuaSnip selects v2 tags. Bufferline has an explicit commit in
+`lua/plugins/ui.lua`: change that SHA as well as the lock entry for an intentional
+update. Scoper ships in this repository and updates with the configuration.
+
+| Dependency | Contract to verify before switching source or removing a workaround |
+|---|---|
+| Bufferline fork | Check `is_pinned(bufnr)`, diagnostic caching, and `restore_pins()` after scope restoration. Verify a saved session with hidden pins and a comma in a filename. [Migration and rollback](../bufferline-fork-migration-2026-11-09.md) |
+| DAP UI fork | Verify repeated open/close, control-buffer recreation and floating-window cleanup. Test the separate fixed-width guard independently. [Lifecycle checks](../debug-terminal-configuration.md#dap-ui-fork-and-toolbar-lifecycle) |
+| Persistent breakpoints fork | Before switching, verify that the candidate reads existing project stores, preserves all breakpoint fields, rejects stale writes, and reports failed clears. Back up the stores before a trial. [Storage and recovery](../breakpoint-persistence.md) |
+| Diffview+ | Check working-copy pinning, worktree overview, selected-line history and help in merge layouts before changing providers. |
+| Trouble | Remove the local cursor guard when the candidate handles an implicit lookup after its window closes. Run the Trouble lifecycle spec with the guard removed. |
+| Neo-tree | The optional Scoper filter wraps the renderer’s `show_nodes`. Replace the wrapper when a supported filter hook can preserve mixed directories, nested files and toggle restoration. Run the Scoper explorer spec against the candidate. |
+
 ## Update to a new zip
 
 Your data folder is kept: sessions, undo history, ShaDa, breakpoints and
@@ -299,7 +315,7 @@ scoper scopes survive the update. Only the config folder is replaced.
    - `:Lazy restore` checks out exactly the commits in the new
      `lazy-lock.json` (the set this release was tested with). Follow it with
      `:Lazy clean` to remove the plugins the new config dropped.
-   - Or `:Lazy sync` updates every plugin to its latest commit, removes the
+   - Or `:Lazy sync` updates plugins within their configured revision constraints, removes the
      dropped ones, and rewrites `lazy-lock.json`.
 
    `:MasonToolsUpdate` updates the Mason tools, and `:TSUpdate` the parsers.
