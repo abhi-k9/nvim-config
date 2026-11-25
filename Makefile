@@ -2,7 +2,7 @@
 #
 # Targets:
 #   make test        — run the config's plenary specs (tests/*_spec.lua)
-#   make lint        — luacheck init.lua lua/ tests/
+#   make lint        — luacheck init.lua lua/ scripts/ tests/
 #   make check       — luacheck + stylua --check, here AND in scoper.nvim/
 #                      (its lua/, plugin/ and tests/)
 #   make check-docs  — verify the docs still match the code (scripts/check-docs.sh
@@ -65,14 +65,14 @@ test-seed:
 	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) -m unittest discover -s tests -p "offline_seed_test.py"
 
 lint:
-	$(LUACHECK) init.lua lua/ tests/
+	$(LUACHECK) init.lua lua/ scripts/ tests/
 
 format:
-	$(STYLUA) init.lua lua/ tests/
+	$(STYLUA) init.lua lua/ scripts/ tests/
 	$(MAKE) -C scoper.nvim format
 
 fmt-check:
-	$(STYLUA) --check init.lua lua/ tests/
+	$(STYLUA) --check init.lua lua/ scripts/ tests/
 
 # Fail if the docs have drifted from the code (README tree, keymaps, user
 # commands, plugin list, version floor, template pairs; see the script

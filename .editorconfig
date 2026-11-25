@@ -45,6 +45,9 @@ indent_size = 2
 [*.md]
 trim_trailing_whitespace = false
 
+[*.py]
+indent_size = 4
+
 # ---------------------------------------------------------------------------
 # Makefiles require literal tabs for recipe lines — never expand to spaces.
 # A section name without a `/` matches in every directory, so this also

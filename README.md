@@ -893,8 +893,8 @@ root. In a POSIX shell, cmd.exe or PowerShell 7+:
 ```sh
 nvim --headless --noplugin -u NONE -l scoper.nvim/tests/run.lua
 cd scoper.nvim && nvim --headless --noplugin -u NONE -l tests/run.lua && cd ..
-luacheck init.lua lua tests
-stylua --check init.lua lua tests
+luacheck init.lua lua scripts tests
+stylua --check init.lua lua scripts tests
 ```
 
 Windows PowerShell 5.1 has no `&&`, so the scoper line becomes:
