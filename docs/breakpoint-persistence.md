@@ -5,32 +5,6 @@ The config uses the maintained `abhi-k9/persistent-breakpoints.nvim` fork. F9 / 
 `<leader>dX` keep their meanings. Both conditional prompts empty cancels;
 an empty logpoint prompt cancels.
 
-## Audit decision and fork assessment
-
-The evaluated persistent-breakpoints pin was
-`d1656221836207787b8a7969cc2dc72668c4742a`, also the main head returned by GitHub
-during this audit. Upstream was unarchived; its latest commit (2025-03-22)
-addresses session loading. No open PRs were returned. Open issues included #28
-(initialization/module loading) and #8 (whole-project loading).
-
-The maintenance fork fixes demonstrated storage and lifecycle defects while
-retaining the public mapping API. Its `store.lua` and `core.lua` replace unsafe
-storage and duplicate mutable state; there are no config-local persistence wrappers.
-No new runtime dependency was added. Fork maintenance includes the small enumeration
-boundary with nvim-dap and the storage/lifecycle regression suites.
-
-| Finding | Severity | Likelihood and practical impact | Evidence and disposition |
-| --- | --- | --- | --- |
-| Destination opened with `w+` before encoding | High | Encoding/I/O failures or interruption can lose the previous store | Injected unencodable value: save threw and a valid file became zero bytes. Validate/encode first, write/fsync a sibling, then rename. |
-| Decode errors escape initialization | High | Any truncated/malformed store can prevent setup | Invalid JSON reproduced a thrown load. Warn, preserve bytes and block writes to unreadable state. Ordinary debugging remains available. |
-| Slash-to-underscore cwd collision | High | Projects such as `/a_b/c` and `/a/b_c` share state | Reproduced identical filenames. Hash canonical cwd and verify root metadata. |
-| Editors overwrite stale whole maps | High | Likely with multiple editors of one project; another editor's work disappears | Independent store contexts now demonstrate stale-writer rejection under an exclusive lock. No silent last-writer-wins merge. |
-| DirChanged clears through `dap.breakpoints.clear()` | High | During debugging, signs and adapter breakpoints can disagree | Source-confirmed bypass of adapter broadcast. Defer switches during debugging; use public setters/clear. |
-| Restore uses low-level placement | Medium | Files loaded during debugging may show markers without notifying the adapter | Public setters now notify sessions; fake-session request recording tests this boundary. |
-| Snapshots do not automatically follow edits/renames | Medium | Wrong lines or old filenames after editing | Real sign movement/rename tests; capture tracked files on write/unload/exit and mapped changes. |
-| Unchecked write/close results | High, conditional | Disk full, permissions or filesystem failures may appear successful | Source-confirmed risk. Fault tests cover denied reads, partial/failed writes, fsync and rename; no real disk was filled. |
-| Session buffers exist before contents load | Medium | Premature/wrong-line restoration | Upstream #24 documents this history. Restore only loaded files, including late arrivals. |
-
 ## Lifecycle and debugger contract
 
 The persistence plugin and DAP load on BufReadPost. Setup reads the cwd store once and restores loaded files. BufReadPost,
@@ -44,12 +18,8 @@ External renames of unopened files cannot be inferred. Persisted fields are
 `line`, `condition`, `hitCondition` and `logMessage`; adapter IDs, verification
 results and buffer numbers are transient.
 
-Restore/clear use public `dap.set_breakpoint()` / `dap.clear_breakpoints()`.
-Enumeration uses one isolated typed but undocumented API, `dap.breakpoints.get()`:
-public quickfix lists omit structured fields. Test this contract on DAP updates.
-No adapter-specific persistence logic is involved. C/C++, Rust, Python, Bash and
-other adapters receive the same fields; support for conditional/hit/log features
-still depends on the adapter.
+Conditional breakpoints, hit counts and logpoints require support from the
+selected debug adapter.
 
 The effective cwd, including local cwd, owns the store; Scoper and launch roots
 do not redefine it. Realpath canonicalizes existing roots, without globally
@@ -145,36 +115,3 @@ or imported automatically. Stop all relevant editors, back up and inspect the
 directory, then remove only stale lock/temp files. File fsync is performed, but
 parent-directory fsync is not: power-loss durability is not guaranteed.
 Network shares and Windows antivirus/rename interference require native testing.
-
-## Validation and limitations
-
-Tests use temporary directories, never real user stores. Storage coverage includes
-all fields, first run/clear, migration preservation, malformed/truncated JSON,
-schema/path validation, Unicode/drive/UNC paths, injected permissions and I/O
-failures, partial writes, symlinks, stale writers and stale locks. Lifecycle tests
-use real DAP signs/setters for mapped prompts/F9, restart-like reinitialization,
-late/session loads, multiple files, renames, switches, clear and adapter notification.
-
-Validation here uses Linux/Neovim 0.12.6. Independent store contexts test concurrency
-interleavings, not a two-process Windows stress test. Native Windows/macOS, network
-shares, power-cut durability and live debuggees across every adapter are not
-certified. Full process restart and actual auto-session restoration remain useful
-native manual checks. CI gets fast ordinary specs, no new matrix or debugger
-downloads.
-
-Related pins: nvim-dap `cfa2d58f4537aca6ca83e2de1a0d9f1491121264` (also current
-upstream head queried), auto-session `02a5588f677970a9bc784115c62bef9e5855499b`,
-and the existing DAP UI fork revision in `lazy-lock.json`. Adapter definitions
-and launch configuration are unchanged.
-
-## Sources
-
-- [Persistence utilities](https://github.com/Weissle/persistent-breakpoints.nvim/blob/d1656221836207787b8a7969cc2dc72668c4742a/lua/persistent-breakpoints/utils.lua),
-  [API/lifecycle](https://github.com/Weissle/persistent-breakpoints.nvim/blob/d1656221836207787b8a7969cc2dc72668c4742a/lua/persistent-breakpoints/api.lua)
-  and [setup](https://github.com/Weissle/persistent-breakpoints.nvim/blob/d1656221836207787b8a7969cc2dc72668c4742a/lua/persistent-breakpoints/init.lua).
-- [Session issue #24](https://github.com/Weissle/persistent-breakpoints.nvim/issues/24),
-  [initialization issue #28](https://github.com/Weissle/persistent-breakpoints.nvim/issues/28),
-  [whole-project request #8](https://github.com/Weissle/persistent-breakpoints.nvim/issues/8).
-- [DAP API](https://github.com/mfussenegger/nvim-dap/blob/cfa2d58f4537aca6ca83e2de1a0d9f1491121264/doc/dap.txt),
-  [public setters/broadcast](https://github.com/mfussenegger/nvim-dap/blob/cfa2d58f4537aca6ca83e2de1a0d9f1491121264/lua/dap.lua)
-  and [enumeration contract](https://github.com/mfussenegger/nvim-dap/blob/cfa2d58f4537aca6ca83e2de1a0d9f1491121264/lua/dap/breakpoints.lua).

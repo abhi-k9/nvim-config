@@ -293,7 +293,7 @@ update. Scoper ships in this repository and updates with the configuration.
 
 | Dependency | Contract to verify before switching source or removing a workaround |
 |---|---|
-| Bufferline fork | Check `is_pinned(bufnr)`, diagnostic caching, and `restore_pins()` after scope restoration. Verify a saved session with hidden pins and a comma in a filename. [Migration and rollback](../bufferline-fork-migration-2026-11-09.md) |
+| Bufferline fork | Check `is_pinned(bufnr)`, diagnostic caching, and `restore_pins()` after scope restoration. Verify a saved session with hidden pins and a comma in a filename. [Migration and rollback](../editing-ui-configuration.md#migrating-saved-pins) |
 | DAP UI fork | Verify repeated open/close, control-buffer recreation and floating-window cleanup. Test the separate fixed-width guard independently. [Lifecycle checks](../debug-terminal-configuration.md#dap-ui-fork-and-toolbar-lifecycle) |
 | Persistent breakpoints fork | Before switching, verify that the candidate reads existing project stores, preserves all breakpoint fields, rejects stale writes, and reports failed clears. Back up the stores before a trial. [Storage and recovery](../breakpoint-persistence.md) |
 | Diffview+ | Check working-copy pinning, worktree overview, selected-line history and help in merge layouts before changing providers. |

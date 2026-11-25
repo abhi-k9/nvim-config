@@ -135,16 +135,16 @@ public `is_pinned(bufnr)` API. Unknown pin state cancels the whole operation,
 and stale entries hidden by tab scoping are excluded. The shared close helpers
 continue to skip unsaved edits and preserve windows.
 
-Pins use validated JSON and exact filenames. Legacy comma-separated pin data
-needs re-pinning and a session save; a single legacy filename is restored exactly.
-The config calls `restore_pins()` after scope has recreated hidden buffers.
-See the [migration and rollback plan](bufferline-fork-migration-2026-11-09.md).
+### Migrating saved pins
 
-The [responsiveness review](performance-review-2026-11-04.md#follow-up-local-bufferline-cache--2026-11-05)
-records the before/after measurements and their limits.
-The [Bufferline audit](bufferline-audit-2026-11-08.md) compares alternatives,
-records the original upstream defects and the maintenance-fork rationale.
-It is a historical audit; the migration document records the prepared fixes.
+Back up your sessions before switching Bufferline versions. When moving from
+upstream Bufferline to this config's fork, re-pin files from ambiguous
+comma-separated records and save the session again. A single legacy filename
+restores directly. Re-save sessions created before Neovim 0.12 as well.
+
+To roll back, restore the matching config and plugin lockfile together, run
+`:Lazy restore` and restart Neovim. Upstream reads the old pin format. Restore
+your session backup or re-pin the files you want to keep.
 
 ## Fold persistence and split sizing
 

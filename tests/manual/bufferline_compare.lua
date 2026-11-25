@@ -1,6 +1,6 @@
 -- Manual comparison only: run in a disposable Neovim process with an attached UI.
 -- arg[1]: native/cached/barbar/cokeline/mini; arg[2]: candidate checkout path.
--- See docs/bufferline-audit-2026-11-08.md for the bounded runner.
+-- See https://github.com/abhi-k9/nvim-config/blob/f29b83e101b6a13e0d050bdf7e7a8fb4c3c9eb84/docs/bufferline-audit-2026-11-08.md for the bounded runner.
 assert(#vim.api.nvim_list_uis() > 0, "this probe requires an attached UI")
 local kind, path = arg[1], arg[2]
 vim.opt.rtp = { vim.env.VIMRUNTIME, path, vim.fn.getcwd() }

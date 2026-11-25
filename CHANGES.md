@@ -383,7 +383,7 @@ the native regression check is retained.)*
 - In a 20-buffer Linux fixture, 10,000-diagnostic aggregation fell from about
   12.86 ms to 0.006 ms per warmed redraw; 100 unchanged renders made zero native
   diagnostic reads instead of 100. Record methods and limits in the
-  [responsiveness review](docs/performance-review-2026-11-04.md#follow-up-local-bufferline-cache--2026-11-05).
+  [responsiveness review](https://github.com/abhi-k9/nvim-config/blob/f29b83e101b6a13e0d050bdf7e7a8fb4c3c9eb84/docs/performance-review-2026-11-04.md#follow-up-local-bufferline-cache--2026-11-05).
 
 ## 2026-11-04 — Stage CI Neovim installs on the destination filesystem
 
@@ -394,7 +394,7 @@ the native regression check is retained.)*
   extraction-to-installation rename with `EXDEV`, before executing tests.
 - Keep the override scoped to Neovim setup and retain the immutable action pin.
   Document the source-confirmed cause and the separate Windows fixture correction
-  in [CI troubleshooting](docs/ci-troubleshooting.md#installer-filesystem-mismatch--2026-11-04).
+  in [CI troubleshooting](https://github.com/abhi-k9/nvim-config/blob/f29b83e101b6a13e0d050bdf7e7a8fb4c3c9eb84/docs/ci-troubleshooting.md#installer-filesystem-mismatch--2026-11-04).
 
 ## 2026-11-04 — Normalize the database-resolution test fixture on Windows
 
@@ -411,7 +411,7 @@ the native regression check is retained.)*
 
 - Record measured settings, Scoper and fold-restoration improvements, callback
   checks, upstream sources and platform limits in the
-  [responsiveness review](docs/performance-review-2026-11-04.md).
+  [responsiveness review](https://github.com/abhi-k9/nvim-config/blob/f29b83e101b6a13e0d050bdf7e7a8fb4c3c9eb84/docs/performance-review-2026-11-04.md).
 - Explain why forcing asynchronous Neo-tree scans was deferred after a stale
   navigation race, and retain bufferline diagnostic aggregation and restart
   polling as measured follow-up opportunities.
