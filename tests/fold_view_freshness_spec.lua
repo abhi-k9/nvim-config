@@ -36,8 +36,36 @@ describe("fold view freshness", function()
     vim.api.nvim_exec_autocmds("CursorHold", { buffer = buf, group = "user_fold_persistence" })
 
     assert.are.equal(0, source_stats)
-    assert.is_true(vim.b[buf].fold_view_settled)
     assert.are.equal(-1, vim.fn.foldclosed(2))
+  end)
+
+  it("preserves an existing view while large-file folding is disabled", function()
+    vim.b[buf].big_file = true
+    local contents = vim.fn.readfile(view)
+    vim.api.nvim_exec_autocmds("BufWinEnter", { buffer = buf, group = "user_fold_persistence" })
+    assert.equals(-1, vim.fn.foldclosed(2))
+    vim.api.nvim_exec_autocmds("BufWritePost", { buffer = buf, group = "user_fold_persistence" })
+    assert.same(contents, vim.fn.readfile(view))
+  end)
+
+  it("reasserts saved folds independently in two windows showing the same file", function()
+    local first = vim.api.nvim_get_current_win()
+    vim.cmd("split")
+    local second = vim.api.nvim_get_current_win()
+    local ok, err = pcall(function()
+      for _, win in ipairs({ first, second }) do
+        vim.api.nvim_set_current_win(win)
+        vim.api.nvim_exec_autocmds("BufWinEnter", { buffer = buf, group = "user_fold_persistence" })
+        vim.cmd("normal! zE")
+      end
+      for _, win in ipairs({ first, second }) do
+        vim.api.nvim_set_current_win(win)
+        vim.api.nvim_exec_autocmds("CursorHold", { buffer = buf, group = "user_fold_persistence" })
+        assert.equals(2, vim.fn.foldclosed(2))
+      end
+    end)
+    vim.api.nvim_win_close(second, true)
+    assert.is_true(ok, tostring(err))
   end)
 
   it("ignores a view when the file changed later in the same second", function()

@@ -42,6 +42,8 @@ next one is `.swo`, then `.swn`, and so on. Examples:
 | `%home%me%proj%main.cpp.swp` | `/home/me/proj/main.cpp` |
 
 Big files (over `vim.g.big_file_size`, default 1 MiB) are opened without a swap.
+They also skip on-demand parser installation and saved fold views. Changing the
+filetype keeps highlighting disabled while the buffer is in big-file mode.
 
 ## When you open a file that has a swap
 

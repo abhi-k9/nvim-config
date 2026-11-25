@@ -40,7 +40,9 @@ local FOLD_VIEW_SKIP_FT = { gitcommit = true, gitrebase = true, hgcommit = true,
 -- some have buftype "": their names aren't files, and loadview on one
 -- failed with "E484: Can't open file …/view//diffview:=+…".
 local function fold_view_eligible(buf)
-  return require("config.util").is_file_buffer(buf) and not FOLD_VIEW_SKIP_FT[vim.bo[buf].filetype]
+  return not vim.b[buf].big_file
+    and require("config.util").is_file_buffer(buf)
+    and not FOLD_VIEW_SKIP_FT[vim.bo[buf].filetype]
 end
 
 -- The file :mkview writes for `buf` (Neovim's get_view_file()): the
@@ -127,20 +129,20 @@ vim.api.nvim_create_autocmd("BufWinEnter", {
   group = fold_persistence,
   callback = function(args)
     if fold_view_eligible(args.buf) then
-      vim.b[args.buf].fold_view_settled = nil -- allow one reassert this entry
+      vim.w.fold_view_settled = nil -- allow one reassert this entry
       load_fold_view(args.buf)
     end
   end,
 })
 
 -- ...then reassert exactly once, after things go idle, to land after ufo's
--- async fold apply. The buffer-local flag makes this fire a single time per
+-- async fold apply. The window-local buffer ID makes this fire a single time per
 -- entry, so it never fights folds you open yourself afterward.
 vim.api.nvim_create_autocmd("CursorHold", {
   group = fold_persistence,
   callback = function(args)
-    if vim.b[args.buf].fold_view_settled then return end
-    vim.b[args.buf].fold_view_settled = true
+    if vim.w.fold_view_settled == args.buf then return end
+    vim.w.fold_view_settled = args.buf
     if fold_view_eligible(args.buf) then
       -- Fires ~updatetime after a gd / <C-o> / <C-i> jump settles, hence the
       -- cursor-preserving load.
