@@ -71,6 +71,33 @@ describe("editing policies", function()
     assert.are.same({ "keep trailing space  " }, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
   end)
 
+  it("uses the public context API for comment strings", function()
+    local name = "ts_context_commentstring"
+    local previous = package.loaded[name]
+    package.loaded[name] = {
+      calculate_commentstring = function()
+        return "context %s"
+      end,
+    }
+    local ok, value = pcall(vim.filetype.get_option, "lua", "commentstring")
+    package.loaded[name] = previous
+    assert.is_true(ok, tostring(value))
+    assert.equals("context %s", value)
+  end)
+
+  it("falls back to the filetype comment option when the context plugin is missing", function()
+    local name = "ts_context_commentstring"
+    local loaded, preload = package.loaded[name], package.preload[name]
+    package.loaded[name] = nil
+    package.preload[name] = function()
+      error("context plugin unavailable")
+    end
+    local ok, value = pcall(vim.filetype.get_option, "lua", "commentstring")
+    package.loaded[name], package.preload[name] = loaded, preload
+    assert.is_true(ok, tostring(value))
+    assert.equals("-- %s", value)
+  end)
+
   it("leaves comment continuation to the filetype when requested", function()
     settings.configure({ editing = { continue_comments = true } })
     vim.bo[buf].formatoptions = "croq"
