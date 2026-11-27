@@ -76,6 +76,7 @@ function M.format(buf, opts)
       if pending[buf] ~= state then return end
       state.client, state.request_id = nil, nil
       if not unchanged() then return finish("Formatting discarded: buffer changed") end
+      if not client.attached_buffers[buf] then return finish() end
       if err then return finish(client.name .. ": " .. (err.message or tostring(err))) end
       if edits and edits ~= vim.NIL then
         local applied, apply_err =

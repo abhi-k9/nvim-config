@@ -142,6 +142,13 @@ describe("asynchronous LSP formatting", function()
     )
   end)
 
+  it("discards a detached server response even when LspDetach was suppressed", function()
+    local original = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    client.attached_buffers[buf] = nil
+    response()
+    assert.are.same(original, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
+  end)
+
   it("cancels a request when its server detaches", function()
     vim.api.nvim_exec_autocmds("LspDetach", { buffer = buf, data = { client_id = client.id } })
     assert.are.same({ 1 }, cancelled)
