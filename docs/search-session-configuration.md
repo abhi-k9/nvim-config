@@ -405,6 +405,11 @@ Like markers, this preference belongs in local settings, not `.scoper.json`.
 
 ## Sessions and global buffers
 
+If a session save fails after closing debugger panels, fix the reported save
+error and use `<leader>du` to reopen the panels. Auto-session runs the layout
+restore hook after a successful write. A failed mid-session save can leave
+the panels closed while the debuggee continues running.
+
 `sessions.auto_save` and `auto_restore` default to `true`. Set both to `false`
 for manual sessions; `:AutoSession save`, `restore`, `search` and `delete` still
 work. Auto-session continues to name sessions by its own cwd contract; ordinary

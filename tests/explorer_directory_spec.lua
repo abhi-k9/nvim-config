@@ -86,7 +86,7 @@ describe("explorer directory startup", function()
     assert.is_nil(opened)
   end)
 
-  it("honors a startup restore deferred until the Lazy window closes", function()
+  local function deferred_startup()
     local directory = root .. "/requested directory"
     vim.fn.argv = function()
       return { directory }
@@ -107,6 +107,23 @@ describe("explorer directory startup", function()
     vim.wait(20)
     view.view = previous_view
     vim.api.nvim_win_close(popup, true)
+    return directory
+  end
+
+  it("retires the deferred hook when closing Lazy produces no session", function()
+    deferred_startup()
+    assert.is_true(vim.wait(500, function()
+      return #vim.api.nvim_get_autocmds({ group = "user_neotree_dir" }) == 0
+    end, 1))
+    vim.cmd("tabnew")
+    vim.cmd("doautoall SessionLoadPost")
+    vim.wait(20)
+    vim.cmd("tabclose!")
+    assert.is_nil(opened)
+  end)
+
+  it("honors a startup restore deferred until the Lazy window closes", function()
+    local directory = deferred_startup()
     -- The pinned auto-session schedules startup restoration from WinClosed.
     vim.schedule(function()
       vim.cmd("doautoall SessionLoadPost")
