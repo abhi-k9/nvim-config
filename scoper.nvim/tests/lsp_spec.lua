@@ -530,6 +530,26 @@ describe("scoper.lsp filtered compile_commands", function()
     assert.is_false(changed2)
   end)
 
+  it("skips synchronous fallback if the failed worker belongs to an old scope", function()
+    local cdb = require("scoper.cdb")
+    local original_run, original_cmd = cdb.run, lsp._worker_cmd
+    local runs = 0
+    cdb.run = function(...)
+      runs = runs + 1
+      return original_run(...)
+    end
+    lsp._worker_cmd = function()
+      return { vim.v.progpath, "--clean", "--headless", "+cquit 1" }
+    end
+    local ok, dir, _, _, _, obsolete = pcall(filter_async, function()
+      State.add_paths({ "lib" })
+    end)
+    cdb.run, lsp._worker_cmd = original_run, original_cmd
+    assert.is_true(ok, tostring(dir))
+    assert.is_true(obsolete)
+    assert.equals(0, runs)
+  end)
+
   it("answers a cache hit right away", function()
     lsp.write_filtered_compile_commands()
     local info

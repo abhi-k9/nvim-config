@@ -360,6 +360,12 @@ local function run_in_background(job, cb, opts)
       cleanup("failed (" .. why .. ")")
       return cb({ info = "background preparation failed: " .. why, reason = "worker_failed" })
     end
+    -- A project or scope switch can supersede a worker before its failure
+    -- arrives. Avoid parsing that entire database on the editor thread.
+    if job.context ~= M.context_key() then
+      cleanup("superseded")
+      return cb({ obsolete = true })
+    end
     cleanup("failed (" .. why .. "), filtered in this Neovim")
     if not warned_fallback then
       warned_fallback = true
@@ -432,7 +438,7 @@ function M._filter_async(cb, opts)
     if res then return deliver(res, selection) end
     run_in_background(job, function(r)
       local current, resolved = M.context_key()
-      if job.context ~= current then
+      if r.obsolete or job.context ~= current then
         -- The old operation must neither publish status for the new context
         -- nor hand a stale output to a restart caller.
         return cb(nil, "project, scope or database selection changed", false, true, true)
