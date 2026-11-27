@@ -203,6 +203,11 @@ callers do not need to parse notification text. A failed save still emits the
 change event: the accepted local scope can immediately affect search and clangd.
 
 Cooperating editors serialize compare-and-publish using an owner-marked lock.
+Scoper checks for a dead writer only when the lock records the local hostname.
+If a lock belongs to another host, or predates hostname tracking, confirm the
+writer has stopped before removing a leftover lock directory. Use separate
+Neovim data directories for containers with the same hostname and separate PID
+namespaces.
 A stale write is refused rather than merging scopes automatically. Changes that
 another editor saved are refreshed before the next mutation, provided this
 editor has no unsaved changes. Failed local publications are never replaced by

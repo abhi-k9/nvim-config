@@ -146,6 +146,20 @@ describe("Scoper cooperating state writers", function()
     assert.same(a.saved and a.include or b.include, persisted().scopes.default.include)
   end)
 
+  it("preserves locks whose owner cannot be identified as local", function()
+    State.add_paths("initial")
+    local lock = path .. ".lock"
+    vim.fn.mkdir(lock)
+    for _, name in ipairs({ "owner-2147483647-1", "owner-abcdef0123456789-2147483647-1" }) do
+      local owner = lock .. "/" .. name
+      vim.fn.writefile({}, owner)
+      assert.is_false(State.save())
+      assert.is_not_nil(stat(owner))
+      assert.same({ "initial" }, persisted().scopes.default.include)
+      vim.fn.delete(owner)
+    end
+  end)
+
   it("recovers a lock after its owning native editor exits during the write", function()
     local result = child("crash"):wait(15000)
     assert.equals(42, result.code, result.stderr)

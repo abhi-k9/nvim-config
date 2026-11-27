@@ -110,7 +110,10 @@ function M.new(root, fresh_state)
   -- rmdir then cannot remove a newly published, nonempty owner's directory.
   local function acquire_lock()
     local path = store_path() .. ".lock"
-    local owner = ("owner-%d-%.0f"):format(vim.fn.getpid(), vim.uv.hrtime())
+    -- PID liveness is meaningful only on the host that created the lock.
+    local hostname = vim.uv.os_gethostname()
+    local host = hostname and hostname ~= "" and vim.fn.sha256(hostname):sub(1, 16) or nil
+    local owner = ("owner-%s-%d-%.0f"):format(host or "unknown", vim.fn.getpid(), vim.uv.hrtime())
     local staging = path .. ".tmp-" .. owner
     local made, err = vim.uv.fs_mkdir(staging, 448)
     if not made then return nil, err end
@@ -135,7 +138,12 @@ function M.new(root, fresh_state)
           -- Published locks are never empty; this is an interrupted cleanup.
           vim.uv.fs_rmdir(path)
         elseif not extra then
-          local pid = tonumber(name:match("^owner%-(%d+)%-%d+$"))
+          local owner_host, owner_pid = name:match("^owner%-(%x+)%-(%d+)%-%d+$")
+          if not host or owner_host ~= host then
+            discard()
+            return nil, "cannot verify lock owner on this host; inspect before removing: " .. path
+          end
+          local pid = tonumber(owner_pid)
           local called, alive, _, code
           if pid and pid > 0 then
             called, alive, _, code = pcall(vim.uv.kill, pid, 0)
