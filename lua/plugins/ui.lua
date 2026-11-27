@@ -324,6 +324,7 @@ return {
             vim.schedule(function()
               local function valid()
                 return vim.api.nvim_buf_is_valid(target)
+                  and vim.bo[target].buflisted
                   and vim.api.nvim_win_is_valid(source_win)
                   and vim.api.nvim_win_get_tabpage(source_win) == source_tab
                   and vim.api.nvim_get_current_tabpage() == source_tab

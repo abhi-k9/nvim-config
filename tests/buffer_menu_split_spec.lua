@@ -97,6 +97,14 @@ describe("buffer menu split placement", function()
     assert.equals(count, #vim.api.nvim_tabpage_list_wins(0))
   end)
 
+  it("cancels a queued action when the target leaves the buffer list", function()
+    local pending = queued_action()
+    vim.bo[file].buflisted = false
+    local count = #vim.api.nvim_tabpage_list_wins(0)
+    pending()
+    assert.equals(count, #vim.api.nvim_tabpage_list_wins(0))
+  end)
+
   it("does not execute a queued split in a different tab", function()
     local pending = queued_action()
     vim.cmd("tabnew")

@@ -187,6 +187,13 @@ Start Neovim, run `:Lazy restore`, wait for it to finish, then restart. This
 uses the plugin revisions shipped with the configuration you pulled. The
 following workflow is for deliberately choosing and publishing newer revisions.
 
+If Bufferline reports `component is not implemented yet` during a restore,
+save your files and quit the editor completely. An open editor can still have
+the previous renderer in memory while loading newly installed modules. If the
+error recurs on a fresh launch, run `:Lazy restore bufferline.nvim`, wait for
+completion and restart. Use `:lua =vim.api.nvim_get_runtime_file("lua/bufferline.lua", true)`
+to check for duplicate installations if it persists.
+
 ## Update and share plugin versions (Git checkout)
 
 The committed `lazy-lock.json` is the shared plugin-version baseline. Commit an
