@@ -666,8 +666,12 @@ checkout’s runtime files and lockfile there, so a cold install can update
 its copy safely. Run the documented test command from the checkout root.
 For a focused run, append a spec path to the Neovim command below, for
 example `tests/config_spec.lua`. An absent target or a directory without
-specs exits with an error. To rebuild dependencies after changing pins locally, remove the dedicated
-`config-tests` directory after all test runs have exited.
+specs exits with an error. A warm local test cache can still contain the
+previous plugin revisions after a lockfile update. For a fresh run on Unix,
+use `XDG_CACHE_HOME="$(mktemp -d)" make test`. This leaves the old cache
+available and downloads a separate set of test dependencies. Alternatively,
+remove the dedicated `config-tests` directory after all test runs have exited
+and run the suite again.
 
 Without make (e.g. Windows), run the underlying commands from the repo
 root. In a POSIX shell, cmd.exe or PowerShell 7+:

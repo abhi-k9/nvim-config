@@ -20,8 +20,8 @@ Batching related commits into one push therefore reduces redundant runs.
 ## Manual native smoke and stress checks
 
 Use **Actions → CI → Run workflow** when changing startup, UI integration or
-plugin pins. This dispatch runs only the Windows and macOS smoke jobs; the
-ordinary regression jobs are skipped. There is no schedule and these jobs do
+plugin pins. This dispatch runs the Windows and macOS smoke jobs and the Windows
+debugger fixture described below. There is no schedule and these jobs do
 not run on pushes or pull requests. Manual and automatic runs have separate
 concurrency groups. Leave **stress** enabled for 25 short lifecycle cycles, or
 disable it for the basic smoke check. With GitHub CLI:
@@ -49,7 +49,10 @@ A small MessagePack client [attaches a Neovim UI over RPC](https://github.com/ne
 events without a physical terminal. Checks exercise startup, a literal filename,
 Telescope buffer search, Neo-tree source switching, the real scope.nvim session
 bridge, Bufferline diagnostic counts, and DAP panel open/close with sidebar width
-preservation. The stress phase repeats buffer/diagnostic/session/DAP lifecycles
+preservation. On Windows the horizontal terminal mapping also starts `cmd.exe`
+in a directory containing spaces, brackets and an ampersand. The check sends
+a command, verifies the reported directory and waits for shell exit to return
+focus to the source window. The stress phase repeats buffer/diagnostic/session/DAP lifecycles
 and checks for accumulating buffers, windows or config-owned `user_*`
 autocommands after warmup. Total callback growth, Lua heap size and elapsed time
 are reported, without fragile machine-speed or heap
