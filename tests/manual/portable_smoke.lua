@@ -72,7 +72,14 @@ if vim.fn.has("win32") == 1 then
     end),
     "cmd did not report the literal project directory"
   )
-  term:shutdown()
+  term:send("exit")
+  assert(
+    vim.wait(5000, function()
+      return not vim.api.nvim_buf_is_loaded(term.bufnr)
+        and vim.api.nvim_get_current_win() == source_win
+    end),
+    "terminal exit did not return to the source window"
+  )
   vim.o.shell = shell
   assert(vim.uv.chdir(cwd))
   vim.cmd.lcd(".")
