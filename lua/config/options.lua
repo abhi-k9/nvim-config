@@ -178,6 +178,6 @@ opt.synmaxcol = 240
 -- Safety: an UNTRUSTED file is never run; Neovim prompts and you `:trust`
 -- it after viewing. Trust is by content hash, so any edit asks again. It is
 -- not a sandbox — trusted Lua runs with full power, so only trust files you
--- would run by hand. Revoke with `:trust ++remove`; opt out with
--- `vim.o.exrc = false`.
-opt.exrc = true
+-- would run by hand. Revoke with `:trust ++remove`. Enable discovery with
+-- `options.exrc = true` in local.lua.
+opt.exrc = false

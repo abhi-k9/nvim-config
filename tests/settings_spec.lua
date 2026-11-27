@@ -88,6 +88,26 @@ describe("local customization lifecycle", function()
     assert.is_nil(settings.get("tools"))
   end)
 
+  it("rejects a non-regular local configuration before opening it", function()
+    local path = root .. "/local.json"
+    local stat, read = vim.uv.fs_stat, vim.fn.readfile
+    local opened = false
+    vim.uv.fs_stat = function(file)
+      if file == path then return { type = "fifo" } end
+      return stat(file)
+    end
+    vim.fn.readfile = function()
+      opened = true
+      return { "{}" }
+    end
+    local ok, result = pcall(settings.load, path)
+    vim.uv.fs_stat, vim.fn.readfile = stat, read
+    assert.is_true(ok)
+    assert.is_false(opened)
+    assert.is_false(result)
+    assert.equals(1, #messages)
+  end)
+
   it("accepts JSON objects but rejects arrays, null and malformed JSON", function()
     local path = root .. "/local.json"
     for _, input in ipairs({ "[]", "[1]", "null", "{" }) do

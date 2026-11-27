@@ -58,11 +58,15 @@ To disable a plugin, use a normal spec such as
 ## Project context and trust
 
 The settings module never searches a project for Lua or executes project files.
-Neovim's `exrc`/`:trust` mechanism remains responsible for project-file discovery.
+Neovim's `exrc` option controls discovery of project init files such as `.nvim.lua`.
 The shipped `exrc` default is false; explicitly pre-set options are preserved.
 Opt in with `options.exrc=true`, then review each file before trusting it. A
 trusted project file has the same access as the editor process; trust is not
 a sandbox. Explicit overlays registered below do not require enabling `exrc`.
+
+Lazy independently looks for a project plugin spec named `.lazy.lua` in the
+working directory or its ancestors. It uses Neovim's secure file reader to
+request trust before executing the spec. This applies even with `exrc` off.
 
 Trusted code can register a runtime overlay explicitly:
 

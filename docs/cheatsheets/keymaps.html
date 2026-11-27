@@ -558,7 +558,7 @@
     <tr><td><kbd class="lavender">gzn</kbd></td><td>Surround: change how many lines around the cursor are searched</td></tr>
     <tr><td><kbd class="lavender">q</kbd></td><td>Close help, man, quickfix, <code>:checkhealth</code> and test-popup windows <span class="note">not commit messages. <code>:cq</code> aborts the editor with a failure status; <code>:q!</code> only discards edits and may still accept an existing saved message.</span></td></tr>
     <tr><td><code>, . ! ? ; :</code> <span class="note">(insert)</span></td><td>Start a new undo step <span class="note">Markdown, text and commit messages only, so one <kbd>u</kbd> doesn't undo a paragraph; code buffers keep Vim's behaviour</span></td></tr>
-    <tr><td><code>:trust</code></td><td>Trust the current file (e.g. a project's <code>.nvim.lua</code>) <span class="note"><code>'exrc'</code> is on, so Neovim offers <code>.nvim.lua</code> from the working directory and its parents once you trust it; <code>:trust ++remove</code> revokes it</span></td></tr>
+    <tr><td><code>:trust</code></td><td>Trust the current file (e.g. a project's <code>.nvim.lua</code>) <span class="note">enable <code>options.exrc</code> in local.lua to discover <code>.nvim.lua</code> from the working directory and its parents once you trust it; <code>:trust ++remove</code> revokes it</span></td></tr>
   </table>
 </div>
 

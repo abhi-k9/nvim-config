@@ -122,7 +122,8 @@ function M.load(path)
   assert(type(path) == "string", "local configuration path must be a string or false")
   local stat, stat_err, stat_code = vim.uv.fs_stat(path)
   if not stat and stat_code == "ENOENT" then return true end
-  if not stat then
+  if not stat or stat.type ~= "file" then
+    stat_err = stat_err or "expected a regular file"
     vim.notify(
       "Local configuration could not be read: " .. path .. " (" .. tostring(stat_err) .. ")",
       vim.log.levels.ERROR
