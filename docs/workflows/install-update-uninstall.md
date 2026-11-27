@@ -158,15 +158,31 @@ in the seed built against that lockfile.
 leaves your current setup untouched:
 
 ```powershell
-Expand-Archive .\nvim-config.zip -DestinationPath "$env:TEMP\nvim-new"
-Move-Item "$env:TEMP\nvim-new\nvim" "$env:LOCALAPPDATA\nvim-new"
-$env:NVIM_APPNAME = 'nvim-new'; nvim     # this terminal only
+$dest = Join-Path $env:LOCALAPPDATA 'nvim-new'
+if (Test-Path -LiteralPath $dest) { throw "Choose an unused config name" }
+$stage = Join-Path ([IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString())
+Expand-Archive .\nvim-config.zip -DestinationPath $stage -ErrorAction Stop
+Move-Item -LiteralPath "$stage\nvim" -Destination $dest -ErrorAction Stop
+Remove-Item -LiteralPath $stage   # now empty
+cmd /d /c 'set "NVIM_APPNAME=nvim-new" && nvim'
 ```
 
 ```sh
-mkdir -p /tmp/nvim-new && unzip -q nvim-config.zip -d /tmp/nvim-new
-mv /tmp/nvim-new/nvim ~/.config/nvim-new
-env NVIM_APPNAME=nvim-new nvim
+(
+  set -e
+  parent="${XDG_CONFIG_HOME:-$HOME/.config}"
+  dest="$parent/nvim-new"
+  if [ -e "$dest" ] || [ -L "$dest" ]; then
+    echo "Choose an unused config name" >&2
+    exit 1
+  fi
+  mkdir -p "$parent"
+  stage=$(mktemp -d "$parent/.nvim-stage.XXXXXXXX")
+  unzip -q nvim-config.zip -d "$stage"
+  mv "$stage/nvim" "$dest"
+  rmdir "$stage"
+  env NVIM_APPNAME=nvim-new nvim
+)
 ```
 
 Its folders are then `nvim-new`, `nvim-new-data` (Windows) or
@@ -335,7 +351,9 @@ scoper scopes survive the update. Only the config folder is replaced.
    fi
    ```
 
-3. Carry over your own changes, if you made any. Compare the two folders:
+3. Copy your machine-specific `local.lua` and `local.json` from the backup if
+   you use them. Compare any other edits before carrying them over so the new
+   defaults and lockfile stay intact:
 
    ```sh
    git diff --no-index ~/.config/nvim.bak ~/.config/nvim
