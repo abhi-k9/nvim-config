@@ -152,6 +152,8 @@ local function picker_delete_buffers(prompt_bufnr)
     bufs[#bufs + 1] = entry.bufnr
   end
   require("config.util").delete_buffers_from_picker(bufs)
+  -- Deleting a buffer can synchronously close the picker via user hooks.
+  if not vim.api.nvim_buf_is_valid(prompt_bufnr) then return end
   picker:delete_selection(function(selection)
     -- Scope can show valid, unlisted buffers from other tabs. A skipped
     -- dirty row must remain visible there too; the helper wipes on success.

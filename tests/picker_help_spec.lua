@@ -134,6 +134,30 @@ describe("live picker help", function()
     end
   )
 
+  it("does not refresh a picker closed by a buffer deletion hook", function()
+    open()
+    for index = 1, picker.manager:num_results() do
+      if picker.manager:get_entry(index).bufnr == buffers[1] then
+        picker:set_selection(picker:get_row(index))
+        break
+      end
+    end
+    vim.api.nvim_create_autocmd("BufDelete", {
+      buffer = buffers[1],
+      once = true,
+      callback = function()
+        require("telescope.actions").close(prompt)
+      end,
+    })
+    local refreshed = false
+    picker.delete_selection = function()
+      refreshed = true
+    end
+    mapping("n", "<C-d>").callback()
+    assert.is_false(vim.api.nvim_buf_is_valid(prompt))
+    assert.is_false(refreshed)
+  end)
+
   it("shares buffer actions and hints with the all-tabs extension", function()
     local original_tab = vim.api.nvim_get_current_tabpage()
     vim.cmd("tabnew")
