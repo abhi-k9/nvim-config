@@ -370,7 +370,7 @@ debuggee. The fork carries its own focused control-lifecycle regression tests.
 
 References: [nvim-dap configurations and providers](https://github.com/mfussenegger/nvim-dap/blob/master/doc/dap.txt),
 [nvim-dap VS Code launch support](https://github.com/mfussenegger/nvim-dap/blob/master/lua/dap/ext/vscode.lua),
-and [Toggleterm configuration](https://github.com/akinsho/toggleterm.nvim#setup).
+and [Toggleterm configuration](https://github.com/abhi-k9/toggleterm.nvim#setup).
 
 ## Saved breakpoints
 

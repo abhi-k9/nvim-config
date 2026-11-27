@@ -22,7 +22,7 @@ return {
   -- toggleterm
   -- -------------------------------------------------------------------------
   {
-    "akinsho/toggleterm.nvim",
+    "abhi-k9/toggleterm.nvim",
     cmd = { "ToggleTerm", "TermExec" },
     -- <C-\> is mapped in NORMAL mode only. toggleterm's own open_mapping
     -- would also map it in terminal mode, but <C-\> is the prefix of the
