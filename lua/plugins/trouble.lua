@@ -4,12 +4,8 @@
 -- Lists LSP diagnostics, references, definitions, todo-comments, the
 -- quickfix and loclist, etc. in a single navigable window.
 
--- Temporary compatibility guard for the pinned Trouble View:at implementation.
--- Remove when upstream checks window validity before an implicit cursor lookup.
-local guarded_at
-
 return {
-  "folke/trouble.nvim",
+  "abhi-k9/trouble.nvim",
   cmd = "Trouble",
   keys = {
     -- stylua: ignore start
@@ -54,19 +50,6 @@ return {
   -- Gutter icons come from vim.diagnostic's sign config (lsp.lua). The
   -- preview keeps trouble's default: the main editor window, with an
   -- ephemeral buffer that stays out of :ls.
-  config = function(_, opts)
-    require("trouble").setup(opts)
-    local View = require("trouble.view")
-    if View.at == guarded_at then return end
-    local original = View.at
-    guarded_at = function(self, cursor)
-      -- A queued update can outlive the window while its buffer survives.
-      -- Keep explicit-row queries working and let genuine renderer errors surface.
-      if not cursor and not self.win:valid() then return {} end
-      return original(self, cursor)
-    end
-    View.at = guarded_at
-  end,
   opts = {
     -- References are a list workflow: keep even a single result visible.
     modes = { lsp_references = { auto_jump = false } },

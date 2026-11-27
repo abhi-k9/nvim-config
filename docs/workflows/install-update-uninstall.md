@@ -321,7 +321,7 @@ update. Scoper ships in this repository and updates with the configuration.
 | Persistent breakpoints fork | Before switching, verify that the candidate reads existing project stores, preserves all breakpoint fields, rejects stale writes, exports pending edits with `:PBExport`, and reports failed clears. Back up the stores before a trial. [Storage and recovery](../breakpoint-persistence.md) |
 | Toggleterm fork | Open horizontal and vertical terminals from a focused popup, reopen a numbered shell after changing project, and verify that closing a terminal tab tolerates an already closed window. |
 | Diffview+ | Check working-copy pinning, worktree overview, selected-line history and help in merge layouts before changing providers. |
-| Trouble | Remove the local cursor guard when the candidate handles an implicit lookup after its window closes. Run the Trouble lifecycle spec with the guard removed. |
+| Trouble fork | Run the Trouble lifecycle spec. Check that a single reference stays visible, closing the source window allows reopening the panel, and a late result leaves the reopened list intact. |
 | Neo-tree | The optional Scoper filter wraps the renderer’s `show_nodes`. Replace the wrapper when a supported filter hook can preserve mixed directories, nested files and toggle restoration. Run the Scoper explorer spec against the candidate. |
 
 ## Update to a new zip

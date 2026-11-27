@@ -63,14 +63,6 @@ describe("Trouble cursor lookup after window teardown", function()
       view:at()
     end, "renderer failure")
   end)
-
-  it("does not stack the guard on repeated configuration", function()
-    local spec = require("plugins.trouble")
-    spec.config(nil, spec.opts)
-    local first = View.at
-    spec.config(nil, spec.opts)
-    assert.equals(first, View.at)
-  end)
 end)
 
 describe("Trouble references reopening", function()
