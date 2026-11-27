@@ -100,12 +100,15 @@ def updated(source, overrides=None, resolver=resolve):
     output = source
     changes = []
     for match, action, repo, current, track in reversed(actions):
+        previous_track = track
         track = overrides.get(repo, track)
         commit = commits[(repo, track)].lower()
         replacement = f"{match['prefix']}{action}@{commit} # {track}"
         output = output[:match.start()] + replacement + output[match.end():]
         if current.lower() != commit:
             changes.append(f"{action}: {current} -> {commit} ({track})")
+        elif track != previous_track:
+            changes.append(f"{action}: track {previous_track} -> {track} (commit unchanged)")
     check_pins(output)
     return output, sorted(set(changes))
 

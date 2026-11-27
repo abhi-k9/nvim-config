@@ -33,6 +33,13 @@ class ActionPins(unittest.TestCase):
         output, _ = actions.updated(source, {"owner/action": "v3"}, lambda repo, ref: "b" * 40)
         self.assertEqual(output, f"uses: owner/action/cli@{'b' * 40} # v3\n")
 
+    def test_track_only_change_is_reported_in_dry_run(self):
+        sha = "a" * 40
+        source = f"uses: owner/action@{sha} # v2\n"
+        output, changes = actions.updated(source, {"owner/action": "v3"}, lambda repo, ref: sha)
+        self.assertTrue(output.endswith("# v3\n"))
+        self.assertEqual(changes, ["owner/action: track v2 -> v3 (commit unchanged)"])
+
     def test_missing_track_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "Missing update"):
             actions.check_pins(f"uses: owner/action@{'a' * 40}\n")
