@@ -45,6 +45,8 @@ def main():
                 root = Path(temporary)
                 env = os.environ.copy()
                 env.pop("NVIM", None)
+                env["XDG_CONFIG_DIRS"] = str(root / "system-config")
+                env["XDG_DATA_DIRS"] = str(root / "system-data")
                 env["NVIM_APPNAME"] = "nvim"
                 env["NVIM_LOG_FILE"] = str(root / "nvim.log")
                 env["NVIM_TERMINAL_AUDIT_ROOT"] = str(root)

@@ -50,6 +50,33 @@ local source, source_win = vim.api.nvim_get_current_buf(), vim.api.nvim_get_curr
 assert(vim.api.nvim_buf_get_lines(source, 0, 1, false)[1] == "portable smoke")
 assert(vim.fn.exists(":WorkspaceInfo") == 2 and vim.fn.exists(":ScoperToggle") == 2)
 assert(require("config.workspace").snapshot().launch_file, "workspace inspection failed")
+if vim.fn.has("win32") == 1 then
+  -- Drive the configured terminal through its normal mapping and read the
+  -- child shell's own cwd from disk. This also exercises ConPTY input.
+  local cwd = vim.fn.getcwd()
+  local project = cwd .. "/project [x] & spaces"
+  assert(vim.fn.mkdir(project) == 1)
+  assert(vim.uv.chdir(project))
+  vim.cmd.lcd(".")
+  local shell = vim.o.shell
+  vim.o.shell = "cmd.exe"
+  vim.cmd.normal(vim.g.mapleader .. "th")
+  local term = assert(require("toggleterm.terminal").get(1), "terminal mapping did not open cmd")
+  term:send("cd > cwd.txt")
+  local output = project .. "/cwd.txt"
+  assert(
+    vim.wait(5000, function()
+      return vim.fn.filereadable(output) == 1
+        and vim.fs.normalize(vim.fn.readfile(output)[1] or ""):lower()
+          == vim.fs.normalize(project):lower()
+    end),
+    "cmd did not report the literal project directory"
+  )
+  term:shutdown()
+  vim.o.shell = shell
+  assert(vim.uv.chdir(cwd))
+  vim.cmd.lcd(".")
+end
 local session = require("config.session")
 session.save_scopes()
 assert(session.restore_scopes(), "real scope.nvim session bridge failed")

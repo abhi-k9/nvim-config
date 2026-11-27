@@ -143,6 +143,8 @@ def main():
         (config / "local.lua").write_text(PREFERENCES, encoding="utf-8")
         env = os.environ.copy()
         env.pop("NVIM", None)
+        env["XDG_CONFIG_DIRS"] = str(root / "system-config")
+        env["XDG_DATA_DIRS"] = str(root / "system-data")
         env["NVIM_APPNAME"] = "nvim"
         (root / "log").mkdir()
         env["NVIM_LOG_FILE"] = str(root / "log" / "nvim.log")
