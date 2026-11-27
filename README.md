@@ -259,7 +259,7 @@ Each is documented in its file and easy to remove if you don't want it.
 | `nvim-mini/mini.align`            | `ga=` column-aligns selected lines on a delimiter.           | `editor.lua`      |
 | `folke/todo-comments.nvim`        | Highlight + jump between `TODO` / `FIXME` / `NOTE`.          | `editor.lua`      |
 | `JoosepAlviste/nvim-ts-context-commentstring` | Right comment style in JSX/Vue/Astro.            | `editor.lua`      |
-| `theHamsta/nvim-dap-virtual-text`  | Inline variable values at end-of-line while stopped (VS-style inline values). | `dap.lua`         |
+| `abhi-k9/nvim-dap-virtual-text`  | Inline variable values at end-of-line while stopped (VS-style inline values). | `dap.lua`         |
 | `danymat/neogen`                  | `<leader>cd` to scaffold a doc-comment for the function under the cursor (doxygen for C/C++, conventional style for other langs). | `neogen.lua`      |
 | `abhi-k9/persistent-breakpoints.nvim` | Validated, atomic DAP breakpoint persistence with legacy import. | `dap.lua` |
 | `XXiaoA/atone.nvim`               | `<leader>u` opens a visual undo-tree pane with TreeSitter-highlighted diff preview and persistent node marks. | `atone.lua`       |

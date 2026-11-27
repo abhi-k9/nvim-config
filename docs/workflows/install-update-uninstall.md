@@ -318,6 +318,7 @@ update. Scoper ships in this repository and updates with the configuration.
 |---|---|
 | Bufferline fork | Check numeric labels against jump targets after pinning, `is_pinned(bufnr)`, diagnostic caching, and `restore_pins()` after scope restoration. Verify a saved session with hidden pins and a comma in a filename. [Migration and rollback](../editing-ui-configuration.md#migrating-saved-pins) |
 | DAP UI fork | Verify repeated open/close, immediate reopen after a control-buffer wipe and floating-window cleanup. Test the separate fixed-width guard independently. [Lifecycle checks](../debug-terminal-configuration.md#dap-ui-fork-and-toolbar-lifecycle) |
+| DAP virtual text fork | Check current-frame inline values and the optional all-frames mode. Deliver a delayed variables response after switching sessions and verify the focused session’s values stay visible. |
 | Persistent breakpoints fork | Before switching, verify that the candidate reads existing project stores, preserves all breakpoint fields, rejects stale writes, exports pending edits with `:PBExport`, and reports failed clears. Back up the stores before a trial. [Storage and recovery](../breakpoint-persistence.md) |
 | Toggleterm fork | Open horizontal and vertical terminals from a focused popup, reopen a numbered shell after changing project, and verify that closing a terminal tab tolerates an already closed window. |
 | Diffview+ | Check working-copy pinning, worktree overview, selected-line history and help in merge layouts before changing providers. |

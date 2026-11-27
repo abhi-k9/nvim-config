@@ -253,7 +253,7 @@ return {
   -- buffer without a parser or that query just shows no inline values.
   -- -------------------------------------------------------------------------
   {
-    "theHamsta/nvim-dap-virtual-text",
+    "abhi-k9/nvim-dap-virtual-text",
     event = "VeryLazy",
     dependencies = { "mfussenegger/nvim-dap" },
     -- Toggle the end-of-line inline values on/off for when they get noisy
