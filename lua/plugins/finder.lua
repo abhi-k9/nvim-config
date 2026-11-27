@@ -98,7 +98,8 @@ end
 local function change_history()
   -- Capture the source buffer before Telescope creates its prompt window.
   local buf = vim.api.nvim_get_current_buf()
-  local changes = vim.deepcopy(vim.fn.getchangelist(buf)[1])
+  -- Vim returns a fresh list of change dictionaries for each call.
+  local changes = vim.fn.getchangelist(buf)[1]
   for _, change in ipairs(changes) do
     change.bufnr = buf
   end
@@ -118,9 +119,8 @@ local function all_change_history()
   for _, buf in ipairs(buffers) do
     if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].buflisted and vim.bo[buf].buftype == "" then
       for index, change in ipairs(vim.fn.getchangelist(buf)[1]) do
-        local entry = vim.deepcopy(change)
-        entry.bufnr, entry.history_index = buf, index
-        changes[#changes + 1] = entry
+        change.bufnr, change.history_index = buf, index
+        changes[#changes + 1] = change
       end
     end
   end
