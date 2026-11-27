@@ -19,8 +19,8 @@ local function save_stamp(path, now)
   if not fd then return false end
   local value = tostring(now) .. "\n"
   local written = vim.uv.fs_write(fd, value, 0)
-  vim.uv.fs_close(fd)
-  local ok = written == #value and vim.uv.fs_rename(temp, path)
+  local closed = vim.uv.fs_close(fd)
+  local ok = closed and written == #value and vim.uv.fs_rename(temp, path)
   if not ok then vim.uv.fs_unlink(temp) end
   return not not ok
 end

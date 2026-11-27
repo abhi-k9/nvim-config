@@ -131,6 +131,19 @@ describe("periodic tooling health reminder", function()
     assert.same({}, vim.fn.readdir(dir))
   end)
 
+  it("does not publish the reminder timestamp if closing the write fails", function()
+    local close = vim.uv.fs_close
+    vim.uv.fs_close = function(fd)
+      close(fd)
+      return nil, "simulated close failure"
+    end
+    local ok, err = pcall(reminder.check)
+    vim.uv.fs_close = close
+    assert.is_true(ok, tostring(err))
+    assert.same({}, vim.fn.readdir(dir))
+    assert.is_truthy(messages[1].text:find("could not be saved", 1, true))
+  end)
+
   it("handles a directory in place of the timestamp without a startup error", function()
     vim.fn.mkdir(dir .. "/tooling-reminder")
     reminder.check()
