@@ -79,6 +79,20 @@ describe("in-editor workflow references", function()
     )
     assert.is_truthy(warning:find(":ConfigHelp with Tab completion", 1, true))
   end)
+  it("ignores a late selection after opening the fallback guide", function()
+    local late
+    vim.ui.select = function(items, _, callback)
+      late = function()
+        callback(items[2])
+      end
+      error("selector failed after queuing a choice")
+    end
+    local fallback = require("config.guides").show()
+    views[#views + 1] = fallback
+    late()
+    assert.equals(fallback.win, vim.api.nvim_get_current_win())
+  end)
+
   it("keeps both commands usable in a bare editor without optional plugins", function()
     local path = vim.fn.tempname() .. ".lua"
     vim.fn.writefile({

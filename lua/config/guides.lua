@@ -88,12 +88,15 @@ function M.show(name)
     )
     return
   end
+  local finished = false
   local ok, err = pcall(vim.ui.select, topics, {
     prompt = "Configuration guides",
     format_item = function(topic)
       return topic[2]
     end,
   }, function(topic)
+    if finished then return end
+    finished = true
     if topic then open(topic) end
   end)
   if not ok then
@@ -103,7 +106,10 @@ function M.show(name)
         .. ". Use :ConfigHelp with Tab completion to choose a topic directly.",
       vim.log.levels.WARN
     )
-    return open(topics[1])
+    if not finished then
+      finished = true
+      return open(topics[1])
+    end
   end
 end
 
