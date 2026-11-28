@@ -30,7 +30,7 @@
   "nvim-autopairs": { "branch": "master", "commit": "3172f40c16563db871a58f20d205c710ad782311" },
   "nvim-dap": { "branch": "master", "commit": "cfa2d58f4537aca6ca83e2de1a0d9f1491121264" },
   "nvim-dap-ui": { "branch": "master", "commit": "379caa2e8f19bf6e1aff803b9dc0dddbca458d27" },
-  "nvim-dap-virtual-text": { "branch": "master", "commit": "e0ea46ced190f821a4ad66a05a82744f2d4527e2" },
+  "nvim-dap-virtual-text": { "branch": "master", "commit": "50ec55450481b04b4a2ae2e6c240650f0b9c416d" },
   "nvim-lspconfig": { "branch": "master", "commit": "9691c9af52cd12c9accc6dc6d0540593c705bca8" },
   "nvim-nio": { "branch": "master", "commit": "edcc181a875301dd21840189aa2f2f9ad69fc172" },
   "nvim-treesitter": { "branch": "main", "commit": "52773f0d13a0c11d0c3ef33c14ab6ecc1c17148b" },
@@ -50,6 +50,6 @@
   "telescope.nvim": { "branch": "master", "commit": "1e1bab730218eaf97fce743be3f56e51075928ac" },
   "todo-comments.nvim": { "branch": "main", "commit": "31e3c38ce9b29781e4422fc0322eb0a21f4e8668" },
   "toggleterm.nvim": { "branch": "main", "commit": "0fe09ed31eadcd0fbebb5b6b281da7429364fd4c" },
-  "trouble.nvim": { "branch": "main", "commit": "f90d1eed41282101851c1588923db63ed96c85ce" },
+  "trouble.nvim": { "branch": "main", "commit": "bd266f15ca4c2fdcd10a337302b5cac951d97a4a" },
   "which-key.nvim": { "branch": "main", "commit": "3aab2147e74890957785941f0c1ad87d0a44c15a" }
 }
